@@ -1,0 +1,20 @@
+# Ignore build product.
+argus
+
+bin/
+pkg/
+lib/
+*.out
+*.swp
+
+# for VSCode
+.vscode/
+
+# for goland
+.idea/
+
+# for releases
+.ignore/
+
+# vendor package
+vendor/
