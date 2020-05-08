@@ -15,7 +15,7 @@
  *
  */
 
-package webhookStore
+package webhookclient
 
 import (
 	"context"
