@@ -15,7 +15,7 @@
  *
  */
 
-package storetest
+package test
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -43,6 +43,7 @@ var GenericTestKeyPair = store.KeyItemPairRequest{
 	},
 }
 
+// StoreTest validates that a given store implementation works.
 func StoreTest(s store.S, storeTiming time.Duration, t *testing.T) {
 	assert := assert.New(t)
 
