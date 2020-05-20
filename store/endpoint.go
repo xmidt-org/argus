@@ -76,7 +76,7 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 
 		kv.ID = base64.RawURLEncoding.EncodeToString(sha256.New().Sum([]byte(kv.Identifier)))
 		fmt.Println(kv)
-		err := s.Push(kv.Key, kv.InternalItem)
+		err := s.Push(kv.Key, kv.OwnableItem)
 		return kv.Key, err
 	}
 }

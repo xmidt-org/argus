@@ -39,7 +39,7 @@ type Handler http.Handler
 
 type KeyItemPairRequest struct {
 	model.Key
-	InternalItem
+	OwnableItem
 	Method string
 }
 
@@ -68,7 +68,7 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			if request.ContentLength == 0 {
 				return KeyItemPairRequest{
 					Key: itemKey,
-					InternalItem: InternalItem{
+					OwnableItem: OwnableItem{
 						Owner: owner,
 					},
 					Method: request.Method,
@@ -86,7 +86,7 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			}
 			return KeyItemPairRequest{
 				Key: itemKey,
-				InternalItem: InternalItem{
+				OwnableItem: OwnableItem{
 					Item:  value,
 					Owner: owner,
 				},
@@ -101,7 +101,7 @@ func NewHandler(e endpoint.Endpoint) Handler {
 				"value", value,
 			)
 			if value != nil {
-				if items, ok := value.(map[string]InternalItem); ok {
+				if items, ok := value.(map[string]OwnableItem); ok {
 					payload := map[string]model.Item{}
 					for k, value := range items {
 						payload[k] = value.Item
@@ -114,7 +114,7 @@ func NewHandler(e endpoint.Endpoint) Handler {
 					response.Write(data)
 					return nil
 				}
-				if item, ok := value.(InternalItem); ok {
+				if item, ok := value.(OwnableItem); ok {
 					data, err := json.Marshal(&item.Item)
 					if err != nil {
 						return err

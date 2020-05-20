@@ -30,7 +30,7 @@ var GenericTestKeyPair = store.KeyItemPairRequest{
 		Bucket: "world",
 		ID:     "earth",
 	},
-	InternalItem: store.InternalItem{
+	OwnableItem: store.OwnableItem{
 		Item: model.Item{
 			Identifier: "earth",
 			Data: map[string]interface{}{
@@ -47,34 +47,34 @@ func StoreTest(s store.S, storeTiming time.Duration, t *testing.T) {
 	assert := assert.New(t)
 
 	t.Log("Basic Test")
-	err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.InternalItem)
+	err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
 	assert.NoError(err)
 	retVal, err := s.Get(GenericTestKeyPair.Key)
 	assert.NoError(err)
-	assert.Equal(GenericTestKeyPair.InternalItem, retVal)
+	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err := s.GetAll("world")
 	assert.NoError(err)
-	assert.Equal(map[string]store.InternalItem{"earth": GenericTestKeyPair.InternalItem}, items)
+	assert.Equal(map[string]store.OwnableItem{"earth": GenericTestKeyPair.OwnableItem}, items)
 
 	retVal, err = s.Delete(GenericTestKeyPair.Key)
 	assert.NoError(err)
-	assert.Equal(GenericTestKeyPair.InternalItem, retVal)
+	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err = s.GetAll("world")
 	assert.NoError(err)
-	assert.Equal(map[string]store.InternalItem{}, items)
+	assert.Equal(map[string]store.OwnableItem{}, items)
 
 	if storeTiming > 0 {
 		t.Log("staring duration tests")
-		err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.InternalItem)
+		err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
 		assert.NoError(err)
 		retVal, err := s.Get(GenericTestKeyPair.Key)
 		assert.NoError(err)
-		assert.Equal(GenericTestKeyPair.InternalItem, retVal)
+		assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 		time.Sleep(storeTiming + time.Second)
 		retVal, err = s.Get(GenericTestKeyPair.Key)
-		assert.Equal(store.InternalItem{}, retVal)
+		assert.Equal(store.OwnableItem{}, retVal)
 		assert.Equal(store.KeyNotFoundError{Key: GenericTestKeyPair.Key}, err)
 	}
 }

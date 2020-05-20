@@ -54,7 +54,7 @@ func connect(clusterConfig *gocql.ClusterConfig, logger log.Logger) (dbStore, er
 	return &cassandraExecutor{session: session, logger: logger}, nil
 }
 
-func (s *cassandraExecutor) Push(key model.Key, item store.InternalItem) error {
+func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 	data, err := json.Marshal(&item)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (s *cassandraExecutor) Push(key model.Key, item store.InternalItem) error {
 	return s.session.Query("INSERT INTO config (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
 }
 
-func (s *cassandraExecutor) Get(key model.Key) (store.InternalItem, error) {
+func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 	var (
 		data []byte
 		ttl  int64
@@ -76,15 +76,15 @@ func (s *cassandraExecutor) Get(key model.Key) (store.InternalItem, error) {
 		}
 	}()
 	for iter.Scan(&data, &ttl) {
-		item := store.InternalItem{}
+		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
 		item.TTL = ttl
 		return item, err
 	}
-	return store.InternalItem{}, noDataResponse
+	return store.OwnableItem{}, noDataResponse
 }
 
-func (s *cassandraExecutor) Delete(key model.Key) (store.InternalItem, error) {
+func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.Get(key)
 	if err != nil {
 		return item, err
@@ -93,8 +93,8 @@ func (s *cassandraExecutor) Delete(key model.Key) (store.InternalItem, error) {
 	return item, err
 }
 
-func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.InternalItem, error) {
-	result := map[string]store.InternalItem{}
+func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+	result := map[string]store.OwnableItem{}
 	var (
 		key  string
 		data []byte
@@ -102,7 +102,7 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.InternalItem
 	)
 	iter := s.session.Query("SELECT id, data, ttl(data) from config WHERE bucket = ?", bucket).Iter()
 	for iter.Scan(&key, &data, &ttl) {
-		item := store.InternalItem{}
+		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
 		if err != nil {
 			logging.Error(s.logger).Log(logging.MessageKey(), "failed to unmarshal data", "bucket", bucket, "id", key)

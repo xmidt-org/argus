@@ -24,20 +24,20 @@ import (
 )
 
 type InMem struct {
-	data map[string]map[string]store.InternalItem
+	data map[string]map[string]store.OwnableItem
 	lock sync.RWMutex
 }
 
 func ProvideInMem() store.S {
 	return &InMem{
-		data: map[string]map[string]store.InternalItem{},
+		data: map[string]map[string]store.OwnableItem{},
 	}
 }
 
-func (i *InMem) Push(key model.Key, item store.InternalItem) error {
+func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		i.data[key.Bucket] = map[string]store.InternalItem{
+		i.data[key.Bucket] = map[string]store.OwnableItem{
 			key.ID: item,
 		}
 	} else {
@@ -47,9 +47,9 @@ func (i *InMem) Push(key model.Key, item store.InternalItem) error {
 	return nil
 }
 
-func (i *InMem) Get(key model.Key) (store.InternalItem, error) {
+func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 	var (
-		item store.InternalItem
+		item store.OwnableItem
 		err  error
 	)
 	i.lock.RLock()
@@ -66,9 +66,9 @@ func (i *InMem) Get(key model.Key) (store.InternalItem, error) {
 	return item, err
 }
 
-func (i *InMem) GetAll(bucket string) (map[string]store.InternalItem, error) {
+func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	var (
-		items map[string]store.InternalItem
+		items map[string]store.OwnableItem
 		err   error
 	)
 
@@ -85,9 +85,9 @@ func (i *InMem) GetAll(bucket string) (map[string]store.InternalItem, error) {
 	return items, err
 }
 
-func (i *InMem) Delete(key model.Key) (store.InternalItem, error) {
+func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	var (
-		item store.InternalItem
+		item store.OwnableItem
 		err  error
 	)
 	i.lock.Lock()

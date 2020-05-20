@@ -25,6 +25,6 @@ import (
 func TestFilterOwner(t *testing.T) {
 	assert := assert.New(t)
 
-	results := FilterOwner(map[string]InternalItem{}, "")
-	assert.Equal(map[string]InternalItem{}, results)
+	results := FilterOwner(map[string]OwnableItem{}, "")
+	assert.Equal(map[string]OwnableItem{}, results)
 }

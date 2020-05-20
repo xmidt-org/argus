@@ -36,24 +36,24 @@ const (
 const DefaultTTL = 60 * 5
 
 type S interface {
-	Push(key model.Key, item InternalItem) error
-	Get(key model.Key) (InternalItem, error)
-	Delete(key model.Key) (InternalItem, error)
-	GetAll(bucket string) (map[string]InternalItem, error)
+	Push(key model.Key, item OwnableItem) error
+	Get(key model.Key) (OwnableItem, error)
+	Delete(key model.Key) (OwnableItem, error)
+	GetAll(bucket string) (map[string]OwnableItem, error)
 }
 
-type InternalItem struct {
+type OwnableItem struct {
 	model.Item
 
 	Owner string
 }
 
-func FilterOwner(value map[string]InternalItem, owner string) map[string]InternalItem {
+func FilterOwner(value map[string]OwnableItem, owner string) map[string]OwnableItem {
 	if owner == "" {
 		return value
 	}
 
-	filteredResults := map[string]InternalItem{}
+	filteredResults := map[string]OwnableItem{}
 	for k, v := range value {
 		if v.Owner == owner {
 			filteredResults[k] = v

@@ -32,11 +32,11 @@ func TestCassandra(t *testing.T) {
 	// require := require.New(t)
 	mockDB := &mockDB{}
 	mockDB.On("Push", mock.Anything, mock.Anything).Return(nil)
-	mockDB.On("Get", mock.Anything).Return(storetest.GenericTestKeyPair.InternalItem, nil).Once()
-	mockDB.On("Get", mock.Anything).Return(store.InternalItem{}, nil).Once()
-	mockDB.On("Delete", mock.Anything, mock.Anything).Return(storetest.GenericTestKeyPair.InternalItem, nil)
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.InternalItem{"earth": storetest.GenericTestKeyPair.InternalItem}, nil).Once()
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.InternalItem{}, nil).Once()
+	mockDB.On("Get", mock.Anything).Return(storetest.GenericTestKeyPair.OwnableItem, nil).Once()
+	mockDB.On("Get", mock.Anything).Return(store.OwnableItem{}, nil).Once()
+	mockDB.On("Delete", mock.Anything, mock.Anything).Return(storetest.GenericTestKeyPair.OwnableItem, nil)
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{"earth": storetest.GenericTestKeyPair.OwnableItem}, nil).Once()
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{}, nil).Once()
 
 	mockDB.On("Ping").Return(nil)
 

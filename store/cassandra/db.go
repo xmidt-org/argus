@@ -171,7 +171,7 @@ func CreateCassandraClient(config CassandraConfig, measures Measures, logger log
 	}, nil
 }
 
-func (s *CassandraClient) Push(key model.Key, item store.InternalItem) error {
+func (s *CassandraClient) Push(key model.Key, item store.OwnableItem) error {
 	err := s.client.Push(key, item)
 	if err != nil {
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.InsertType).Add(1.0)
@@ -181,7 +181,7 @@ func (s *CassandraClient) Push(key model.Key, item store.InternalItem) error {
 	return nil
 }
 
-func (s *CassandraClient) Get(key model.Key) (store.InternalItem, error) {
+func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
 		if err == noDataResponse {
@@ -194,7 +194,7 @@ func (s *CassandraClient) Get(key model.Key) (store.InternalItem, error) {
 	return item, nil
 }
 
-func (s *CassandraClient) Delete(key model.Key) (store.InternalItem, error) {
+func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
 		if err == noDataResponse {
@@ -207,7 +207,7 @@ func (s *CassandraClient) Delete(key model.Key) (store.InternalItem, error) {
 	return item, err
 }
 
-func (s *CassandraClient) GetAll(bucket string) (map[string]store.InternalItem, error) {
+func (s *CassandraClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
 		if err == noDataResponse {
