@@ -17,6 +17,10 @@
 
 package store
 
+import (
+	"github.com/xmidt-org/argus/model"
+)
+
 const (
 	// TypeLabel is for labeling metrics; if there is a single metric for
 	// successful queries, the typeLabel and corresponding type can be used
@@ -28,54 +32,31 @@ const (
 	PingType   = "ping"
 )
 
+const DefaultTTL = 60 * 5
+
 type S interface {
-	Push(key Key, item Item) error
-	Get(key Key) (Item, error)
-	Delete(key Key) (Item, error)
-	GetAll(bucket string) (map[string]Item, error)
+	Push(key model.Key, item InternalItem) error
+	Get(key model.Key) (InternalItem, error)
+	Delete(key model.Key) (InternalItem, error)
+	GetAll(bucket string) (map[string]InternalItem, error)
 }
 
-type Key struct {
-	Bucket string
-	ID     string
+type InternalItem struct {
+	model.Item
+
+	Owner string
 }
 
-type Attributes map[string]string
+func FilterOwner(value map[string]InternalItem, owner string) map[string]InternalItem {
+	if owner == "" {
+		return value
+	}
 
-func compare(a Attributes, b Attributes) bool {
-	if &a == &b {
-		return true
-	}
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if b[i] != v {
-			return false
+	filteredResults := map[string]InternalItem{}
+	for k, v := range value {
+		if v.Owner == owner {
+			filteredResults[k] = v
 		}
 	}
-	return true
-}
-
-type Item struct {
-	Attributes Attributes
-	Value      map[string]interface{}
-}
-
-func ToAttributes(item ...string) Attributes {
-	data := Attributes{}
-	for i := 0; i < len(item)-1; i += 2 {
-		data[item[i]] = item[i+1]
-	}
-	return data
-}
-
-func Filter(input map[string]Item, filter Attributes) map[string]Item {
-	newMap := map[string]Item{}
-	for k, item := range input {
-		if compare(filter, item.Attributes) {
-			newMap[k] = item
-		}
-	}
-	return newMap
+	return filteredResults
 }

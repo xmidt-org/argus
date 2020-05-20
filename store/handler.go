@@ -25,74 +25,72 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/themis/xlog"
 	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
 var (
-	ErrNoDomainVariable = errors.New("No bucket variable in URI definition")
+	ErrNoBucketVariable = errors.New("No bucket variable in URI definition")
 )
 
 type Handler http.Handler
 
-type KeyItemPair struct {
-	Key
-	Item
+type KeyItemPairRequest struct {
+	model.Key
+	InternalItem
+	Method string
 }
 
 func NewHandler(e endpoint.Endpoint) Handler {
 	return kithttp.NewServer(
 		e,
 		func(ctx context.Context, request *http.Request) (interface{}, error) {
-			attributes := ToAttributes(strings.Split(request.URL.Query().Get("attributes"), ",")...)
 
+			owner := request.Header.Get("X-Midt-Owner")
 			xlog.Get(ctx).Log(
 				level.Key(), level.InfoValue(),
 				xlog.MessageKey(), "request",
-				"attributes", attributes,
 				"mux", mux.Vars(request),
+				"owner", owner,
 			)
+
 			bucket, ok := mux.Vars(request)["bucket"]
 			if !ok {
-				return nil, ErrNoDomainVariable
+				return nil, ErrNoBucketVariable
 			}
-			key, ok := mux.Vars(request)["key"]
-			if !ok {
-				return KeyItemPair{
-					Key: Key{
-						Bucket: bucket,
-					},
-					Item: Item{
-						Attributes: attributes,
-						Value:      nil,
-					},
-				}, nil
-			}
-			itemKey := Key{
+			key, _ := mux.Vars(request)["key"]
+			itemKey := model.Key{
 				Bucket: bucket,
 				ID:     key,
 			}
 			if request.ContentLength == 0 {
-				return itemKey, nil
+				return KeyItemPairRequest{
+					Key: itemKey,
+					InternalItem: InternalItem{
+						Owner: owner,
+					},
+					Method: request.Method,
+				}, nil
 			}
 
 			data, err := ioutil.ReadAll(request.Body)
 			if err != nil {
 				return nil, err
 			}
-			value := map[string]interface{}{}
+			value := model.Item{}
 			err = json.Unmarshal(data, &value)
 			if err != nil {
 				return nil, err
 			}
-			return KeyItemPair{
+			return KeyItemPairRequest{
 				Key: itemKey,
-				Item: Item{
-					Attributes: attributes,
-					Value:      value,
+				InternalItem: InternalItem{
+					Item:  value,
+					Owner: owner,
 				},
+				Method: request.Method,
 			}, nil
 
 		},
@@ -103,10 +101,10 @@ func NewHandler(e endpoint.Endpoint) Handler {
 				"value", value,
 			)
 			if value != nil {
-				if items, ok := value.(map[string]Item); ok {
-					payload := map[string]map[string]interface{}{}
+				if items, ok := value.(map[string]InternalItem); ok {
+					payload := map[string]model.Item{}
 					for k, value := range items {
-						payload[k] = value.Value
+						payload[k] = value.Item
 					}
 					data, err := json.Marshal(&payload)
 					if err != nil {
@@ -116,8 +114,8 @@ func NewHandler(e endpoint.Endpoint) Handler {
 					response.Write(data)
 					return nil
 				}
-				if item, ok := value.(Item); ok {
-					data, err := json.Marshal(&item.Value)
+				if item, ok := value.(InternalItem); ok {
+					data, err := json.Marshal(&item.Item)
 					if err != nil {
 						return err
 					}

@@ -20,10 +20,10 @@ package webhookclient
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/webpa-common/logging"
 	"github.com/xmidt-org/webpa-common/webhook"
@@ -39,6 +39,7 @@ type ArgusConfig struct {
 	Address      string
 	Auth         Auth
 	Filters      map[string]string
+	DefaultTTL   int64
 }
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
@@ -77,7 +78,7 @@ func CreateArgusStore(config ArgusConfig, options ...Option) (*ArgusClient, erro
 	go func() {
 		for range clientStore.ticker.C {
 			if clientStore.options.listener != nil {
-				hooks, err := clientStore.GetWebhook()
+				hooks, err := clientStore.GetWebhook("")
 				if err == nil {
 					clientStore.options.listener.Update(hooks)
 				} else {
@@ -102,6 +103,9 @@ func validateArgusConfig(config *ArgusConfig) error {
 	if config.Bucket == "" {
 		config.Bucket = "testing"
 	}
+	if config.DefaultTTL == 0 {
+		config.DefaultTTL = 300
+	}
 	return nil
 }
 func determineTokenAcquirer(config ArgusConfig) (acquire.Acquirer, error) {
@@ -116,29 +120,19 @@ func determineTokenAcquirer(config ArgusConfig) (acquire.Acquirer, error) {
 
 	return defaultAcquirer, nil
 }
-func createAttributeFilter(filter map[string]string) string {
-	if len(filter) == 0 {
-		return ""
-	}
-	buf := bytes.NewBufferString("?attributes=")
 
-	for key, value := range filter {
-		buf.WriteString(key + "," + value)
-		buf.WriteString(",")
-	}
-	buf.Truncate(buf.Len() - 1)
-	return buf.String()
-}
-
-func (c *ArgusClient) GetWebhook() ([]webhook.W, error) {
+func (c *ArgusClient) GetWebhook(owner string) ([]webhook.W, error) {
 	hooks := []webhook.W{}
-	request, err := http.NewRequest("GET", fmt.Sprintf("%s/store/%s%s", c.config.Address, c.config.Bucket, createAttributeFilter(c.config.Filters)), nil)
+	request, err := http.NewRequest("GET", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), nil)
 	if err != nil {
 		return []webhook.W{}, err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
 		return []webhook.W{}, err
+	}
+	if owner != "" {
+		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
@@ -156,14 +150,14 @@ func (c *ArgusClient) GetWebhook() ([]webhook.W, error) {
 	}
 	response.Body.Close()
 
-	body := map[string]map[string]interface{}{}
+	body := map[string]model.Item{}
 	err = json.Unmarshal(data, &body)
 	if err != nil {
 		return []webhook.W{}, err
 	}
 
 	for _, value := range body {
-		data, err := json.Marshal(&value)
+		data, err := json.Marshal(&value.Data)
 		if err != nil {
 			continue
 		}
@@ -178,19 +172,44 @@ func (c *ArgusClient) GetWebhook() ([]webhook.W, error) {
 	return hooks, nil
 }
 
-func (c *ArgusClient) Push(w webhook.W) error {
-	id := base64.RawURLEncoding.EncodeToString([]byte(w.ID()))
-	data, err := json.Marshal(&w)
+func (c *ArgusClient) Push(w webhook.W, owner string) error {
+	webhookData, err := json.Marshal(&w)
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest("POST", fmt.Sprintf("%s/store/%s/%s%s", c.config.Address, c.config.Bucket, id, createAttributeFilter(c.config.Filters)), bytes.NewReader(data))
+	webhookPayload := map[string]interface{}{}
+	err = json.Unmarshal(webhookData, &webhookPayload)
+	if err != nil {
+		return err
+	}
+
+	var ttl int64
+	if int64(w.Duration.Seconds()) == 0 {
+		ttl = c.config.DefaultTTL
+	} else {
+		ttl = int64(w.Duration.Seconds())
+	}
+
+	item := model.Item{
+		Identifier: w.ID(),
+		Data:       webhookPayload,
+		TTL:        ttl,
+	}
+
+	data, err := json.Marshal(&item)
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequest("POST", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
 		return err
+	}
+	if owner != "" {
+		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
@@ -202,7 +221,7 @@ func (c *ArgusClient) Push(w webhook.W) error {
 	return nil
 }
 
-func (c *ArgusClient) Remove(id string) error {
+func (c *ArgusClient) Remove(id string, owner string) error {
 	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/store/%s/%s", c.config.Address, c.config.Bucket, id), nil)
 	if err != nil {
 		return err
@@ -210,6 +229,9 @@ func (c *ArgusClient) Remove(id string) error {
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
 		return err
+	}
+	if owner != "" {
+		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {

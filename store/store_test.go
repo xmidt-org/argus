@@ -22,20 +22,9 @@ import (
 	"testing"
 )
 
-func TestToAttributes(t *testing.T) {
+func TestFilterOwner(t *testing.T) {
 	assert := assert.New(t)
 
-	// simple
-	expected := Attributes{"1": "2", "stage": "beta"}
-	actual := ToAttributes("1", "2", "stage", "beta")
-	assert.Equal(expected, actual)
-
-	// odd number
-	actual = ToAttributes("1", "2", "stage", "beta", "rip")
-	assert.Equal(expected, actual)
-
-	// empty
-	expected = Attributes{}
-	actual = ToAttributes()
-	assert.Equal(expected, actual)
+	results := FilterOwner(map[string]InternalItem{}, "")
+	assert.Equal(map[string]InternalItem{}, results)
 }

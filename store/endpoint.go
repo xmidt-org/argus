@@ -19,13 +19,16 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/xmidt-org/argus/model"
 	"net/http"
 )
 
 type KeyNotFoundError struct {
-	Key Key
+	Key model.Key
 }
 
 func (knfe KeyNotFoundError) Error() string {
@@ -57,47 +60,68 @@ func (bre BadRequestError) StatusCode() int {
 func NewSetEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
-			kv KeyItemPair
+			kv KeyItemPairRequest
 			ok bool
 		)
-		if kv, ok = request.(KeyItemPair); !ok {
+		if kv, ok = request.(KeyItemPairRequest); !ok {
 			return nil, BadRequestError{Request: request}
 		}
-		err := s.Push(kv.Key, kv.Item)
+		if kv.Identifier == "" {
+			return nil, BadRequestError{Request: request}
+		}
+		if kv.TTL == 0 {
+			kv.TTL = DefaultTTL
+		}
+		// Generate ID from Item identifier
 
-		return nil, err
+		kv.ID = base64.RawURLEncoding.EncodeToString(sha256.New().Sum([]byte(kv.Identifier)))
+		fmt.Println(kv)
+		err := s.Push(kv.Key, kv.InternalItem)
+		return kv.Key, err
 	}
 }
 
 func NewGetEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
-			key Key
-			ok  bool
+			kv KeyItemPairRequest
+			ok bool
 		)
-		if key, ok = request.(Key); !ok {
+		if kv, ok = request.(KeyItemPairRequest); !ok {
 			return nil, BadRequestError{Request: request}
 		}
-		value, err := s.Get(key)
-
-		return value, err
+		if kv.Key.Bucket == "" || kv.Key.ID == "" {
+			return nil, BadRequestError{Request: request}
+		}
+		value, err := s.Get(kv.Key)
+		if err != nil {
+			return nil, err
+		}
+		if kv.Owner == value.Owner || kv.Owner == "" {
+			if kv.Method == "DELETE" {
+				value, err = s.Delete(kv.Key)
+				return value, err
+			}
+			return value, nil
+		}
+		return nil, KeyNotFoundError{
+			Key: kv.Key,
+		}
 	}
 }
 
 func NewGetAllEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
-			kv KeyItemPair
+			kv KeyItemPairRequest
 			ok bool
 		)
-		if kv, ok = request.(KeyItemPair); !ok {
+		if kv, ok = request.(KeyItemPairRequest); !ok {
 			return nil, BadRequestError{Request: request}
 		}
-		value, err := s.GetAll(kv.Key.Bucket)
-		if len(kv.Item.Attributes) > 1 {
-			return Filter(value, kv.Item.Attributes), err
-		}
 
-		return value, err
+		value, err := s.GetAll(kv.Key.Bucket)
+
+		return FilterOwner(value, kv.Owner), err
 	}
 }

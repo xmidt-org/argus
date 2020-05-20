@@ -18,25 +18,26 @@
 package inmem
 
 import (
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"sync"
 )
 
 type InMem struct {
-	data map[string]map[string]store.Item
+	data map[string]map[string]store.InternalItem
 	lock sync.RWMutex
 }
 
 func ProvideInMem() store.S {
 	return &InMem{
-		data: map[string]map[string]store.Item{},
+		data: map[string]map[string]store.InternalItem{},
 	}
 }
 
-func (i *InMem) Push(key store.Key, item store.Item) error {
+func (i *InMem) Push(key model.Key, item store.InternalItem) error {
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		i.data[key.Bucket] = map[string]store.Item{
+		i.data[key.Bucket] = map[string]store.InternalItem{
 			key.ID: item,
 		}
 	} else {
@@ -46,9 +47,9 @@ func (i *InMem) Push(key store.Key, item store.Item) error {
 	return nil
 }
 
-func (i *InMem) Get(key store.Key) (store.Item, error) {
+func (i *InMem) Get(key model.Key) (store.InternalItem, error) {
 	var (
-		item store.Item
+		item store.InternalItem
 		err  error
 	)
 	i.lock.RLock()
@@ -65,9 +66,9 @@ func (i *InMem) Get(key store.Key) (store.Item, error) {
 	return item, err
 }
 
-func (i *InMem) GetAll(bucket string) (map[string]store.Item, error) {
+func (i *InMem) GetAll(bucket string) (map[string]store.InternalItem, error) {
 	var (
-		items map[string]store.Item
+		items map[string]store.InternalItem
 		err   error
 	)
 
@@ -75,7 +76,7 @@ func (i *InMem) GetAll(bucket string) (map[string]store.Item, error) {
 	if item, ok := i.data[bucket]; ok {
 		items = item
 	} else {
-		err = store.KeyNotFoundError{Key: store.Key{
+		err = store.KeyNotFoundError{Key: model.Key{
 			Bucket: bucket,
 			ID:     "",
 		}}
@@ -84,9 +85,9 @@ func (i *InMem) GetAll(bucket string) (map[string]store.Item, error) {
 	return items, err
 }
 
-func (i *InMem) Delete(key store.Key) (store.Item, error) {
+func (i *InMem) Delete(key model.Key) (store.InternalItem, error) {
 	var (
-		item store.Item
+		item store.InternalItem
 		err  error
 	)
 	i.lock.Lock()
