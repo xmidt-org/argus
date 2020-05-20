@@ -56,17 +56,10 @@ An example response:
 }
 ```
 
-
-### Individual Item - `store/{bucket}/{id}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any json object that was created with the previous
-`PUT` request. An optional header `X-Midt-Owner` can be sent with the request, if the owner of the object matches the header value
-the object is returned, otherwise 404 will be returned. 
-
-
 ### Bucket - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent
-with the request, if supplied the results will be filtered down.
+with the request, if supplied the results will be filtered down. If `X-Midt-Owner` is empty then all the items will be returned.
 
 An example response:
 ```json
@@ -84,6 +77,29 @@ An example response:
         },
         "ttl": 255
     }
+}
+```
+
+
+### Individual Item - `store/{bucket}/{id}` endpoint
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any json object that was created with the previous
+`PUT` request. An optional header `X-Midt-Owner` can be sent with the request, if the owner of the object matches the header value
+the object is returned, otherwise 404 will be returned. 
+
+An example response:
+```json
+{
+    "identifier": "earth",
+    "data": {
+        "words": [
+            "What",
+            "a",
+            "Wonderful",
+            "World"
+        ],
+        "year": 1967
+    },
+    "ttl": 295
 }
 ```
 
