@@ -32,6 +32,7 @@ const (
 	PingType   = "ping"
 )
 
+// 5 minutes
 const DefaultTTL = 60 * 5
 
 type S interface {

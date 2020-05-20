@@ -103,7 +103,7 @@ func validateArgusConfig(config *ArgusConfig) error {
 	if config.Bucket == "" {
 		config.Bucket = "testing"
 	}
-	if config.DefaultTTL == 0 {
+	if config.DefaultTTL < 1 {
 		config.DefaultTTL = 300
 	}
 	return nil
@@ -184,7 +184,7 @@ func (c *ArgusClient) Push(w webhook.W, owner string) error {
 	}
 
 	var ttl int64
-	if int64(w.Duration.Seconds()) == 0 {
+	if int64(w.Duration.Seconds()) < 1 {
 		ttl = c.config.DefaultTTL
 	} else {
 		ttl = int64(w.Duration.Seconds())

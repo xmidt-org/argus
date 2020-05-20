@@ -69,7 +69,7 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 		if kv.Identifier == "" {
 			return nil, BadRequestError{Request: request}
 		}
-		if kv.TTL == 0 {
+		if kv.TTL < 1 {
 			kv.TTL = DefaultTTL
 		}
 		// Generate ID from Item identifier
