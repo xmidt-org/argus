@@ -37,7 +37,7 @@ const (
 	Yugabyte = "yugabyte"
 
 	defaultOpTimeout             = time.Duration(10) * time.Second
-	defaultDatabase              = "devices"
+	defaultDatabase              = "argus"
 	defaultNumRetries            = 0
 	defaultWaitTimeMult          = 1
 	defaultMaxNumberConnsPerHost = 2

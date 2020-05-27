@@ -8,7 +8,7 @@ docker-compose -f docker-compose-dynamodb-local.yaml up -d
 
 ```bash
 AWS_ACCESS_KEY_ID=accessKey AWS_SECRET_ACCESS_KEY=secretKey aws dynamodb  --endpoint-url http://localhost:8042 create-table \
-    --table-name demo-config \
+    --table-name gifnoc \
     --attribute-definitions \
         AttributeName=bucket,AttributeType=S \
         AttributeName=id,AttributeType=S \
@@ -20,5 +20,5 @@ AWS_ACCESS_KEY_ID=accessKey AWS_SECRET_ACCESS_KEY=secretKey aws dynamodb  --endp
     --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES \
     --region us-east-2
 
-AWS_ACCESS_KEY_ID=accessKey AWS_SECRET_ACCESS_KEY=secretKey aws dynamodb  --endpoint-url http://localhost:8042 --region us-east-2 update-time-to-live --table-name demo-config --time-to-live-specification "Enabled=true, AttributeName=expires"
+AWS_ACCESS_KEY_ID=accessKey AWS_SECRET_ACCESS_KEY=secretKey aws dynamodb  --endpoint-url http://localhost:8042 --region us-east-2 update-time-to-live --table-name gifnoc --time-to-live-specification "Enabled=true, AttributeName=expires"
 ```

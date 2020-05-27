@@ -1,5 +1,5 @@
-CREATE KEYSPACE IF NOT EXISTS config;
-CREATE TABLE config.config (
+CREATE KEYSPACE IF NOT EXISTS argus;
+CREATE TABLE argus.gifnoc (
     bucket VARCHAR,
     id VARCHAR,
     data blob,

@@ -45,7 +45,7 @@ servers:
 #  hosts:
 #    - "localhost:9042"
 #  # database is the name of the database being connected to.
-#  database: "config"
+#  database: "argus"
 #  # opTimeout is the timeout for database calls after argus is connected.
 #  # If the opTimeout is set to 0, it defaults to 10s.
 #  # (Optional) defaults to 10s
@@ -88,7 +88,7 @@ dynamo:
   endpoint: "http://localhost:8042"
 
   # table is the name of the table that is already configured with bucket and id as the key.
-  table: "demo-config"
+  table: "gifnoc"
 
   # region is where request should go to.
   region: "us-east-2"

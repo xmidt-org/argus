@@ -13,7 +13,7 @@ import (
 const (
 	DynamoDB = "dynamo"
 
-	defaultTable        = "config"
+	defaultTable        = "gifnoc"
 	defaultMaxRetries   = 3
 	defaultWaitTimeMult = 1
 )
