@@ -33,6 +33,16 @@ import (
 	"go.uber.org/fx"
 )
 
+const (
+	Yugabyte = "yugabyte"
+
+	defaultOpTimeout             = time.Duration(10) * time.Second
+	defaultDatabase              = "devices"
+	defaultNumRetries            = 0
+	defaultWaitTimeMult          = 1
+	defaultMaxNumberConnsPerHost = 2
+)
+
 type CassandraConfig struct {
 	// Hosts to  connect to. Must have at least one
 	Hosts []string
@@ -75,8 +85,6 @@ type CassandraClient struct {
 	logger   log.Logger
 	measures metric.Measures
 }
-
-const Yugabyte = "yugabyte"
 
 func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
 	var config CassandraConfig
@@ -233,14 +241,6 @@ func (s *CassandraClient) Ping() error {
 	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.PingType).Add(1.0)
 	return nil
 }
-
-const (
-	defaultOpTimeout             = time.Duration(10) * time.Second
-	defaultDatabase              = "devices"
-	defaultNumRetries            = 0
-	defaultWaitTimeMult          = 1
-	defaultMaxNumberConnsPerHost = 2
-)
 
 func validateConfig(config *CassandraConfig) {
 	zeroDuration := time.Duration(0) * time.Second

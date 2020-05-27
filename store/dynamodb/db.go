@@ -10,6 +10,14 @@ import (
 	"github.com/xmidt-org/themis/config"
 )
 
+const (
+	DynamoDB = "dynamo"
+
+	defaultTable        = "config"
+	defaultMaxRetries   = 3
+	defaultWaitTimeMult = 1
+)
+
 type Config struct {
 	Table      string
 	Endpoint   string
@@ -25,8 +33,6 @@ type DynamoClient struct {
 	logger   log.Logger
 	measures metric.Measures
 }
-
-const DynamoDB = "dynamo"
 
 func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures, logger log.Logger) (store.S, error) {
 	var config Config
@@ -108,12 +114,6 @@ func (s *DynamoClient) GetAll(bucket string) (map[string]store.OwnableItem, erro
 	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.ReadType).Add(1.0)
 	return item, err
 }
-
-const (
-	defaultTable        = "config"
-	defaultMaxRetries   = 3
-	defaultWaitTimeMult = 1
-)
 
 func validateConfig(config Config) {
 
