@@ -15,7 +15,7 @@
  *
  */
 
-package cassandra
+package metric
 
 import (
 	"github.com/go-kit/kit/metrics"

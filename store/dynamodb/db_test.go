@@ -15,7 +15,7 @@
  *
  */
 
-package cassandra
+package dynamodb
 
 import (
 	"github.com/stretchr/testify/mock"
@@ -28,7 +28,7 @@ import (
 	"testing"
 )
 
-func TestCassandra(t *testing.T) {
+func TestDynamo(t *testing.T) {
 	// TODO: Test metrics
 	// require := require.New(t)
 	mockDB := &test.MockDB{}
@@ -85,9 +85,9 @@ func TestCassandra(t *testing.T) {
 		}
 	})
 
-	s := &CassandraClient{
+	s := &DynamoClient{
 		client: mockDB,
-		config: CassandraConfig{},
+		config: Config{},
 		logger: logging.NewTestLogger(nil, t),
 		measures: metric.Measures{
 			PoolInUseConnections: p.NewGauge(metric.PoolInUseConnectionsGauge),

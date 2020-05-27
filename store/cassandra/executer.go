@@ -60,7 +60,7 @@ func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 		return err
 	}
 
-	return s.session.Query("INSERT INTO config (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
+	return s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
 }
 
 func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
@@ -68,7 +68,7 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 		data []byte
 		ttl  int64
 	)
-	iter := s.session.Query("SELECT data, ttl(data) from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
+	iter := s.session.Query("SELECT data, ttl(data) from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
 	defer func() {
 		err := iter.Close()
 		if err != nil {
@@ -89,7 +89,7 @@ func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	if err != nil {
 		return item, err
 	}
-	err = s.session.Query("DELETE from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
+	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
 	return item, err
 }
 
@@ -100,7 +100,7 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem,
 		data []byte
 		ttl  int64
 	)
-	iter := s.session.Query("SELECT id, data, ttl(data) from config WHERE bucket = ?", bucket).Iter()
+	iter := s.session.Query("SELECT id, data, ttl(data) from gifnoc WHERE bucket = ?", bucket).Iter()
 	for iter.Scan(&key, &data, &ttl) {
 		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)

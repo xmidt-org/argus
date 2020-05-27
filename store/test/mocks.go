@@ -15,7 +15,7 @@
  *
  */
 
-package cassandra
+package test
 
 import (
 	"github.com/stretchr/testify/mock"
@@ -23,35 +23,35 @@ import (
 	"github.com/xmidt-org/argus/store"
 )
 
-type mockDB struct {
+type MockDB struct {
 	mock.Mock
 }
 
-func (s *mockDB) Push(key model.Key, item store.OwnableItem) error {
+func (s *MockDB) Push(key model.Key, item store.OwnableItem) error {
 	args := s.Called(key, item)
 	return args.Error(0)
 }
 
-func (s *mockDB) Get(key model.Key) (store.OwnableItem, error) {
+func (s *MockDB) Get(key model.Key) (store.OwnableItem, error) {
 	args := s.Called(key)
 	return args.Get(0).(store.OwnableItem), args.Error(1)
 }
 
-func (s *mockDB) Delete(key model.Key) (store.OwnableItem, error) {
+func (s *MockDB) Delete(key model.Key) (store.OwnableItem, error) {
 	args := s.Called(key)
 	return args.Get(0).(store.OwnableItem), args.Error(1)
 }
 
-func (s *mockDB) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+func (s *MockDB) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	args := s.Called(bucket)
 	return args.Get(0).(map[string]store.OwnableItem), args.Error(1)
 }
 
-func (s *mockDB) Close() {
+func (s *MockDB) Close() {
 	s.Called()
 }
 
-func (s *mockDB) Ping() error {
+func (s *MockDB) Ping() error {
 	args := s.Called()
 	return args.Error(0)
 }

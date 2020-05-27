@@ -24,6 +24,7 @@ import (
 	"github.com/goph/emperror"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/webpa-common/logging"
 	"time"
 
@@ -32,11 +33,15 @@ import (
 	"go.uber.org/fx"
 )
 
-type CassandraIn struct {
-	fx.In
+const (
+	Yugabyte = "yugabyte"
 
-	Unmarshaller config.Unmarshaller
-}
+	defaultOpTimeout             = time.Duration(10) * time.Second
+	defaultDatabase              = "argus"
+	defaultNumRetries            = 0
+	defaultWaitTimeMult          = 1
+	defaultMaxNumberConnsPerHost = 2
+)
 
 type CassandraConfig struct {
 	// Hosts to  connect to. Must have at least one
@@ -78,12 +83,12 @@ type CassandraClient struct {
 	client   dbStore
 	config   CassandraConfig
 	logger   log.Logger
-	measures Measures
+	measures metric.Measures
 }
 
-func ProvideCassandra(in CassandraIn, metricsIn Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
+func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
 	var config CassandraConfig
-	err := in.Unmarshaller.UnmarshalKey("db", &config)
+	err := unmarshaller.UnmarshalKey(Yugabyte, &config)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +125,7 @@ func doEvery(d time.Duration, f func(time.Time)) *time.Ticker {
 	return ticker
 }
 
-func CreateCassandraClient(config CassandraConfig, measures Measures, logger log.Logger) (*CassandraClient, error) {
+func CreateCassandraClient(config CassandraConfig, measures metric.Measures, logger log.Logger) (*CassandraClient, error) {
 	if len(config.Hosts) == 0 {
 		return nil, errors.New("number of hosts must be > 0")
 	}
@@ -236,14 +241,6 @@ func (s *CassandraClient) Ping() error {
 	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.PingType).Add(1.0)
 	return nil
 }
-
-const (
-	defaultOpTimeout             = time.Duration(10) * time.Second
-	defaultDatabase              = "devices"
-	defaultNumRetries            = 0
-	defaultWaitTimeMult          = 1
-	defaultMaxNumberConnsPerHost = 2
-)
 
 func validateConfig(config *CassandraConfig) {
 	zeroDuration := time.Duration(0) * time.Second
