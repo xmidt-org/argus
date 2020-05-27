@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 - reworked api
 - removed cache from webhookclient package
+- added dynamodb support
 
 ## [v0.1.1]
 - fixed import error with webhookclient package
