@@ -85,7 +85,6 @@ func TestDynamo(t *testing.T) {
 		}
 	})
 
-
 	s := &DynamoClient{
 		client: mockDB,
 		config: Config{},

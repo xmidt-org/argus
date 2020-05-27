@@ -11,8 +11,7 @@ import (
 	"go.uber.org/fx"
 )
 
-const 	DynamoDB = "dynamo"
-
+const DynamoDB = "dynamo"
 
 func Provide(unmarshaller config.Unmarshaller, measures metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
 	if unmarshaller.IsSet(dynamodb.DynamoDB) {
