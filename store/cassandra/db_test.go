@@ -30,7 +30,7 @@ import (
 func TestCassandra(t *testing.T) {
 	// TODO: Test metrics
 	// require := require.New(t)
-	mockDB := &mockDB{}
+	mockDB := &test.MockDB{}
 	mockDB.On("Push", mock.Anything, mock.Anything).Return(nil)
 	mockDB.On("Get", mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, nil).Once()
 	mockDB.On("Get", mock.Anything).Return(store.OwnableItem{}, nil).Once()
