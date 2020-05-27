@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/themis/config"
 )
 
@@ -22,12 +23,14 @@ type DynamoClient struct {
 	client   store.S
 	config   Config
 	logger   log.Logger
-	measures Measures
+	measures metric.Measures
 }
 
-func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures Measures, logger log.Logger) (store.S, error) {
+const DynamoDB = "dynamo"
+
+func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures, logger log.Logger) (store.S, error) {
 	var config Config
-	err := unmarshaller.UnmarshalKey("dynamo", &config)
+	err := unmarshaller.UnmarshalKey(DynamoDB, &config)
 	if err != nil {
 		return nil, err
 	}

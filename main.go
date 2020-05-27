@@ -20,8 +20,8 @@ package main
 import (
 	"fmt"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/argus/store/cassandra"
-	"github.com/xmidt-org/argus/store/dynamodb"
+	"github.com/xmidt-org/argus/store/db"
+	"github.com/xmidt-org/argus/store/db/metric"
 	"os"
 	"runtime"
 	"time"
@@ -99,12 +99,12 @@ func main() {
 		xlog.Logger(),
 		config.CommandLine{Name: applicationName}.Provide(setupFlagSet),
 		provideMetrics(),
-		cassandra.ProvideMetrics(),
+		metric.ProvideMetrics(),
 		fx.Provide(
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
-			dynamodb.ProvideDynamodDB,
+			db.Provide,
 			store.Provide,
 			xhealth.Unmarshal("health"),
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),

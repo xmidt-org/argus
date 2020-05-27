@@ -20,6 +20,7 @@ package dynamodb
 import (
 	"github.com/stretchr/testify/mock"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/argus/store/test"
 	"github.com/xmidt-org/webpa-common/logging"
 	"github.com/xmidt-org/webpa-common/xmetrics"
@@ -43,41 +44,41 @@ func TestDynamo(t *testing.T) {
 	p := xmetricstest.NewProvider(nil, func() []xmetrics.Metric {
 		return []xmetrics.Metric{
 			{
-				Name: PoolInUseConnectionsGauge,
+				Name: metric.PoolInUseConnectionsGauge,
 				Type: "gauge",
 				Help: " The number of connections currently in use",
 			},
 			{
-				Name:       SQLDurationSeconds,
+				Name:       metric.SQLDurationSeconds,
 				Type:       "histogram",
 				Help:       "A histogram of latencies for requests.",
 				Buckets:    []float64{0.0625, 0.125, .25, .5, 1, 5, 10, 20, 40, 80, 160},
 				LabelNames: []string{store.TypeLabel},
 			},
 			{
-				Name:       SQLQuerySuccessCounter,
+				Name:       metric.SQLQuerySuccessCounter,
 				Type:       "counter",
 				Help:       "The total number of successful SQL queries",
 				LabelNames: []string{store.TypeLabel},
 			},
 			{
-				Name:       SQLQueryFailureCounter,
+				Name:       metric.SQLQueryFailureCounter,
 				Type:       "counter",
 				Help:       "The total number of failed SQL queries",
 				LabelNames: []string{store.TypeLabel},
 			},
 			{
-				Name: SQLInsertedRecordsCounter,
+				Name: metric.SQLInsertedRecordsCounter,
 				Type: "counter",
 				Help: "The total number of rows inserted",
 			},
 			{
-				Name: SQLReadRecordsCounter,
+				Name: metric.SQLReadRecordsCounter,
 				Type: "counter",
 				Help: "The total number of rows read",
 			},
 			{
-				Name: SQLDeletedRecordsCounter,
+				Name: metric.SQLDeletedRecordsCounter,
 				Type: "counter",
 				Help: "The total number of rows deleted",
 			},
@@ -89,25 +90,25 @@ func TestDynamo(t *testing.T) {
 		client: mockDB,
 		config: Config{},
 		logger: logging.NewTestLogger(nil, t),
-		measures: Measures{
-			PoolInUseConnections: p.NewGauge(PoolInUseConnectionsGauge),
-			SQLDuration:          p.NewHistogram(SQLDurationSeconds, 11),
-			SQLQuerySuccessCount: p.NewCounter(SQLQuerySuccessCounter),
-			SQLQueryFailureCount: p.NewCounter(SQLQueryFailureCounter),
-			SQLInsertedRecords:   p.NewCounter(SQLInsertedRecordsCounter),
-			SQLReadRecords:       p.NewCounter(SQLReadRecordsCounter),
-			SQLDeletedRecords:    p.NewCounter(SQLDeletedRecordsCounter),
+		measures: metric.Measures{
+			PoolInUseConnections: p.NewGauge(metric.PoolInUseConnectionsGauge),
+			SQLDuration:          p.NewHistogram(metric.SQLDurationSeconds, 11),
+			SQLQuerySuccessCount: p.NewCounter(metric.SQLQuerySuccessCounter),
+			SQLQueryFailureCount: p.NewCounter(metric.SQLQueryFailureCounter),
+			SQLInsertedRecords:   p.NewCounter(metric.SQLInsertedRecordsCounter),
+			SQLReadRecords:       p.NewCounter(metric.SQLReadRecordsCounter),
+			SQLDeletedRecords:    p.NewCounter(metric.SQLDeletedRecordsCounter),
 		},
 	}
-	p.Assert(t, SQLQuerySuccessCounter)(xmetricstest.Value(0.0))
-	p.Assert(t, SQLQueryFailureCounter)(xmetricstest.Value(0.0))
+	p.Assert(t, metric.SQLQuerySuccessCounter)(xmetricstest.Value(0.0))
+	p.Assert(t, metric.SQLQueryFailureCounter)(xmetricstest.Value(0.0))
 
 	test.StoreTest(s, 0, t)
-	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.ReadType)(xmetricstest.Value(3.0))
-	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.InsertType)(xmetricstest.Value(1.0))
-	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.DeleteType)(xmetricstest.Value(1.0))
-	p.Assert(t, SQLInsertedRecordsCounter)(xmetricstest.Value(0.0))
-	p.Assert(t, SQLReadRecordsCounter)(xmetricstest.Value(0.0))
-	p.Assert(t, SQLDeletedRecordsCounter)(xmetricstest.Value(0.0))
+	p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.ReadType)(xmetricstest.Value(3.0))
+	p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.InsertType)(xmetricstest.Value(1.0))
+	p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.DeleteType)(xmetricstest.Value(1.0))
+	p.Assert(t, metric.SQLInsertedRecordsCounter)(xmetricstest.Value(0.0))
+	p.Assert(t, metric.SQLReadRecordsCounter)(xmetricstest.Value(0.0))
+	p.Assert(t, metric.SQLDeletedRecordsCounter)(xmetricstest.Value(0.0))
 
 }

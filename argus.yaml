@@ -40,16 +40,16 @@ servers:
       X-Midt-Version:
         - development
 
-yugabyte:
-  # hosts is and array of address and port used to connect to the cluster.
-  hosts:
-    - "localhost:9042"
-  # database is the name of the database being connected to.
-  database: "config"
-  # opTimeout is the timeout for database calls after argus is connected.
-  # If the opTimeout is set to 0, it defaults to 10s.
-  # (Optional) defaults to 10s
-  opTimeout: 100ms
+#yugabyte:
+#  # hosts is and array of address and port used to connect to the cluster.
+#  hosts:
+#    - "localhost:9042"
+#  # database is the name of the database being connected to.
+#  database: "config"
+#  # opTimeout is the timeout for database calls after argus is connected.
+#  # If the opTimeout is set to 0, it defaults to 10s.
+#  # (Optional) defaults to 10s
+#  opTimeout: 100ms
 
 #  # username is the username to use when connecting to the database.
 #  # (Optional)

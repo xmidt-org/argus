@@ -24,6 +24,7 @@ import (
 	"github.com/goph/emperror"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/webpa-common/logging"
 	"time"
 
@@ -31,12 +32,6 @@ import (
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 )
-
-type CassandraIn struct {
-	fx.In
-
-	Unmarshaller config.Unmarshaller
-}
 
 type CassandraConfig struct {
 	// Hosts to  connect to. Must have at least one
@@ -78,12 +73,14 @@ type CassandraClient struct {
 	client   dbStore
 	config   CassandraConfig
 	logger   log.Logger
-	measures Measures
+	measures metric.Measures
 }
 
-func ProvideCassandra(in CassandraIn, metricsIn Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
+const Yugabyte = "yugabyte"
+
+func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
 	var config CassandraConfig
-	err := in.Unmarshaller.UnmarshalKey("db", &config)
+	err := unmarshaller.UnmarshalKey(Yugabyte, &config)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +117,7 @@ func doEvery(d time.Duration, f func(time.Time)) *time.Ticker {
 	return ticker
 }
 
-func CreateCassandraClient(config CassandraConfig, measures Measures, logger log.Logger) (*CassandraClient, error) {
+func CreateCassandraClient(config CassandraConfig, measures metric.Measures, logger log.Logger) (*CassandraClient, error) {
 	if len(config.Hosts) == 0 {
 		return nil, errors.New("number of hosts must be > 0")
 	}

@@ -15,7 +15,7 @@
  *
  */
 
-package dynamodb
+package metric
 
 import (
 	"github.com/go-kit/kit/metrics"
