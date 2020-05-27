@@ -40,7 +40,7 @@ servers:
       X-Midt-Version:
         - development
 
-db:
+yugabyte:
   # hosts is and array of address and port used to connect to the cluster.
   hosts:
     - "localhost:9042"
@@ -79,3 +79,27 @@ db:
 #  # See InSecureSkipVerify in http://golang.org/pkg/crypto/tls/ for more info
 #  # (Optional) defaults to false
 #  #enableHostVerification: false
+
+# dyanmo is the configuration block to communicate with dynamoDB.
+dynamo:
+
+  # endpoint is used to set a custom aws endpoint
+  # (Optional)
+  endpoint: "http://localhost:8042"
+
+  # table is the name of the table that is already configured with bucket and id as they key.
+  table: "demo-config"
+
+  # region is where reguest should go too.
+  region: "us-east-2"
+
+  # maxRetires is the maximum times the application will retry the request to the db.
+  # (Optional) default: 3
+  maxRetries: 3
+
+  # accessKey is the AWS accessKey to access dynamodb
+  accessKey: "accessKey"
+
+  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb
+  secretKey: "secretKey"
+

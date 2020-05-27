@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/cassandra"
+	"github.com/xmidt-org/argus/store/dynamodb"
 	"os"
 	"runtime"
 	"time"
@@ -103,7 +104,7 @@ func main() {
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
-			cassandra.ProvideCassandra,
+			dynamodb.ProvideDynamodDB,
 			store.Provide,
 			xhealth.Unmarshal("health"),
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),

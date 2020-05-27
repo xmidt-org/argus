@@ -45,7 +45,7 @@ type S interface {
 type OwnableItem struct {
 	model.Item
 
-	Owner string
+	Owner string `json:"owner"`
 }
 
 func FilterOwner(value map[string]OwnableItem, owner string) map[string]OwnableItem {
