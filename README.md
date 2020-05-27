@@ -31,35 +31,77 @@ By participating, you agree to this Code.
 argus has one function: interact with a database whether it is internal or external.
 To enable this, argus has two endpoints: 1) individual items, and 2) buckets containing items.
 
-#### Individual Item - `store/{bucket}/{id}[?attributes=<tags>]` endpoint
-This endpoint allows for `POST`, `GET`, and `DELETE` REST methods to interact with any json object.
-When doing a `POST`, **attributes** is an _optional_ query param where the subsequent comma separated strings add tags
-to the item for future filtering when retrieving items from a bucket. For example, `?attributes=stage,beta,flavor,blue`
-becomes `stage=beta` AND `flavor=blue`.
+### Create Individual Item - `store/{bucket}` endpoint
+This endpoint allows for clients to `PUT` an object into argus. The body must be in json format with _identifier_ and
+_data_. _ttl_ is an optional field in seconds, if not set it will become 5 minutes. An optional header `X-Midt-Owner` can be sent
+to associate the object with an owner. 
 
-
-#### Bucket - `store/{bucket}[?attributes=<tags>]` endpoint
-This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
-An example response will look like where "earth" is the id of the item.
-
-```
+An example put object
+```json
 {
-    "earth": {
-        "year": 1967,
+  "identifier" : "earth",
+  "data": {
+    "year":  1967,
+     "words": ["What", "a", "Wonderful", "World"]
+  },
+  "ttl" : 300
+}
+```
+
+An example response: 
+```json
+{
+  "bucket" : "world",
+  "id":  "ZWFydGjjsMRCmPwcFJr79MiZb7kkJ65B5GSbk0yklZkbeFK4VQ"
+}
+```
+
+### Bucket - `store/{bucket}` endpoint
+This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
+An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent
+with the request, if supplied the results will be filtered down. If `X-Midt-Owner` is empty then all the items will be returned.
+
+An example response:
+```json
+{
+    "ZWFydGjjsMRCmPwcFJr79MiZb7kkJ65B5GSbk0yklZkbeFK4VQ": {
+        "identifier": "earth",
+        "data": {
+            "words": [
+                "What",
+                "a",
+                "Wonderful",
+                "World"
+            ],
+            "year": 1967
+        },
+        "ttl": 255
+    }
+}
+```
+
+
+### Individual Item - `store/{bucket}/{id}` endpoint
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any json object that was created with the previous
+`PUT` request. An optional header `X-Midt-Owner` can be sent with the request, if the owner of the object matches the header value
+the object is returned, otherwise 404 will be returned. 
+
+An example response:
+```json
+{
+    "identifier": "earth",
+    "data": {
         "words": [
             "What",
             "a",
             "Wonderful",
             "World"
-        ]
-    }
+        ],
+        "year": 1967
+    },
+    "ttl": 295
 }
 ```
-
-`atributes` is an _optional_ query parameter that allows consumers to filter results on. For example, if a bucket has
-one item with the tags `stage=beta` AND `flavor=blue`, and there is a request with `?attributes=stage,beta` the item is
-returned. Where as, if the request is `?attributes=stage,beta,area,water` no items will be returned. If no attributes are
-sent with the request, all items in the bucket will be returned. 
 
 
 ## Build

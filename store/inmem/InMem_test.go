@@ -18,11 +18,11 @@
 package inmem
 
 import (
-	"github.com/xmidt-org/argus/store/storetest"
+	"github.com/xmidt-org/argus/store/test"
 	"testing"
 )
 
 func TestInMemStore(t *testing.T) {
 	s := ProvideInMem()
-	storetest.StoreTest(s, 0, t)
+	test.StoreTest(s, 0, t)
 }

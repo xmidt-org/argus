@@ -26,10 +26,10 @@ import (
 type Pusher interface {
 	// Push applies user configurable for registering a webhook
 	// i.e. updated the storage with said webhook.
-	Push(w webhook.W) error
+	Push(w webhook.W, owner string) error
 
 	// Remove will remove the webhook from the store
-	Remove(id string) error
+	Remove(id string, owner string) error
 
 	// Stop will stop all threads and cleanup any necessary resources
 	Stop(context context.Context)
@@ -51,7 +51,7 @@ func (listner ListenerFunc) Update(hooks []webhook.W) {
 
 type Reader interface {
 	// GetWebhook will return all the current webhooks or an error.
-	GetWebhook() ([]webhook.W, error)
+	GetWebhook(owner string) ([]webhook.W, error)
 }
 
 type ConfigureListener interface {

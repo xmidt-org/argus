@@ -23,6 +23,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/webpa-common/logging"
 )
@@ -53,58 +54,55 @@ func connect(clusterConfig *gocql.ClusterConfig, logger log.Logger) (dbStore, er
 	return &cassandraExecutor{session: session, logger: logger}, nil
 }
 
-func (s *cassandraExecutor) Push(key store.Key, item store.Item) error {
+func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 	data, err := json.Marshal(&item)
 	if err != nil {
 		return err
 	}
 
-	return s.session.Query("INSERT INTO config (bucket, id, data) VALUES (?,?,?)", key.Bucket, key.ID, data).Exec()
+	return s.session.Query("INSERT INTO config (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
 }
 
-func (s *cassandraExecutor) Get(key store.Key) (store.Item, error) {
-	var data []byte
-	iter := s.session.Query("SELECT data from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
+func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
+	var (
+		data []byte
+		ttl  int64
+	)
+	iter := s.session.Query("SELECT data, ttl(data) from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
 	defer func() {
 		err := iter.Close()
 		if err != nil {
 			logging.Error(s.logger).Log(logging.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
 		}
 	}()
-	for iter.Scan(&data) {
-		item := store.Item{}
+	for iter.Scan(&data, &ttl) {
+		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
+		item.TTL = ttl
 		return item, err
 	}
-	return store.Item{}, noDataResponse
+	return store.OwnableItem{}, noDataResponse
 }
 
-func (s *cassandraExecutor) Delete(key store.Key) (store.Item, error) {
-	var data []byte
-	iter := s.session.Query("DELETE from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
-	defer func() {
-		err := iter.Close()
-		if err != nil {
-			logging.Error(s.logger).Log(logging.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
-		}
-	}()
-	for iter.Scan(&data) {
-		item := store.Item{}
-		err := json.Unmarshal(data, &item)
+func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
+	item, err := s.Get(key)
+	if err != nil {
 		return item, err
 	}
-	return store.Item{}, noDataResponse
+	err = s.session.Query("DELETE from config WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
+	return item, err
 }
 
-func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.Item, error) {
-	result := map[string]store.Item{}
+func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+	result := map[string]store.OwnableItem{}
 	var (
 		key  string
 		data []byte
+		ttl  int64
 	)
-	iter := s.session.Query("SELECT id, data from config WHERE bucket = ?", bucket).Iter()
-	for iter.Scan(&key, &data) {
-		item := store.Item{}
+	iter := s.session.Query("SELECT id, data, ttl(data) from config WHERE bucket = ?", bucket).Iter()
+	for iter.Scan(&key, &data, &ttl) {
+		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
 		if err != nil {
 			logging.Error(s.logger).Log(logging.MessageKey(), "failed to unmarshal data", "bucket", bucket, "id", key)
@@ -112,6 +110,7 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.Item, error)
 			key = ""
 			continue
 		}
+		item.TTL = ttl
 		result[key] = item
 	}
 	err := iter.Close()

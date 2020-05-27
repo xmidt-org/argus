@@ -103,10 +103,10 @@ type GetAllRoutesIn struct {
 func BuildPrimaryRoutes(router PrimaryRouter, sin SetRoutesIn, gin GetRoutesIn, gain GetAllRoutesIn) {
 	if router.Handler != nil {
 		if sin.Handler != nil {
-			router.Router.Handle("/store/{bucket}/{key}", sin.Handler).Methods("POST")
+			router.Router.Handle("/store/{bucket}", sin.Handler).Methods("PUT")
 		}
 		if gin.Handler != nil {
-			router.Router.Handle("/store/{bucket}/{key}", gin.Handler).Methods("GET")
+			router.Router.Handle("/store/{bucket}/{key}", gin.Handler).Methods("GET", "DELETE")
 		}
 		if gain.Handler != nil {
 			router.Router.Handle("/store/{bucket}", gain.Handler).Methods("GET")

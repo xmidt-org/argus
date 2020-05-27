@@ -20,7 +20,7 @@ package cassandra
 import (
 	"github.com/stretchr/testify/mock"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/argus/store/storetest"
+	"github.com/xmidt-org/argus/store/test"
 	"github.com/xmidt-org/webpa-common/logging"
 	"github.com/xmidt-org/webpa-common/xmetrics"
 	"github.com/xmidt-org/webpa-common/xmetrics/xmetricstest"
@@ -32,11 +32,11 @@ func TestCassandra(t *testing.T) {
 	// require := require.New(t)
 	mockDB := &mockDB{}
 	mockDB.On("Push", mock.Anything, mock.Anything).Return(nil)
-	mockDB.On("Get", mock.Anything).Return(storetest.GenericTestKeyPair.Item, nil).Once()
-	mockDB.On("Get", mock.Anything).Return(store.Item{}, nil).Once()
-	mockDB.On("Delete", mock.Anything, mock.Anything).Return(storetest.GenericTestKeyPair.Item, nil)
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.Item{"earth": storetest.GenericTestKeyPair.Item}, nil).Once()
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.Item{}, nil).Once()
+	mockDB.On("Get", mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, nil).Once()
+	mockDB.On("Get", mock.Anything).Return(store.OwnableItem{}, nil).Once()
+	mockDB.On("Delete", mock.Anything, mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, nil)
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{"earth": test.GenericTestKeyPair.OwnableItem}, nil).Once()
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{}, nil).Once()
 
 	mockDB.On("Ping").Return(nil)
 
@@ -166,7 +166,7 @@ func TestCassandra(t *testing.T) {
 	p.Assert(t, SQLQuerySuccessCounter)(xmetricstest.Value(0.0))
 	p.Assert(t, SQLQueryFailureCounter)(xmetricstest.Value(0.0))
 
-	storetest.StoreTest(s, 0, t)
+	test.StoreTest(s, 0, t)
 	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.ReadType)(xmetricstest.Value(3.0))
 	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.InsertType)(xmetricstest.Value(1.0))
 	p.Assert(t, SQLQuerySuccessCounter, store.TypeLabel, store.DeleteType)(xmetricstest.Value(1.0))

@@ -15,61 +15,67 @@
  *
  */
 
-package storetest
+package test
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"testing"
 	"time"
 )
 
-var GenericTestKeyPair = store.KeyItemPair{
-	Key: store.Key{
+var GenericTestKeyPair = store.KeyItemPairRequest{
+	Key: model.Key{
 		Bucket: "world",
 		ID:     "earth",
 	},
-	Item: store.Item{
-		Attributes: nil,
-		Value: map[string]interface{}{
-			"year":  1967,
-			"words": []string{"What", "a", "Wonderful", "World"},
+	OwnableItem: store.OwnableItem{
+		Item: model.Item{
+			Identifier: "earth",
+			Data: map[string]interface{}{
+				"year":  float64(1967),
+				"words": []interface{}{"What", "a", "Wonderful", "World"},
+			},
+			TTL: 3,
 		},
+		Owner: "Louis Armstrong",
 	},
 }
 
+// StoreTest validates that a given store implementation works.
 func StoreTest(s store.S, storeTiming time.Duration, t *testing.T) {
 	assert := assert.New(t)
 
 	t.Log("Basic Test")
-	err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.Item)
+	err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
 	assert.NoError(err)
 	retVal, err := s.Get(GenericTestKeyPair.Key)
 	assert.NoError(err)
-	assert.Equal(GenericTestKeyPair.Item, retVal)
+	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err := s.GetAll("world")
 	assert.NoError(err)
-	assert.Equal(map[string]store.Item{"earth": GenericTestKeyPair.Item}, items)
+	assert.Equal(map[string]store.OwnableItem{"earth": GenericTestKeyPair.OwnableItem}, items)
 
 	retVal, err = s.Delete(GenericTestKeyPair.Key)
 	assert.NoError(err)
-	assert.Equal(GenericTestKeyPair.Item, retVal)
+	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err = s.GetAll("world")
 	assert.NoError(err)
-	assert.Equal(map[string]store.Item{}, items)
+	assert.Equal(map[string]store.OwnableItem{}, items)
 
 	if storeTiming > 0 {
 		t.Log("staring duration tests")
-		err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.Item)
+		err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
 		assert.NoError(err)
 		retVal, err := s.Get(GenericTestKeyPair.Key)
 		assert.NoError(err)
-		assert.Equal(GenericTestKeyPair.Item, retVal)
+		assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 		time.Sleep(storeTiming + time.Second)
 		retVal, err = s.Get(GenericTestKeyPair.Key)
-		assert.Equal(store.Item{}, retVal)
+		assert.Equal(store.OwnableItem{}, retVal)
 		assert.Equal(store.KeyNotFoundError{Key: GenericTestKeyPair.Key}, err)
 	}
 }
