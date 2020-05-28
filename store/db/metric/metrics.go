@@ -38,8 +38,8 @@ const (
 
 // DynamoDB metrics
 const (
-	ConsumedReadCapacityCounter  = "consumed_read_capacity"
-	ConsumedWriteCapacityCounter = "consumed_write_capacity"
+	ConsumedReadCapacityCounter  = "read_capacity_unit_consumed"
+	ConsumedWriteCapacityCounter = "write_capacity_unit_consumed"
 )
 
 // Metrics returns the Metrics relevant to this package
@@ -120,6 +120,6 @@ type Measures struct {
 	SQLDeletedRecords    metrics.Counter   `name:"sql_deleted_rows_count"`
 
 	// DynamoDB Metrics
-	ConsumedReadCapacityCount  metrics.Counter `name:"consumed_read_capacity"`
-	ConsumedWriteCapacityCount metrics.Counter `name:"consumed_write_capacity"`
+	ConsumedReadCapacityCount  metrics.Counter `name:"read_capacity_unit_consumed"`
+	ConsumedWriteCapacityCount metrics.Counter `name:"write_capacity_unit_consumed"`
 }
