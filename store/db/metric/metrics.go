@@ -25,6 +25,7 @@ import (
 	"go.uber.org/fx"
 )
 
+// Generic Metrics
 const (
 	PoolInUseConnectionsGauge = "pool_in_use_connections"
 	SQLDurationSeconds        = "sql_duration_seconds"
@@ -33,6 +34,12 @@ const (
 	SQLInsertedRecordsCounter = "sql_inserted_rows_count"
 	SQLReadRecordsCounter     = "sql_read_rows_count"
 	SQLDeletedRecordsCounter  = "sql_deleted_rows_count"
+)
+
+// DynamoDB metrics
+const (
+	ConsumedReadCapacityCounter  = "consumed_read_capacity"
+	ConsumedWriteCapacityCounter = "consumed_write_capacity"
 )
 
 // Metrics returns the Metrics relevant to this package
@@ -85,6 +92,20 @@ func ProvideMetrics() fx.Option {
 				Help: "The total number of rows deleted",
 			},
 		),
+		xmetrics.ProvideCounter(
+			prometheus.CounterOpts{
+				Name: ConsumedReadCapacityCounter,
+				Help: "The number of read capacity units consumed by the operation.",
+			},
+			store.TypeLabel,
+		),
+		xmetrics.ProvideCounter(
+			prometheus.CounterOpts{
+				Name: ConsumedWriteCapacityCounter,
+				Help: "The number of write capacity units consumed by the operation.",
+			},
+			store.TypeLabel,
+		),
 	)
 }
 
@@ -97,4 +118,8 @@ type Measures struct {
 	SQLInsertedRecords   metrics.Counter   `name:"sql_inserted_rows_count"`
 	SQLReadRecords       metrics.Counter   `name:"sql_read_rows_count"`
 	SQLDeletedRecords    metrics.Counter   `name:"sql_deleted_rows_count"`
+
+	// DynamoDB Metrics
+	ConsumedReadCapacityCount  metrics.Counter `name:"consumed_read_capacity"`
+	ConsumedWriteCapacityCount metrics.Counter `name:"consumed_write_capacity"`
 }

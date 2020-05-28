@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/InVisionApp/go-health v2.1.0+incompatible
-	github.com/aws/aws-sdk-go v1.8.12
+	github.com/aws/aws-sdk-go v1.31.6
 	github.com/go-kit/kit v0.9.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
 	github.com/goph/emperror v0.17.3-0.20190703203600-60a8d9faa17b

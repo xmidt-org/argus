@@ -3,11 +3,13 @@ package dynamodb
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/themis/config"
+	"github.com/xmidt-org/webpa-common/logging"
 )
 
 const (
@@ -52,7 +54,15 @@ func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures
 			SecretAccessKey: config.SecretKey,
 		}))
 
-	executer, err := createDynamoDBexecutor(awsConfig, "", config.Table, logger)
+	executer, err := createDynamoDBexecutor(awsConfig, "", config.Table, func(consumedCapacity dynamodb.ConsumedCapacity, action string) {
+		logging.Debug(logger).Log(logging.MessageKey(), "Updating consumed capacity", "consumed", consumedCapacity)
+		if consumedCapacity.ReadCapacityUnits != nil {
+			measures.ConsumedReadCapacityCount.With(store.TypeLabel, action).Add(*consumedCapacity.ReadCapacityUnits)
+		}
+		if consumedCapacity.WriteCapacityUnits != nil {
+			measures.ConsumedWriteCapacityCount.With(store.TypeLabel, action).Add(*consumedCapacity.WriteCapacityUnits)
+		}
+	}, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -77,9 +87,6 @@ func (s *DynamoClient) Push(key model.Key, item store.OwnableItem) error {
 func (s *DynamoClient) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
 		return item, err
 	}
@@ -90,9 +97,6 @@ func (s *DynamoClient) Get(key model.Key) (store.OwnableItem, error) {
 func (s *DynamoClient) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
 		return item, err
 	}
@@ -103,11 +107,6 @@ func (s *DynamoClient) Delete(key model.Key) (store.OwnableItem, error) {
 func (s *DynamoClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: model.Key{
-				Bucket: bucket,
-			}}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
 		return item, err
 	}

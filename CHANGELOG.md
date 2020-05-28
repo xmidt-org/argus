@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.2.1]
+- added capacity consumed metrics to dynamoDB
+- improved error handling for dynamoDB
+- fixed webhookclient to use `PUT` instead of `POST`
+
 ## [v0.2.0]
 - reworked api
 - added dynamodb support
@@ -17,8 +22,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/Comcast/talaria/compare/v0.2.0...HEAD
-[v0.2.0]: https://github.com/Comcast/talaria/compare/v0.1.1...v0.2.0
-[v0.1.1]: https://github.com/Comcast/talaria/compare/v0.1.0...v0.1.1
-[v0.1.0]: https://github.com/Comcast/talaria/compare/v0.1.0...v0.1.0
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.2.1...HEAD
+[v0.2.1]: https://github.com/xmidt-org/argus/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/xmidt-org/argus/compare/v0.1.1...v0.2.0
+[v0.1.1]: https://github.com/xmidt-org/argus/compare/v0.1.0...v0.1.1
+[v0.1.0]: https://github.com/xmidt-org/argus/compare/v0.1.0...v0.1.0
 
