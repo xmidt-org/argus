@@ -56,11 +56,14 @@ func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures
 
 	executer, err := createDynamoDBexecutor(awsConfig, "", config.Table, func(consumedCapacity dynamodb.ConsumedCapacity, action string) {
 		logging.Debug(logger).Log(logging.MessageKey(), "Updating consumed capacity", "consumed", consumedCapacity)
+		if consumedCapacity.CapacityUnits != nil {
+			measures.CapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.CapacityUnits)
+		}
 		if consumedCapacity.ReadCapacityUnits != nil {
-			measures.ConsumedReadCapacityCount.With(store.TypeLabel, action).Add(*consumedCapacity.ReadCapacityUnits)
+			measures.ReadCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.ReadCapacityUnits)
 		}
 		if consumedCapacity.WriteCapacityUnits != nil {
-			measures.ConsumedWriteCapacityCount.With(store.TypeLabel, action).Add(*consumedCapacity.WriteCapacityUnits)
+			measures.WriteCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.WriteCapacityUnits)
 		}
 	}, logger)
 	if err != nil {

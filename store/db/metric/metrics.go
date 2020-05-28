@@ -38,8 +38,9 @@ const (
 
 // DynamoDB metrics
 const (
-	ConsumedReadCapacityCounter  = "read_capacity_unit_consumed"
-	ConsumedWriteCapacityCounter = "write_capacity_unit_consumed"
+	CapacityUnitConsumedCounter  = "capacity_unit_consumed"
+	ReadCapacityConsumedCounter  = "read_capacity_unit_consumed"
+	WriteCapacityConsumedCounter = "write_capacity_unit_consumed"
 )
 
 // Metrics returns the Metrics relevant to this package
@@ -94,14 +95,21 @@ func ProvideMetrics() fx.Option {
 		),
 		xmetrics.ProvideCounter(
 			prometheus.CounterOpts{
-				Name: ConsumedReadCapacityCounter,
+				Name: CapacityUnitConsumedCounter,
+				Help: "The number of capacity units consumed by the operation.",
+			},
+			store.TypeLabel,
+		),
+		xmetrics.ProvideCounter(
+			prometheus.CounterOpts{
+				Name: ReadCapacityConsumedCounter,
 				Help: "The number of read capacity units consumed by the operation.",
 			},
 			store.TypeLabel,
 		),
 		xmetrics.ProvideCounter(
 			prometheus.CounterOpts{
-				Name: ConsumedWriteCapacityCounter,
+				Name: WriteCapacityConsumedCounter,
 				Help: "The number of write capacity units consumed by the operation.",
 			},
 			store.TypeLabel,
@@ -120,6 +128,7 @@ type Measures struct {
 	SQLDeletedRecords    metrics.Counter   `name:"sql_deleted_rows_count"`
 
 	// DynamoDB Metrics
-	ConsumedReadCapacityCount  metrics.Counter `name:"read_capacity_unit_consumed"`
-	ConsumedWriteCapacityCount metrics.Counter `name:"write_capacity_unit_consumed"`
+	CapacityUnitConsumedCount      metrics.Counter `name:"capacity_unit_consumed"`
+	ReadCapacityUnitConsumedCount  metrics.Counter `name:"read_capacity_unit_consumed"`
+	WriteCapacityUnitConsumedCount metrics.Counter `name:"write_capacity_unit_consumed"`
 }
