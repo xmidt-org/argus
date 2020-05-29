@@ -3,11 +3,11 @@ module github.com/xmidt-org/argus
 go 1.13
 
 require (
+	emperror.dev/emperror v0.30.0
 	github.com/InVisionApp/go-health v2.1.0+incompatible
 	github.com/aws/aws-sdk-go v1.31.6
 	github.com/go-kit/kit v0.9.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
-	github.com/goph/emperror v0.17.3-0.20190703203600-60a8d9faa17b
 	github.com/gorilla/mux v1.7.3
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d // indirect

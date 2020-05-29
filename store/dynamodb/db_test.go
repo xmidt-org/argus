@@ -18,6 +18,8 @@
 package dynamodb
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/stretchr/testify/mock"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -29,15 +31,14 @@ import (
 )
 
 func TestDynamo(t *testing.T) {
-	// TODO: Test metrics
 	// require := require.New(t)
-	mockDB := &test.MockDB{}
-	mockDB.On("Push", mock.Anything, mock.Anything).Return(nil)
-	mockDB.On("Get", mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, nil).Once()
-	mockDB.On("Get", mock.Anything).Return(store.OwnableItem{}, nil).Once()
-	mockDB.On("Delete", mock.Anything, mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, nil)
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{"earth": test.GenericTestKeyPair.OwnableItem}, nil).Once()
-	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{}, nil).Once()
+	mockDB := &MockDB{}
+	mockDB.On("Push", mock.Anything, mock.Anything).Return(&dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(0.5), TableName: aws.String("fignoc")}, nil)
+	mockDB.On("Get", mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, &dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(1.0), TableName: aws.String("fignoc")}, nil).Once()
+	mockDB.On("Get", mock.Anything).Return(store.OwnableItem{}, &dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(1.0), TableName: aws.String("fignoc")}, nil).Once()
+	mockDB.On("Delete", mock.Anything, mock.Anything).Return(test.GenericTestKeyPair.OwnableItem, &dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(1.0), TableName: aws.String("fignoc")}, nil)
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{"earth": test.GenericTestKeyPair.OwnableItem}, &dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(1.0), TableName: aws.String("fignoc")}, nil).Once()
+	mockDB.On("GetAll", mock.Anything).Return(map[string]store.OwnableItem{}, &dynamodb.ConsumedCapacity{CapacityUnits: aws.Float64(0.0), TableName: aws.String("fignoc")}, nil).Once()
 
 	mockDB.On("Ping").Return(nil)
 
@@ -82,6 +83,24 @@ func TestDynamo(t *testing.T) {
 				Type: "counter",
 				Help: "The total number of rows deleted",
 			},
+			{
+				Name:       metric.CapacityUnitConsumedCounter,
+				Type:       "counter",
+				Help:       "The number of capacity units consumed by the operation.",
+				LabelNames: []string{store.TypeLabel},
+			},
+			{
+				Name:       metric.ReadCapacityConsumedCounter,
+				Type:       "counter",
+				Help:       "The number of read capacity units consumed by the operation.",
+				LabelNames: []string{store.TypeLabel},
+			},
+			{
+				Name:       metric.WriteCapacityConsumedCounter,
+				Type:       "counter",
+				Help:       "The number of write capacity units consumed by the operation.",
+				LabelNames: []string{store.TypeLabel},
+			},
 		}
 	})
 
@@ -90,13 +109,16 @@ func TestDynamo(t *testing.T) {
 		config: Config{},
 		logger: logging.NewTestLogger(nil, t),
 		measures: metric.Measures{
-			PoolInUseConnections: p.NewGauge(metric.PoolInUseConnectionsGauge),
-			SQLDuration:          p.NewHistogram(metric.SQLDurationSeconds, 11),
-			SQLQuerySuccessCount: p.NewCounter(metric.SQLQuerySuccessCounter),
-			SQLQueryFailureCount: p.NewCounter(metric.SQLQueryFailureCounter),
-			SQLInsertedRecords:   p.NewCounter(metric.SQLInsertedRecordsCounter),
-			SQLReadRecords:       p.NewCounter(metric.SQLReadRecordsCounter),
-			SQLDeletedRecords:    p.NewCounter(metric.SQLDeletedRecordsCounter),
+			PoolInUseConnections:           p.NewGauge(metric.PoolInUseConnectionsGauge),
+			SQLDuration:                    p.NewHistogram(metric.SQLDurationSeconds, 11),
+			SQLQuerySuccessCount:           p.NewCounter(metric.SQLQuerySuccessCounter),
+			SQLQueryFailureCount:           p.NewCounter(metric.SQLQueryFailureCounter),
+			SQLInsertedRecords:             p.NewCounter(metric.SQLInsertedRecordsCounter),
+			SQLReadRecords:                 p.NewCounter(metric.SQLReadRecordsCounter),
+			SQLDeletedRecords:              p.NewCounter(metric.SQLDeletedRecordsCounter),
+			CapacityUnitConsumedCount:      p.NewCounter(metric.CapacityUnitConsumedCounter),
+			ReadCapacityUnitConsumedCount:  p.NewCounter(metric.ReadCapacityConsumedCounter),
+			WriteCapacityUnitConsumedCount: p.NewCounter(metric.WriteCapacityConsumedCounter),
 		},
 	}
 	p.Assert(t, metric.SQLQuerySuccessCounter)(xmetricstest.Value(0.0))
@@ -109,5 +131,7 @@ func TestDynamo(t *testing.T) {
 	p.Assert(t, metric.SQLInsertedRecordsCounter)(xmetricstest.Value(0.0))
 	p.Assert(t, metric.SQLReadRecordsCounter)(xmetricstest.Value(0.0))
 	p.Assert(t, metric.SQLDeletedRecordsCounter)(xmetricstest.Value(0.0))
-
+	p.Assert(t, metric.CapacityUnitConsumedCounter, store.TypeLabel, store.ReadType)(xmetricstest.Value(2.0))
+	p.Assert(t, metric.CapacityUnitConsumedCounter, store.TypeLabel, store.InsertType)(xmetricstest.Value(0.5))
+	p.Assert(t, metric.CapacityUnitConsumedCounter, store.TypeLabel, store.DeleteType)(xmetricstest.Value(1.0))
 }
