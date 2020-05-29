@@ -3,19 +3,20 @@ package dynamodb
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/themis/config"
+	"github.com/xmidt-org/webpa-common/logging"
 )
 
 const (
 	DynamoDB = "dynamo"
 
-	defaultTable        = "gifnoc"
-	defaultMaxRetries   = 3
-	defaultWaitTimeMult = 1
+	defaultTable      = "gifnoc"
+	defaultMaxRetries = 3
 )
 
 type Config struct {
@@ -28,7 +29,7 @@ type Config struct {
 }
 
 type DynamoClient struct {
-	client   store.S
+	client   storeConsumable
 	config   Config
 	logger   log.Logger
 	measures metric.Measures
@@ -65,7 +66,8 @@ func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures
 }
 
 func (s *DynamoClient) Push(key model.Key, item store.OwnableItem) error {
-	err := s.client.Push(key, item)
+	consumedCapacity, err := s.client.Push(key, item)
+	s.updateCapacityMetric(consumedCapacity, store.InsertType)
 	if err != nil {
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.InsertType).Add(1.0)
 		return err
@@ -75,11 +77,9 @@ func (s *DynamoClient) Push(key model.Key, item store.OwnableItem) error {
 }
 
 func (s *DynamoClient) Get(key model.Key) (store.OwnableItem, error) {
-	item, err := s.client.Get(key)
+	item, consumedCapacity, err := s.client.Get(key)
+	s.updateCapacityMetric(consumedCapacity, store.ReadType)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
 		return item, err
 	}
@@ -88,11 +88,9 @@ func (s *DynamoClient) Get(key model.Key) (store.OwnableItem, error) {
 }
 
 func (s *DynamoClient) Delete(key model.Key) (store.OwnableItem, error) {
-	item, err := s.client.Delete(key)
+	item, consumedCapacity, err := s.client.Delete(key)
+	s.updateCapacityMetric(consumedCapacity, store.DeleteType)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
 		return item, err
 	}
@@ -101,13 +99,9 @@ func (s *DynamoClient) Delete(key model.Key) (store.OwnableItem, error) {
 }
 
 func (s *DynamoClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
-	item, err := s.client.GetAll(bucket)
+	item, consumedCapacity, err := s.client.GetAll(bucket)
+	s.updateCapacityMetric(consumedCapacity, store.ReadType)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: model.Key{
-				Bucket: bucket,
-			}}
-		}
 		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
 		return item, err
 	}
@@ -122,5 +116,20 @@ func validateConfig(config Config) {
 	}
 	if config.MaxRetries == 0 {
 		config.MaxRetries = defaultMaxRetries
+	}
+}
+
+func (s *DynamoClient) updateCapacityMetric(consumedCapacity *dynamodb.ConsumedCapacity, action string) {
+	if consumedCapacity != nil {
+		logging.Debug(s.logger).Log(logging.MessageKey(), "Updating consumed capacity", "consumed", consumedCapacity, "action", action)
+		if consumedCapacity.CapacityUnits != nil {
+			s.measures.CapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.CapacityUnits)
+		}
+		if consumedCapacity.ReadCapacityUnits != nil {
+			s.measures.ReadCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.ReadCapacityUnits)
+		}
+		if consumedCapacity.WriteCapacityUnits != nil {
+			s.measures.WriteCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.WriteCapacityUnits)
+		}
 	}
 }

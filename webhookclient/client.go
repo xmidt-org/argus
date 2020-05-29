@@ -200,7 +200,7 @@ func (c *Client) Push(w webhook.W, owner string) error {
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest("POST", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
 	if err != nil {
 		return err
 	}

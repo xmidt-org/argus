@@ -1,8 +1,8 @@
 package dynamodb
 
 import (
-	"errors"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -12,8 +12,6 @@ import (
 	"github.com/xmidt-org/webpa-common/logging"
 	"time"
 )
-
-var noDataResponse = errors.New("no data from query")
 
 type dynamoDBExecutor struct {
 	client    *dynamodb.DynamoDB
@@ -27,7 +25,14 @@ type dynamoElement struct {
 	model.Key
 }
 
-func (d *dynamoDBExecutor) Push(key model.Key, item store.OwnableItem) error {
+type storeConsumable interface {
+	Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error)
+	Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error)
+	Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error)
+	GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error)
+}
+
+func (d *dynamoDBExecutor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
 	expirableItem := dynamoElement{
 		OwnableItem: item,
 		Expires:     time.Now().Unix() + item.TTL,
@@ -35,18 +40,34 @@ func (d *dynamoDBExecutor) Push(key model.Key, item store.OwnableItem) error {
 	}
 	av, err := dynamodbattribute.MarshalMap(expirableItem)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(d.tableName),
+		Item:                   av,
+		TableName:              aws.String(d.tableName),
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	_, err = d.client.PutItem(input)
-	return err
+	result, err := d.client.PutItem(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				return result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: true}
+			case dynamodb.ErrCodeRequestLimitExceeded:
+				return result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			case dynamodb.ErrCodeInternalServerError:
+				return result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: true}
+			default:
+				return result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			}
+		}
+		return result.ConsumedCapacity, store.InternalError{Reason: err, Retryable: false}
+	}
+	return result.ConsumedCapacity, nil
 }
 
-func (d *dynamoDBExecutor) Get(key model.Key) (store.OwnableItem, error) {
+func (d *dynamoDBExecutor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result, err := d.client.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -57,20 +78,35 @@ func (d *dynamoDBExecutor) Get(key model.Key) (store.OwnableItem, error) {
 				S: aws.String(key.ID),
 			},
 		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
 	if err != nil {
-		return store.OwnableItem{}, err
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: true}
+			case dynamodb.ErrCodeResourceNotFoundException:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.KeyNotFoundError{Key: key}
+			case dynamodb.ErrCodeRequestLimitExceeded:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			case dynamodb.ErrCodeInternalServerError:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			default:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			}
+		}
+		return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: err, Retryable: false}
 	}
 	expirableItem := dynamoElement{}
 	err = dynamodbattribute.UnmarshalMap(result.Item, &expirableItem)
 	expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
 	if expirableItem.Key.Bucket == "" || expirableItem.Key.ID == "" {
-		return expirableItem.OwnableItem, noDataResponse
+		return expirableItem.OwnableItem, result.ConsumedCapacity, store.KeyNotFoundError{Key: key}
 	}
-	return expirableItem.OwnableItem, err
+	return expirableItem.OwnableItem, result.ConsumedCapacity, err
 }
 
-func (d *dynamoDBExecutor) Delete(key model.Key) (store.OwnableItem, error) {
+func (d *dynamoDBExecutor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result, err := d.client.DeleteItem(&dynamodb.DeleteItemInput{
 
 		Key: map[string]*dynamodb.AttributeValue{
@@ -81,22 +117,37 @@ func (d *dynamoDBExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 				S: aws.String(key.ID),
 			},
 		},
-		ReturnValues: aws.String("ALL_OLD"),
-		TableName:    aws.String(d.tableName),
+		ReturnValues:           aws.String("ALL_OLD"),
+		TableName:              aws.String(d.tableName),
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
 	if err != nil {
-		return store.OwnableItem{}, err
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: true}
+			case dynamodb.ErrCodeResourceNotFoundException:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.KeyNotFoundError{Key: key}
+			case dynamodb.ErrCodeRequestLimitExceeded:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			case dynamodb.ErrCodeInternalServerError:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			default:
+				return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			}
+		}
+		return store.OwnableItem{}, result.ConsumedCapacity, store.InternalError{Reason: err, Retryable: false}
 	}
 	expirableItem := dynamoElement{}
 	err = dynamodbattribute.UnmarshalMap(result.Attributes, &expirableItem)
 	expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
 	if expirableItem.Key.Bucket == "" || expirableItem.Key.ID == "" {
-		return expirableItem.OwnableItem, noDataResponse
+		return expirableItem.OwnableItem, result.ConsumedCapacity, store.KeyNotFoundError{Key: key}
 	}
-	return expirableItem.OwnableItem, err
+	return expirableItem.OwnableItem, result.ConsumedCapacity, err
 }
 
-func (d *dynamoDBExecutor) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+func (d *dynamoDBExecutor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result := map[string]store.OwnableItem{}
 
 	queryResult, err := d.client.Query(&dynamodb.QueryInput{
@@ -111,9 +162,24 @@ func (d *dynamoDBExecutor) GetAll(bucket string) (map[string]store.OwnableItem, 
 				},
 			},
 		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
 	if err != nil {
-		return result, err
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: true}
+			case dynamodb.ErrCodeResourceNotFoundException:
+				return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.KeyNotFoundError{Key: model.Key{Bucket: bucket}}
+			case dynamodb.ErrCodeRequestLimitExceeded:
+				return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			case dynamodb.ErrCodeInternalServerError:
+				return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			default:
+				return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.InternalError{Reason: aerr.Error(), Retryable: false}
+			}
+		}
+		return map[string]store.OwnableItem{}, queryResult.ConsumedCapacity, store.InternalError{Reason: err, Retryable: false}
 	}
 	for _, i := range queryResult.Items {
 		expirableItem := dynamoElement{}
@@ -126,10 +192,10 @@ func (d *dynamoDBExecutor) GetAll(bucket string) (map[string]store.OwnableItem, 
 
 		result[expirableItem.Key.ID] = expirableItem.OwnableItem
 	}
-	return result, nil
+	return result, queryResult.ConsumedCapacity, nil
 }
 
-func createDynamoDBexecutor(config aws.Config, awsProfile string, tableName string, logger log.Logger) (store.S, error) {
+func createDynamoDBexecutor(config aws.Config, awsProfile string, tableName string, logger log.Logger) (storeConsumable, error) {
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config:            config,
 		Profile:           awsProfile,

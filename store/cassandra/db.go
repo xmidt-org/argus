@@ -19,9 +19,9 @@ package cassandra
 
 import (
 	"context"
+	"emperror.dev/emperror"
 	"errors"
 	"github.com/gocql/gocql"
-	"github.com/goph/emperror"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"

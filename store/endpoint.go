@@ -57,6 +57,19 @@ func (bre BadRequestError) StatusCode() int {
 	return http.StatusBadRequest
 }
 
+type InternalError struct {
+	Reason    interface{}
+	Retryable bool
+}
+
+func (ie InternalError) Error() string {
+	return fmt.Sprintf("Request Failed: \n%#v", ie.Reason)
+}
+
+func (ie InternalError) StatusCode() int {
+	return http.StatusInternalServerError
+}
+
 func NewSetEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
