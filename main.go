@@ -19,29 +19,31 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
 	"os"
 	"runtime"
 	"time"
 
 	"github.com/InVisionApp/go-health"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/xmidt-org/themis/config"
 	"github.com/xmidt-org/themis/xhealth"
 	"github.com/xmidt-org/themis/xhttp/xhttpserver"
 	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/themis/xlog/xloghttp"
-	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
-
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"go.uber.org/fx"
 )
 
 const (
 	applicationName = "argus"
+
+	DefaultKeyID = "current"
+	apiBase      = "api/v1"
 )
 
 var (
@@ -107,6 +109,8 @@ func main() {
 			db.Provide,
 			store.Provide,
 			xhealth.Unmarshal("health"),
+			ProvideAuthChain,
+			provideServerChainFactory,
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),
 			xhttpserver.Unmarshal{Key: "servers.primary", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.metrics", Optional: true}.Annotated(),

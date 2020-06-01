@@ -16,7 +16,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/testify v1.5.1
-	github.com/xmidt-org/bascule v0.8.0
+	github.com/xmidt-org/bascule v0.8.1
 	github.com/xmidt-org/themis v0.4.0
 	github.com/xmidt-org/webpa-common v1.10.0
 	go.uber.org/fx v1.10.0
