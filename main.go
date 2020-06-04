@@ -24,6 +24,8 @@ import (
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
+	"github.com/xmidt-org/webpa-common/basculechecks"
+	"github.com/xmidt-org/webpa-common/basculemetrics"
 	"os"
 	"runtime"
 	"time"
@@ -102,6 +104,8 @@ func main() {
 		config.CommandLine{Name: applicationName}.Provide(setupFlagSet),
 		provideMetrics(),
 		metric.ProvideMetrics(),
+		basculechecks.ProvideMetrics(),
+		basculemetrics.ProvideMetrics(),
 		fx.Provide(
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),

@@ -124,10 +124,10 @@ func BuildPrimaryRoutes(router PrimaryRouter, sin SetRoutesIn, gin GetRoutesIn, 
 			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), sin.Handler).Methods("PUT")
 		}
 		if gin.Handler != nil {
-			router.Router.Handle(fmt.Sprintf("%s/store/{bucket}/{key}", apiBase), gin.Handler).Methods("GET", "DELETE")
+			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), gin.Handler).Methods("GET", "DELETE")
 		}
 		if gain.Handler != nil {
-			router.Router.Handle(fmt.Sprintf("%s/store/{bucket}", apiBase), gain.Handler).Methods("GET")
+			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), gain.Handler).Methods("GET")
 		}
 	}
 }

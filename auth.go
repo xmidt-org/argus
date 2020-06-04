@@ -12,7 +12,9 @@ import (
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/bascule/key"
+	"github.com/xmidt-org/themis/xmetrics"
 	"github.com/xmidt-org/webpa-common/basculechecks"
+	"github.com/xmidt-org/webpa-common/basculemetrics"
 	"github.com/xmidt-org/webpa-common/logging"
 	"go.uber.org/fx"
 	"net/http"
@@ -65,12 +67,17 @@ type AuthChainOut struct {
 type AuthChainIn struct {
 	fx.In
 
-	Viper  *viper.Viper
-	Logger log.Logger
+	Viper              *viper.Viper
+	Logger             log.Logger
+	Registry           xmetrics.Registry
+	ValidationMeasures basculemetrics.AuthValidationMeasures
+	CheckMeasures      basculechecks.AuthCapabilityCheckMeasures
 }
 
 // authenticationHandler configures the authorization requirements for requests to reach the main handler
 func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
+
+	listener := basculemetrics.NewMetricListener(&in.ValidationMeasures)
 
 	basicAllowed := make(map[string]string)
 	basicAuth := in.Viper.GetStringSlice("authHeader")
@@ -90,7 +97,7 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 
 	options := []basculehttp.COption{
 		basculehttp.WithCLogger(GetLogger),
-		// basculehttp.WithCErrorResponseFunc(listener.OnErrorResponse),
+		basculehttp.WithCErrorResponseFunc(listener.OnErrorResponse),
 		basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc)),
 	}
 	if len(basicAllowed) > 0 {
@@ -134,9 +141,9 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 			}
 			endpoints = append(endpoints, r)
 		}
-		checker, err := basculechecks.NewCapabilityChecker(nil, capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod, endpoints)
+		checker, err := basculechecks.NewCapabilityChecker(&in.CheckMeasures, capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod, endpoints)
 		if err != nil {
-			return AuthChainOut{}, emperror.With(err, "failed to create capability check")
+			return AuthChainOut{Chain: nil}, emperror.With(err, "failed to create capability check")
 		}
 		bearerRules = append(bearerRules, checker.CreateBasculeCheck(capabilityCheck.Type == "enforce"))
 	}
@@ -147,10 +154,10 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 			bascule.CreateAllowAllCheck(),
 		}),
 		basculehttp.WithRules("Bearer", bearerRules),
-		// basculehttp.WithEErrorResponseFunc(listener.OnErrorResponse),
+		basculehttp.WithEErrorResponseFunc(listener.OnErrorResponse),
 	)
 
-	constructors := []alice.Constructor{SetLogger(in.Logger), authConstructor, authEnforcer}
+	constructors := []alice.Constructor{SetLogger(in.Logger), authConstructor, authEnforcer, basculehttp.NewListenerDecorator(listener)}
 
 	chain := alice.New(constructors...)
 	return AuthChainOut{Chain: &chain}, nil
