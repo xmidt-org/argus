@@ -123,7 +123,7 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 
 func (c *Client) GetWebhook(owner string) ([]webhook.W, error) {
 	hooks := []webhook.W{}
-	request, err := http.NewRequest("GET", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), nil)
+	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), nil)
 	if err != nil {
 		return []webhook.W{}, err
 	}
@@ -200,7 +200,7 @@ func (c *Client) Push(w webhook.W, owner string) error {
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (c *Client) Push(w webhook.W, owner string) error {
 }
 
 func (c *Client) Remove(id string, owner string) error {
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/store/%s/%s", c.config.Address, c.config.Bucket, id), nil)
+	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.config.Address, c.config.Bucket, id), nil)
 	if err != nil {
 		return err
 	}
