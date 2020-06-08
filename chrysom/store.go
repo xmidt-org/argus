@@ -15,43 +15,43 @@
  *
  */
 
-package webhookclient
+package chrysom
 
 import (
 	"context"
 	"github.com/go-kit/kit/log"
-	"github.com/xmidt-org/webpa-common/webhook"
+	"github.com/xmidt-org/argus/model"
 )
 
 type Pusher interface {
-	// Push applies user configurable for registering a webhook
-	// i.e. updated the storage with said webhook.
-	Push(w webhook.W, owner string) error
+	// Push applies user configurable for registering an item returning the id
+	// i.e. updated the storage with said item.
+	Push(item model.Item, owner string) (string, error)
 
-	// Remove will remove the webhook from the store
-	Remove(id string, owner string) error
+	// Remove will remove the item from the store
+	Remove(id string, owner string) (model.Item, error)
 
 	// Stop will stop all threads and cleanup any necessary resources
 	Stop(context context.Context)
 }
 
 type Listener interface {
-	// Update is called when we get changes to our webhook listeners with either
+	// Update is called when we get changes to our item listeners with either
 	// additions, or updates.
 	//
-	// The list of hooks must contain only the current webhooks.
-	Update(hooks []webhook.W)
+	// The list of hooks must contain only the current items.
+	Update(items []model.Item)
 }
 
-type ListenerFunc func(hooks []webhook.W)
+type ListenerFunc func(items []model.Item)
 
-func (listner ListenerFunc) Update(hooks []webhook.W) {
-	listner(hooks)
+func (listner ListenerFunc) Update(items []model.Item) {
+	listner(items)
 }
 
 type Reader interface {
-	// GetWebhook will return all the current webhooks or an error.
-	GetWebhook(owner string) ([]webhook.W, error)
+	// GeItems will return all the current items or an error.
+	GetItems(owner string) ([]model.Item, error)
 }
 
 type ConfigureListener interface {

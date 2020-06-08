@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 - added bascule for authentication
 - added api/v1 to path
+- reworked webhookclient to be more generic
+- renamed webhookclient to chrysom
 
 ## [v0.2.1]
 - added capacity consumed metrics to dynamoDB
