@@ -15,7 +15,7 @@
  *
  */
 
-package webhookclient
+package chrysom
 
 import (
 	"bytes"
@@ -26,7 +26,6 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/webpa-common/logging"
-	"github.com/xmidt-org/webpa-common/webhook"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -38,7 +37,6 @@ type ClientConfig struct {
 	PullInterval time.Duration
 	Address      string
 	Auth         Auth
-	Filters      map[string]string
 	DefaultTTL   int64
 }
 type Auth struct {
@@ -78,11 +76,11 @@ func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
 	go func() {
 		for range clientStore.ticker.C {
 			if clientStore.options.listener != nil {
-				hooks, err := clientStore.GetWebhook("")
+				items, err := clientStore.GetItems("")
 				if err == nil {
-					clientStore.options.listener.Update(hooks)
+					clientStore.options.listener.Update(items)
 				} else {
-					logging.Error(clientStore.options.logger).Log(logging.MessageKey(), "failed to get webhooks ", logging.ErrorKey(), err)
+					logging.Error(clientStore.options.logger).Log(logging.MessageKey(), "failed to get items ", logging.ErrorKey(), err)
 				}
 			}
 		}
@@ -121,126 +119,112 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 	return defaultAcquirer, nil
 }
 
-func (c *Client) GetWebhook(owner string) ([]webhook.W, error) {
-	hooks := []webhook.W{}
+func (c *Client) GetItems(owner string) ([]model.Item, error) {
 	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), nil)
 	if err != nil {
-		return []webhook.W{}, err
+		return []model.Item{}, err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
-		return []webhook.W{}, err
+		return []model.Item{}, err
 	}
 	if owner != "" {
 		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
-		return []webhook.W{}, err
+		return []model.Item{}, err
 	}
 	if response.StatusCode == 404 {
-		return []webhook.W{}, nil
+		return []model.Item{}, nil
 	}
 	if response.StatusCode != 200 {
-		return []webhook.W{}, errors.New("failed to get webhooks, non 200 statuscode")
+		return []model.Item{}, errors.New("failed to get items, non 200 statuscode")
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return []webhook.W{}, err
+		return []model.Item{}, err
 	}
-	response.Body.Close()
 
 	body := map[string]model.Item{}
 	err = json.Unmarshal(data, &body)
 	if err != nil {
-		return []webhook.W{}, err
+		return []model.Item{}, err
 	}
 
+	responseData := make([]model.Item, len(body))
+	index := 0
 	for _, value := range body {
-		data, err := json.Marshal(&value.Data)
-		if err != nil {
-			continue
-		}
-		var hook webhook.W
-		err = json.Unmarshal(data, &hook)
-		if err != nil {
-			continue
-		}
-		hooks = append(hooks, hook)
+		responseData[index] = value
+		index++
 	}
-
-	return hooks, nil
+	return responseData, nil
 }
 
-func (c *Client) Push(w webhook.W, owner string) error {
-	webhookData, err := json.Marshal(&w)
-	if err != nil {
-		return err
+func (c *Client) Push(item model.Item, owner string) (string, error) {
+	if item.Identifier == "" {
+		return "", errors.New("identifier can't be empty")
 	}
-	webhookPayload := map[string]interface{}{}
-	err = json.Unmarshal(webhookData, &webhookPayload)
-	if err != nil {
-		return err
+	if item.TTL < 1 {
+		item.TTL = c.config.DefaultTTL
 	}
-
-	var ttl int64
-	if int64(w.Duration.Seconds()) < 1 {
-		ttl = c.config.DefaultTTL
-	} else {
-		ttl = int64(w.Duration.Seconds())
-	}
-
-	item := model.Item{
-		Identifier: w.ID(),
-		Data:       webhookPayload,
-		TTL:        ttl,
-	}
-
 	data, err := json.Marshal(&item)
 	if err != nil {
-		return err
+		return "", err
 	}
 	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if owner != "" {
 		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if response.StatusCode != 200 {
-		return errors.New("failed to push webhook, non 200 statuscode")
+		return "", errors.New("failed to put item, non 200 statuscode")
 	}
-	return nil
+	responsePayload, _ := ioutil.ReadAll(response.Body)
+	key := model.Key{}
+	err = json.Unmarshal(responsePayload, &key)
+	if err != nil {
+		return "", err
+	}
+	return key.ID, nil
 }
 
-func (c *Client) Remove(id string, owner string) error {
+func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.config.Address, c.config.Bucket, id), nil)
 	if err != nil {
-		return err
+		return model.Item{}, err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
-		return err
+		return model.Item{}, err
 	}
 	if owner != "" {
 		request.Header.Add("X-Midt-Owner", owner)
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
-		return err
+		return model.Item{}, err
 	}
 	if response.StatusCode != 200 {
-		return errors.New("failed to delete webhook, non 200 statuscode")
+		return model.Item{}, errors.New("failed to delete item, non 200 statuscode")
 	}
-	return nil
+	responsePayload, _ := ioutil.ReadAll(response.Body)
+	item := model.Item{}
+	err = json.Unmarshal(responsePayload, &item)
+	if err != nil {
+		return model.Item{}, err
+	}
+	return item, nil
 }
 
 func (c *Client) Stop(context context.Context) {
