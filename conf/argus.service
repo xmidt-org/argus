@@ -1,0 +1,18 @@
+
+[Unit]
+Description=The XMiDT API server for storing configuration.
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=simple
+PIDFile=/run/argus.pid
+ExecStartPre=/usr/bin/rm -f /run/argus.pid
+ExecStart=/usr/bin/argus
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutStopSec=10
+KillMode=process
+PrivateTmp=true
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
