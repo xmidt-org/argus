@@ -4,7 +4,7 @@
 Name:       argus
 Version:    {{{ git_tag_version }}}
 Release:    1%{?dist}
-Summary:    The Xmidt API interface server.
+Summary:    The XMiDT API server for storing configuration.
 
 Vendor:     Comcast
 Packager:   Comcast
@@ -20,7 +20,7 @@ BuildRequires: golang >= 1.12
 BuildRequires: git
 
 %description
-The XMiDT server for storing webhooks
+The XMiDT server for storing configuration like webhooks for caduceus.
 
 %prep
 %setup -q
