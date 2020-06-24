@@ -134,5 +134,21 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			}
 			return nil
 		},
+		kithttp.ServerErrorEncoder(func(ctx context.Context, err error, w http.ResponseWriter) {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("X-Xmidt-Error", err.Error())
+			if headerer, ok := err.(kithttp.Headerer); ok {
+				for k, values := range headerer.Headers() {
+					for _, v := range values {
+						w.Header().Add(k, v)
+					}
+				}
+			}
+			code := http.StatusInternalServerError
+			if sc, ok := err.(kithttp.StatusCoder); ok {
+				code = sc.StatusCode()
+			}
+			w.WriteHeader(code)
+		}),
 	)
 }

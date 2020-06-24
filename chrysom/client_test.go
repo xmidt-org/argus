@@ -15,4 +15,6 @@ func TestInterface(t *testing.T) {
 	assert.True(ok, "not a pusher")
 	_, ok = client.(Reader)
 	assert.True(ok, "not a reader")
+	_, ok = client.(PushReader)
+	assert.True(ok, "not a PushReader")
 }
