@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 - encode error as header 
 - add ability to disable pullInterval for chrysom
+- remove authHeader from logging
 
 ## [v0.3.2]
 - fix missing conf folder

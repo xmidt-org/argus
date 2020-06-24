@@ -19,14 +19,20 @@ import (
 	"go.uber.org/fx"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 func SetLogger(logger log.Logger) func(delegate http.Handler) http.Handler {
 	return func(delegate http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				logHeader := r.Header.Clone()
+				if str := logHeader.Get("Authorization"); str != "" {
+					logHeader.Del("Authorization")
+					logHeader.Set("Authorization-Type", strings.Split(str, " ")[0])
+				}
 				ctx := r.WithContext(logging.WithLogger(r.Context(),
-					log.With(logger, "requestHeaders", r.Header, "requestURL", r.URL.EscapedPath(), "method", r.Method)))
+					log.With(logger, "requestHeaders", logHeader, "requestURL", r.URL.EscapedPath(), "method", r.Method)))
 				delegate.ServeHTTP(w, ctx)
 			})
 	}
