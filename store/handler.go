@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -77,13 +78,17 @@ func NewHandler(e endpoint.Endpoint) Handler {
 
 			data, err := ioutil.ReadAll(request.Body)
 			if err != nil {
-				return nil, err
+				return nil, InvalidRequestError{Reason: fmt.Sprintf("failed to read body. reason: %s", err.Error())}
 			}
 			value := model.Item{}
 			err = json.Unmarshal(data, &value)
 			if err != nil {
-				return nil, err
+				return nil, InvalidRequestError{Reason: fmt.Sprintf("failed to unmarshal json. reason: %s", err.Error())}
 			}
+			if value.TTL <= 0 {
+				return nil, InvalidRequestError{Reason: "TTL must be > 0"}
+			}
+
 			return KeyItemPairRequest{
 				Key: itemKey,
 				OwnableItem: OwnableItem{

@@ -70,6 +70,18 @@ func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
 }
 
+type InvalidRequestError struct {
+	Reason string
+}
+
+func (ire InvalidRequestError) Error() string {
+	return ire.Reason
+}
+
+func (ire InvalidRequestError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
 func NewSetEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
