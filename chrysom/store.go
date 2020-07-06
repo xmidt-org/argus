@@ -23,6 +23,11 @@ import (
 	"github.com/xmidt-org/argus/model"
 )
 
+type PushReader interface {
+	Pusher
+	Reader
+}
+
 type Pusher interface {
 	// Push applies user configurable for registering an item returning the id
 	// i.e. updated the storage with said item.

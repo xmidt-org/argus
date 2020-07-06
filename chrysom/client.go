@@ -70,10 +70,16 @@ func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
 		ticker: time.NewTicker(config.PullInterval),
 		auth:   auth,
 	}
+	if config.PullInterval > 0 {
+		clientStore.ticker = time.NewTicker(config.PullInterval)
+	}
 	for _, o := range options {
 		o(clientStore.options)
 	}
 	go func() {
+		if clientStore.ticker == nil {
+			return
+		}
 		for range clientStore.ticker.C {
 			if clientStore.options.listener != nil {
 				items, err := clientStore.GetItems("")
@@ -94,9 +100,6 @@ func validateConfig(config *ClientConfig) error {
 	}
 	if config.Address == "" {
 		return errors.New("address can't be empty")
-	}
-	if config.PullInterval == 0 {
-		config.PullInterval = time.Second
 	}
 	if config.Bucket == "" {
 		config.Bucket = "testing"

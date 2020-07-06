@@ -35,10 +35,10 @@ func (knfe KeyNotFoundError) Error() string {
 	if knfe.Key.ID == "" && knfe.Key.Bucket == "" {
 		return fmt.Sprint("parameters for key not set")
 	} else if knfe.Key.ID == "" && knfe.Key.Bucket != "" {
-		return fmt.Sprintf("no vaule exists for bucket %s", knfe.Key.Bucket)
+		return fmt.Sprintf("no value exists for bucket %s", knfe.Key.Bucket)
 
 	}
-	return fmt.Sprintf("no vaule exists with bucket: %s, id: %s", knfe.Key.Bucket, knfe.Key.ID)
+	return fmt.Sprintf("no value exists with bucket: %s, id: %s", knfe.Key.Bucket, knfe.Key.ID)
 }
 
 func (knfe KeyNotFoundError) StatusCode() int {
@@ -50,7 +50,7 @@ type BadRequestError struct {
 }
 
 func (bre BadRequestError) Error() string {
-	return fmt.Sprintf("No vaule exists with request: %#v", bre)
+	return fmt.Sprintf("No value exists with request: %#v", bre)
 }
 
 func (bre BadRequestError) StatusCode() int {
@@ -68,6 +68,18 @@ func (ie InternalError) Error() string {
 
 func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
+}
+
+type InvalidRequestError struct {
+	Reason string
+}
+
+func (ire InvalidRequestError) Error() string {
+	return ire.Reason
+}
+
+func (ire InvalidRequestError) StatusCode() int {
+	return http.StatusBadRequest
 }
 
 func NewSetEndpoint(s S) endpoint.Endpoint {
