@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 - handle error case of identifier being too large
+- handle TTL edge cases
 
 ## [v0.3.3]
 - encode error as header  [#10](https://github.com/xmidt-org/argus/pull/10)

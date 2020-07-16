@@ -85,8 +85,8 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			if err != nil {
 				return nil, InvalidRequestError{Reason: fmt.Sprintf("failed to unmarshal json. reason: %s", err.Error())}
 			}
-			if value.TTL <= 0 {
-				return nil, InvalidRequestError{Reason: "TTL must be > 0"}
+			if value.TTL >= YearTTL {
+				return nil, InvalidRequestError{Reason: "TTL must be less than a year"}
 			}
 
 			return KeyItemPairRequest{
@@ -109,6 +109,9 @@ func NewHandler(e endpoint.Endpoint) Handler {
 				if items, ok := value.(map[string]OwnableItem); ok {
 					payload := map[string]model.Item{}
 					for k, value := range items {
+						if value.TTL <= 0 {
+							continue
+						}
 						payload[k] = value.Item
 					}
 					data, err := json.Marshal(&payload)
