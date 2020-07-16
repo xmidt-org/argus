@@ -97,10 +97,12 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 		if kv.TTL < 1 {
 			kv.TTL = DefaultTTL
 		}
-		// Generate ID from Item identifier
 
+		// Generate ID from Item identifier
 		kv.ID = base64.RawURLEncoding.EncodeToString(sha256.New().Sum([]byte(kv.Identifier)))
-		fmt.Println(kv)
+		if len([]byte(kv.ID)) >= 1024 {
+			return nil, InvalidRequestError{Reason: "identifier is too big"}
+		}
 		err := s.Push(kv.Key, kv.OwnableItem)
 		return kv.Key, err
 	}
