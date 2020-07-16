@@ -85,6 +85,9 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			if err != nil {
 				return nil, InvalidRequestError{Reason: fmt.Sprintf("failed to unmarshal json. reason: %s", err.Error())}
 			}
+			if len(value.Data) <= 0 {
+				return nil, InvalidRequestError{Reason: "the data field must be set"}
+			}
 			if value.TTL >= YearTTL {
 				return nil, InvalidRequestError{Reason: "TTL must be less than a year"}
 			}
