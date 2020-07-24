@@ -94,9 +94,6 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 		if kv.Identifier == "" {
 			return nil, BadRequestError{Request: request}
 		}
-		if kv.TTL < 1 {
-			kv.TTL = DefaultTTL
-		}
 
 		// Generate ID from Item identifier
 		sum := sha256.Sum256([]byte(kv.Identifier))

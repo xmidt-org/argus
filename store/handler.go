@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -29,6 +30,7 @@ import (
 	"github.com/xmidt-org/themis/xlog"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 var (
@@ -43,7 +45,12 @@ type KeyItemPairRequest struct {
 	Method string
 }
 
-func NewHandler(e endpoint.Endpoint) Handler {
+type ItemTTL struct {
+	DefaultTTL time.Duration
+	MaxTTL     time.Duration
+}
+
+func NewHandler(e endpoint.Endpoint, config ItemTTL) Handler {
 	return kithttp.NewServer(
 		e,
 		func(ctx context.Context, request *http.Request) (interface{}, error) {
@@ -87,8 +94,11 @@ func NewHandler(e endpoint.Endpoint) Handler {
 			if len(value.Data) <= 0 {
 				return nil, InvalidRequestError{Reason: "the data field must be set"}
 			}
-			if value.TTL >= YearTTL {
-				return nil, InvalidRequestError{Reason: "TTL must be less than a year"}
+			if value.TTL >= int64(config.MaxTTL.Seconds()) {
+				return nil, InvalidRequestError{Reason: fmt.Sprintf("TTL must be less than %d", config.MaxTTL)}
+			}
+			if value.TTL < 1 {
+				value.TTL = int64(config.DefaultTTL.Seconds())
 			}
 
 			return KeyItemPairRequest{

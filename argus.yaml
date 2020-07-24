@@ -104,6 +104,18 @@ dynamo:
   secretKey: "secretKey"
 
 
+# itemTTL configures the default time based ttls for each item.
+itemTTL:
+  # defaultTTL is used if not ttl is provided via the api.
+  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
+  # (Optional) default: 5m
+  defaultTTL: "5m"
+
+  # maxTTL is limit the maxTTL provided via the api.
+  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
+  # (Optional) default: 1y
+  maxTTL: "1d"
+
 ##############################################################################
 # Authorization Credentials
 ##############################################################################

@@ -18,6 +18,7 @@
 package store
 
 import (
+	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 )
 
@@ -43,10 +44,16 @@ type StoreOut struct {
 }
 
 // Provide is an uber/fx style provider for this package's components
-func Provide(in StoreIn) StoreOut {
+func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
+	itemTTL := ItemTTL{
+		DefaultTTL: DefaultTTL,
+		MaxTTL:     YearTTL,
+	}
+	unmarshaller.UnmarshalKey("itemTTL", &itemTTL)
+
 	return StoreOut{
-		SetKeyHandler: NewHandler(NewSetEndpoint(in.Store)),
-		GetKeyHandler: NewHandler(NewGetEndpoint(in.Store)),
-		AllKeyHandler: NewHandler(NewGetAllEndpoint(in.Store)),
+		SetKeyHandler: NewHandler(NewSetEndpoint(in.Store), itemTTL),
+		GetKeyHandler: NewHandler(NewGetEndpoint(in.Store), itemTTL),
+		AllKeyHandler: NewHandler(NewGetAllEndpoint(in.Store), itemTTL),
 	}
 }
