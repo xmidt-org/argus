@@ -99,7 +99,8 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 		}
 
 		// Generate ID from Item identifier
-		kv.ID = base64.RawURLEncoding.EncodeToString(sha256.New().Sum([]byte(kv.Identifier)))
+		sum := sha256.Sum256([]byte(kv.Identifier))
+		kv.ID = base64.RawURLEncoding.EncodeToString(sum[:])
 		if len([]byte(kv.ID)) >= 1024 {
 			return nil, InvalidRequestError{Reason: "identifier is too big"}
 		}
