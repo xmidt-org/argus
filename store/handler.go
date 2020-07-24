@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -95,7 +94,7 @@ func NewHandler(e endpoint.Endpoint, config ItemTTL) Handler {
 				return nil, InvalidRequestError{Reason: "the data field must be set"}
 			}
 			if value.TTL >= int64(config.MaxTTL.Seconds()) {
-				return nil, InvalidRequestError{Reason: fmt.Sprintf("TTL must be less than %d", config.MaxTTL)}
+				value.TTL = int64(config.MaxTTL.Seconds())
 			}
 			if value.TTL < 1 {
 				value.TTL = int64(config.DefaultTTL.Seconds())
