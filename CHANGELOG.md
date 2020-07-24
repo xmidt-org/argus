@@ -5,10 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- handle error case of identifier being too large
-- handle TTL edge cases
-- fix error of data field not being required
-- removed returning raw error code in http headers
+- handle error case of identifier being too large [#14](https://github.com/xmidt-org/argus/pull/14)
+- handle TTL edge cases [#14](https://github.com/xmidt-org/argus/pull/14)
+- fix error of data field not being required [#14](https://github.com/xmidt-org/argus/pull/14)
+- removed returning raw error code in http headers [#14](https://github.com/xmidt-org/argus/pull/14)
+- add itemTTL configuration [#14](https://github.com/xmidt-org/argus/pull/14)
 
 ## [v0.3.3]
 - encode error as header  [#10](https://github.com/xmidt-org/argus/pull/10)
