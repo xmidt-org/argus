@@ -122,3 +122,17 @@ dynamo:
 
   # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
   secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
+
+
+# itemTTL configures the default time based ttls for each item.
+itemTTL:
+  # defaultTTL is used if not ttl is provided via the api.
+  # the duration will be converted to a floor of seconds.
+  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
+  # (Optional) default: 5m
+  defaultTTL: (( grab $DEFAULT_TTL|| "5m" ))
+
+  # maxTTL is limit the maxTTL provided via the api.
+  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
+  # (Optional) default: 1y
+  maxTTL: (( grab $DEFAULT_TTL|| "1d" ))
