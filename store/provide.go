@@ -20,6 +20,7 @@ package store
 import (
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
+	"time"
 )
 
 // StoreIn is the set of dependencies for this package's components
@@ -45,15 +46,25 @@ type StoreOut struct {
 
 // Provide is an uber/fx style provider for this package's components
 func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
-	itemTTL := ItemTTL{
+	itemTTL := &ItemTTL{
 		DefaultTTL: DefaultTTL,
 		MaxTTL:     YearTTL,
 	}
-	unmarshaller.UnmarshalKey("itemTTL", &itemTTL)
+	unmarshaller.UnmarshalKey("itemTTL", itemTTL)
+	validateItemTTL(itemTTL)
 
 	return StoreOut{
-		SetKeyHandler: NewHandler(NewSetEndpoint(in.Store), itemTTL),
-		GetKeyHandler: NewHandler(NewGetEndpoint(in.Store), itemTTL),
-		AllKeyHandler: NewHandler(NewGetAllEndpoint(in.Store), itemTTL),
+		SetKeyHandler: NewHandler(NewSetEndpoint(in.Store), *itemTTL),
+		GetKeyHandler: NewHandler(NewGetEndpoint(in.Store), *itemTTL),
+		AllKeyHandler: NewHandler(NewGetAllEndpoint(in.Store), *itemTTL),
+	}
+}
+
+func validateItemTTL(ttl *ItemTTL) {
+	if ttl.MaxTTL <= time.Second {
+		ttl.MaxTTL = YearTTL * time.Second
+	}
+	if ttl.DefaultTTL <= time.Millisecond {
+		ttl.DefaultTTL = DefaultTTL * time.Second
 	}
 }
