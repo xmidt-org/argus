@@ -1,18 +1,18 @@
 version: '3.4'
 services:
-  yb-master:
+  yb-manager:
     image: yugabytedb/yugabyte:latest
-    container_name: yb-master-n1
+    container_name: yb-manager-n1
     command: [ "/home/yugabyte/bin/yb-master",
                "--fs_data_dirs=/mnt/disk0,/mnt/disk1",
-               "--master_addresses=yb-master-n1:7100",
+               "--master_addresses=yb-manager-n1:7100",
                "--replication_factor=1"]
     networks:
       - hooks
     ports:
       - "7111:7000"
     environment:
-      SERVICE_7000_NAME: yb-master
+      SERVICE_7000_NAME: yb-manager
 
   yb-tserver:
     image: yugabytedb/yugabyte:latest
@@ -21,7 +21,7 @@ services:
       - ./docFiles/create_db.cql:/create_db.cql
     command: [ "/home/yugabyte/bin/yb-tserver",
                "--fs_data_dirs=/mnt/disk0,/mnt/disk1",
-               "--tserver_master_addrs=yb-master-n1:7100"]
+               "--tserver_master_addrs=yb-manager-n1:7100"]
     networks:
       - hooks
     ports:
@@ -35,7 +35,7 @@ services:
       SERVICE_6379_NAME: yedis
       SERVICE_9000_NAME: yb-tserver
     depends_on:
-      - yb-master
+      - yb-manager
   yb-tserver-n2:
     image: yugabytedb/yugabyte:latest
     container_name: yb-tserver-n2
@@ -43,7 +43,7 @@ services:
       - ./docFiles/create_db.cql:/create_db.cql
     command: [ "/home/yugabyte/bin/yb-tserver",
                "--fs_data_dirs=/mnt/disk0,/mnt/disk1",
-               "--tserver_master_addrs=yb-master-n1:7100"]
+               "--tserver_master_addrs=yb-manager-n1:7100"]
     networks:
       - hooks
     environment:
@@ -52,6 +52,6 @@ services:
       SERVICE_6379_NAME: yedis
       SERVICE_9000_NAME: yb-tserver
     depends_on:
-      - yb-master
+      - yb-manager
 networks:
   hooks:

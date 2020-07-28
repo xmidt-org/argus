@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - fix error of data field not being required [#14](https://github.com/xmidt-org/argus/pull/14)
 - removed returning raw error code in http headers [#14](https://github.com/xmidt-org/argus/pull/14)
 - add itemTTL configuration [#14](https://github.com/xmidt-org/argus/pull/14)
+- Updated references to the main branch [#15](https://github.com/xmidt-org/argus/pull/15)
+- Changed docker-compose to reference yb-manager [#15](https://github.com/xmidt-org/argus/pull/15)
 
 ## [v0.3.3]
 - encode error as header  [#10](https://github.com/xmidt-org/argus/pull/10)
