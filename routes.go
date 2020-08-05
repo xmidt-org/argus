@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/prometheus/client_golang/prometheus"
@@ -101,8 +102,7 @@ func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
 
 type PrimaryRouter struct {
 	fx.In
-	Router  *mux.Router   `name:"servers.primary"`
-	Handler store.Handler `name:"setHandler"`
+	Router *mux.Router `name:"servers.primary"`
 }
 
 type SetRoutesIn struct {
@@ -119,16 +119,14 @@ type GetAllRoutesIn struct {
 }
 
 func BuildPrimaryRoutes(router PrimaryRouter, sin SetRoutesIn, gin GetRoutesIn, gain GetAllRoutesIn) {
-	if router.Handler != nil {
-		if sin.Handler != nil {
-			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), sin.Handler).Methods("PUT")
-		}
-		if gin.Handler != nil {
-			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), gin.Handler).Methods("GET", "DELETE")
-		}
-		if gain.Handler != nil {
-			router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), gain.Handler).Methods("GET")
-		}
+	if sin.Handler != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), sin.Handler).Methods("PUT")
+	}
+	if gin.Handler != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), gin.Handler).Methods("GET", "DELETE")
+	}
+	if gain.Handler != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), gain.Handler).Methods("GET")
 	}
 }
 
