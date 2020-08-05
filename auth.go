@@ -1,10 +1,31 @@
+/**
+ * Copyright 2020 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package main
 
 import (
 	"bytes"
 	"context"
-	"emperror.dev/emperror"
 	"encoding/base64"
+	"net/http"
+	"regexp"
+	"strings"
+
+	"emperror.dev/emperror"
 	"github.com/go-kit/kit/log"
 	"github.com/justinas/alice"
 	"github.com/spf13/viper"
@@ -12,14 +33,12 @@ import (
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/bascule/key"
+	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/themis/xmetrics"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"github.com/xmidt-org/webpa-common/basculemetrics"
 	"github.com/xmidt-org/webpa-common/logging"
 	"go.uber.org/fx"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 func SetLogger(logger log.Logger) func(delegate http.Handler) http.Handler {
@@ -31,7 +50,7 @@ func SetLogger(logger log.Logger) func(delegate http.Handler) http.Handler {
 					logHeader.Del("Authorization")
 					logHeader.Set("Authorization-Type", strings.Split(str, " ")[0])
 				}
-				ctx := r.WithContext(logging.WithLogger(r.Context(),
+				ctx := r.WithContext(xlog.With(r.Context(),
 					log.With(logger, "requestHeaders", logHeader, "requestURL", r.URL.EscapedPath(), "method", r.Method)))
 				delegate.ServeHTTP(w, ctx)
 			})
@@ -39,7 +58,7 @@ func SetLogger(logger log.Logger) func(delegate http.Handler) http.Handler {
 }
 
 func GetLogger(ctx context.Context) bascule.Logger {
-	logger := log.With(logging.GetLogger(ctx), "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+	logger := log.With(xlog.GetDefault(ctx, nil), "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
 }
 
