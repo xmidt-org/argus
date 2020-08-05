@@ -21,15 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+	"time"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/themis/xlog"
-	"io/ioutil"
-	"net/http"
-	"time"
 )
 
 var (
@@ -54,7 +55,7 @@ func NewHandler(e endpoint.Endpoint, itemTTL ItemTTL) Handler {
 	return kithttp.NewServer(
 		e,
 		rh.DecodeRequest,
-		rh.EncodeRequest,
+		rh.EncodeResponse,
 		kithttp.ServerErrorEncoder(rh.ErrorEncode),
 	)
 }
@@ -120,7 +121,7 @@ func (rh requestHandler) DecodeRequest(ctx context.Context, request *http.Reques
 	}, nil
 }
 
-func (rh requestHandler) EncodeRequest(ctx context.Context, response http.ResponseWriter, value interface{}) error {
+func (rh requestHandler) EncodeResponse(ctx context.Context, response http.ResponseWriter, value interface{}) error {
 	xlog.Get(ctx).Log(
 		level.Key(), level.InfoValue(),
 		xlog.MessageKey(), "request",

@@ -27,6 +27,7 @@ import (
 
 	"emperror.dev/emperror"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/justinas/alice"
 	"github.com/spf13/viper"
 	"github.com/xmidt-org/bascule"
@@ -37,7 +38,6 @@ import (
 	"github.com/xmidt-org/themis/xmetrics"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"github.com/xmidt-org/webpa-common/basculemetrics"
-	"github.com/xmidt-org/webpa-common/logging"
 	"go.uber.org/fx"
 )
 
@@ -58,7 +58,7 @@ func SetLogger(logger log.Logger) func(delegate http.Handler) http.Handler {
 }
 
 func GetLogger(ctx context.Context) bascule.Logger {
-	logger := log.With(xlog.GetDefault(ctx, nil), "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+	logger := log.With(xlog.GetDefault(ctx, nil), xlog.TimestampKey(), log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	return logger
 }
 
@@ -109,16 +109,16 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 	for _, a := range basicAuth {
 		decoded, err := base64.StdEncoding.DecodeString(a)
 		if err != nil {
-			logging.Info(in.Logger).Log(logging.MessageKey(), "failed to decode auth header", "authHeader", a, logging.ErrorKey(), err.Error())
+			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "failed to decode auth header", "authHeader", a, xlog.ErrorKey(), err.Error())
 		}
 
 		i := bytes.IndexByte(decoded, ':')
-		logging.Debug(in.Logger).Log(logging.MessageKey(), "decoded string", "string", decoded, "i", i)
+		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "decoded string", "string", decoded, "i", i)
 		if i > 0 {
 			basicAllowed[string(decoded[:i])] = string(decoded[i+1:])
 		}
 	}
-	logging.Debug(in.Logger).Log(logging.MessageKey(), "Created list of allowed basic auths", "allowed", basicAllowed, "config", basicAuth)
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "Created list of allowed basic auths", "allowed", basicAllowed, "config", basicAuth)
 
 	options := []basculehttp.COption{
 		basculehttp.WithCLogger(GetLogger),
@@ -161,7 +161,7 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 		for _, e := range capabilityCheck.EndpointBuckets {
 			r, err := regexp.Compile(e)
 			if err != nil {
-				logging.Error(in.Logger).Log(logging.MessageKey(), "failed to compile regular expression", "regex", e, logging.ErrorKey(), err.Error())
+				in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error())
 				continue
 			}
 			endpoints = append(endpoints, r)
