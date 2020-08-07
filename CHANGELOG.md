@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 - changed setting/getting logger in context to use xlog package [#17](https://github.com/xmidt-org/argus/pull/17)
+- Check route before entering auth chain. [#21](https://github.com/xmidt-org/argus/pull/21)
 
 ## [v0.3.4]
 - handle error case of identifier being too large [#14](https://github.com/xmidt-org/argus/pull/14)
