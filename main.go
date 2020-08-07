@@ -19,6 +19,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
@@ -26,9 +30,6 @@ import (
 	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"github.com/xmidt-org/webpa-common/basculemetrics"
-	"os"
-	"runtime"
-	"time"
 
 	"github.com/InVisionApp/go-health"
 	"github.com/spf13/pflag"
