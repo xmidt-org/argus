@@ -37,8 +37,6 @@ type ServerChainIn struct {
 	RequestCount     *prometheus.CounterVec   `name:"server_request_count"`
 	RequestDuration  *prometheus.HistogramVec `name:"server_request_duration_ms"`
 	RequestsInFlight *prometheus.GaugeVec     `name:"server_requests_in_flight"`
-
-	AuthChain *alice.Chain `name:"auth_chain"`
 }
 
 func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
@@ -69,21 +67,6 @@ func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
 			return alice.Chain{}, err
 		}
 
-		if name == "servers.primary" {
-			return in.AuthChain.Append(
-				xmetricshttp.HandlerCounter{
-					Metric:   xmetrics.LabelledCounterVec{CounterVec: requestCount},
-					Labeller: serverLabellers,
-				}.Then,
-				xmetricshttp.HandlerDuration{
-					Metric:   xmetrics.LabelledObserverVec{ObserverVec: requestDuration},
-					Labeller: serverLabellers,
-				}.Then,
-				xmetricshttp.HandlerInFlight{
-					Metric: xmetrics.LabelledGaugeVec{GaugeVec: requestsInFlight},
-				}.Then,
-			), nil
-		}
 		return alice.New(
 			xmetricshttp.HandlerCounter{
 				Metric:   xmetrics.LabelledCounterVec{CounterVec: requestCount},
@@ -102,7 +85,8 @@ func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
 
 type PrimaryRouter struct {
 	fx.In
-	Router *mux.Router `name:"servers.primary"`
+	Router    *mux.Router  `name:"servers.primary"`
+	AuthChain *alice.Chain `name:"auth_chain"`
 }
 
 type SetRoutesIn struct {
@@ -120,13 +104,13 @@ type GetAllRoutesIn struct {
 
 func BuildPrimaryRoutes(router PrimaryRouter, sin SetRoutesIn, gin GetRoutesIn, gain GetAllRoutesIn) {
 	if sin.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), sin.Handler).Methods("PUT")
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(sin.Handler)).Methods("PUT")
 	}
 	if gin.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), gin.Handler).Methods("GET", "DELETE")
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), router.AuthChain.Then(gin.Handler)).Methods("GET", "DELETE")
 	}
 	if gain.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), gain.Handler).Methods("GET")
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(gain.Handler)).Methods("GET")
 	}
 }
 
