@@ -145,17 +145,16 @@ func (rh requestHandler) EncodeResponse(ctx context.Context, response http.Respo
 			return nil
 		}
 		if item, ok := value.(OwnableItem); ok {
-			var (
-				data = []byte(`{}`)
-				err  error
-			)
-
-			if item.TTL > 0 {
-				data, err = json.Marshal(&item.Item)
-				if err != nil {
-					return err
-				}
+			if item.TTL <= 0 {
+				response.WriteHeader(http.StatusNotFound)
+				return nil
 			}
+
+			data, err := json.Marshal(&item.Item)
+			if err != nil {
+				return err
+			}
+
 			response.Header().Add("Content-Type", "application/json")
 			response.Write(data)
 			return nil
