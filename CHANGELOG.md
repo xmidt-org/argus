@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- changed setting/getting logger in context to use xlog package [#17](https://github.com/xmidt-org/argus/pull/17)
+### Changed
+- Changed setting/getting logger in context to use xlog package. [#17](https://github.com/xmidt-org/argus/pull/17)
+
+### Fixed
+- Expired ownable items are no longer returned. [#22](https://github.com/xmidt-org/argus/pull/22)
 - Check route before entering auth chain. [#21](https://github.com/xmidt-org/argus/pull/21)
 
 ## [v0.3.4]
