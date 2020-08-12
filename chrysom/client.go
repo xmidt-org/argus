@@ -23,21 +23,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xmidt-org/argus/model"
-	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/webpa-common/logging"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/go-kit/kit/metrics/provider"
+	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/bascule/acquire"
+	"github.com/xmidt-org/webpa-common/logging"
 )
 
 type ClientConfig struct {
-	HttpClient   *http.Client
-	Bucket       string
-	PullInterval time.Duration
-	Address      string
-	Auth         Auth
-	DefaultTTL   int64
+	HttpClient      *http.Client
+	Bucket          string
+	PullInterval    time.Duration
+	Address         string
+	Auth            Auth
+	DefaultTTL      int64
+	MetricsProvider provider.Provider
 }
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
@@ -50,6 +53,13 @@ type Client struct {
 	config  ClientConfig
 	ticker  *time.Ticker
 	auth    acquire.Acquirer
+	metrics *measures
+}
+
+func initMetrics(p provider.Provider) *measures {
+	return &measures{
+		pollCount: p.NewCounter(PollCounter),
+	}
 }
 
 func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
@@ -66,28 +76,34 @@ func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
 		options: &storeConfig{
 			logger: logging.DefaultLogger(),
 		},
-		config: config,
-		ticker: time.NewTicker(config.PullInterval),
-		auth:   auth,
+		config:  config,
+		ticker:  time.NewTicker(config.PullInterval),
+		auth:    auth,
+		metrics: initMetrics(config.MetricsProvider),
 	}
+
 	if config.PullInterval > 0 {
 		clientStore.ticker = time.NewTicker(config.PullInterval)
 	}
 	for _, o := range options {
 		o(clientStore.options)
 	}
+
 	go func() {
 		if clientStore.ticker == nil {
 			return
 		}
 		for range clientStore.ticker.C {
 			if clientStore.options.listener != nil {
+				outcome := SuccessOutcome
 				items, err := clientStore.GetItems("")
 				if err == nil {
 					clientStore.options.listener.Update(items)
 				} else {
+					outcome = FailureOutcomme
 					logging.Error(clientStore.options.logger).Log(logging.MessageKey(), "failed to get items ", logging.ErrorKey(), err)
 				}
+				clientStore.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
 			}
 		}
 	}()
@@ -106,6 +122,9 @@ func validateConfig(config *ClientConfig) error {
 	}
 	if config.DefaultTTL < 1 {
 		config.DefaultTTL = 300
+	}
+	if config.MetricsProvider == nil {
+		return errors.New("a metrics provider is required")
 	}
 	return nil
 }
