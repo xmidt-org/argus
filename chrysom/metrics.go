@@ -10,14 +10,14 @@ const (
 	PollCounter = "chrysom_polls_total"
 )
 
-// Labels 
+// Labels
 const (
 	OutcomeLabel = "outcome"
 )
 
 // Label Values
 const (
-	SuccessOutcome = "success"
+	SuccessOutcome  = "success"
 	FailureOutcomme = "failure"
 )
 
@@ -25,7 +25,7 @@ const (
 func Metrics() []xmetrics.Metric {
 	return []xmetrics.Metric{
 		xmetrics.Metric{
-			Name:       PollCounter, 
+			Name:       PollCounter,
 			Type:       xmetrics.CounterType,
 			Help:       "Counter for the number of polls (and their success/failure outcomes) to fetch new items.",
 			LabelNames: []string{OutcomeLabel},
@@ -35,4 +35,4 @@ func Metrics() []xmetrics.Metric {
 
 type measures struct {
 	pollCount metrics.Counter
-} 
+}
