@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Changed setting/getting logger in context to use xlog package. [#17](https://github.com/xmidt-org/argus/pull/17)
 
+### Added
+- Added a counter for chrysom data polls with a label around success/failure. [#23](https://github.com/xmidt-org/argus/pull/23)
+
 ### Fixed
 - Expired ownable items are no longer returned. [#22](https://github.com/xmidt-org/argus/pull/22)
 - Check route before entering auth chain. [#21](https://github.com/xmidt-org/argus/pull/21)
