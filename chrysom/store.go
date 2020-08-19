@@ -19,6 +19,7 @@ package chrysom
 
 import (
 	"context"
+
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 )
@@ -50,8 +51,8 @@ type Listener interface {
 
 type ListenerFunc func(items []model.Item)
 
-func (listner ListenerFunc) Update(items []model.Item) {
-	listner(items)
+func (listener ListenerFunc) Update(items []model.Item) {
+	listener(items)
 }
 
 type Reader interface {
