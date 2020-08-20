@@ -23,7 +23,7 @@ addons:
 
 script:
   - make style codecov
-  - sonar-scanner -Dproject.settings=./.sonar-project.properties
+  - sonar-scanner -Dproject.settings=./.sonar-project.properties -X
 
 jobs:
   fast_finish: true
