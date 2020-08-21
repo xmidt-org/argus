@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Changed
 - Changed setting/getting logger in context to use xlog package. [#17](https://github.com/xmidt-org/argus/pull/17)
+- Simplify client constructor and add error logging. [#26](https://github.com/xmidt-org/argus/pull/26)
 
 ### Added
 - Added a counter for chrysom data polls with a label around success/failure. [#23](https://github.com/xmidt-org/argus/pull/23)
