@@ -118,7 +118,7 @@ func CreateClient(config ClientConfig) (*Client, error) {
 					clientStore.listener.Update(items)
 				} else {
 					outcome = FailureOutcomme
-					clientStore.loggers.Error.Log(logging.MessageKey(), "failed to get items ", logging.ErrorKey(), err)
+					clientStore.loggers.Error.Log(logging.MessageKey(), "failed to get items", logging.ErrorKey(), err)
 				}
 				clientStore.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
 			}
