@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/webpa-common/logging"
 )
 
 type ClientConfig struct {
@@ -65,14 +65,14 @@ type Client struct {
 	bucketName          string
 	remoteStoreAddress  string
 	defaultStoreItemTTL int64
-	loggers             *loggerGroup
+	loggers             loggerGroup
 }
 
-func initLoggers(logger log.Logger) *loggerGroup {
-	return &loggerGroup{
-		Info:  logging.Info(logger),
-		Error: logging.Error(logger),
-		Debug: logging.Debug(logger),
+func initLoggers(logger log.Logger) loggerGroup {
+	return loggerGroup{
+		Info:  level.Info(logger),
+		Error: level.Error(logger),
+		Debug: level.Debug(logger),
 	}
 }
 
@@ -106,24 +106,6 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		clientStore.ticker = time.NewTicker(config.PullInterval)
 	}
 
-	go func() {
-		if clientStore.ticker == nil {
-			return
-		}
-		for range clientStore.ticker.C {
-			if clientStore.listener != nil {
-				outcome := SuccessOutcome
-				items, err := clientStore.GetItems("")
-				if err == nil {
-					clientStore.listener.Update(items)
-				} else {
-					outcome = FailureOutcomme
-					clientStore.loggers.Error.Log(logging.MessageKey(), "failed to get items ", logging.ErrorKey(), err)
-				}
-				clientStore.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
-			}
-		}
-	}()
 	return clientStore, nil
 }
 
@@ -145,7 +127,7 @@ func validateConfig(config *ClientConfig) error {
 	}
 
 	if config.Logger == nil {
-		config.Logger = logging.DefaultLogger()
+		config.Logger = log.NewNopLogger()
 	}
 	return nil
 }
@@ -182,6 +164,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 		return []model.Item{}, nil
 	}
 	if response.StatusCode != 200 {
+		c.loggers.Error.Log(log.MessageKey(), "DB responded with non-200 response for request to get items", "code", response.StatusCode)
 		return []model.Item{}, errors.New("failed to get items, non 200 statuscode")
 	}
 	data, err := ioutil.ReadAll(response.Body)
@@ -231,7 +214,7 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 		return "", err
 	}
 	if response.StatusCode != 200 {
-		c.loggers.Error.Log(logging.MessageKey(), "DB responded with non-200 response", "code", response.StatusCode)
+		c.loggers.Error.Log(log.MessageKey(), "DB responded with non-200 response for request to add/update an item", "code", response.StatusCode)
 		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
 	}
 	responsePayload, _ := ioutil.ReadAll(response.Body)
@@ -271,6 +254,36 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	return item, nil
 }
 
-func (c *Client) Stop(context context.Context) {
-	c.ticker.Stop()
+func (c *Client) Start(ctx context.Context) error {
+	if c.ticker == nil {
+		return errors.New("interval ticker is nil")
+	}
+
+	if c.listener == nil {
+		c.loggers.Info.Log(log.MessageKey(), "No listener setup for updates")
+		return nil
+	}
+
+	go func() {
+		for range c.ticker.C {
+			outcome := SuccessOutcome
+			items, err := clientStore.GetItems("")
+			if err == nil {
+				c.listener.Update(items)
+			} else {
+				outcome = FailureOutcomme
+				c.loggers.Error.Log(log.MessageKey(), "failed to get items ", level.ErrorValue(), err)
+			}
+			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
+		}
+	}()
+
+	return nil
+}
+
+func (c *Client) Stop(ctx context.Context) error {
+	if c.ticker != nil {
+		c.ticker.Stop()
+	}
+	return nil
 }
