@@ -272,7 +272,7 @@ func (c *Client) Start(ctx context.Context) error {
 				c.listener.Update(items)
 			} else {
 				outcome = FailureOutcomme
-				c.loggers.Error.Log(log.MessageKey(), "failed to get items ", level.ErrorValue(), err)
+				c.loggers.Error.Log(log.MessageKey(), "failed to get items", level.ErrorValue(), err)
 			}
 			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
