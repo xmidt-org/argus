@@ -36,9 +36,6 @@ type Pusher interface {
 
 	// Remove will remove the item from the store
 	Remove(id string, owner string) (model.Item, error)
-
-	// Stop will stop all threads and cleanup any necessary resources
-	Stop(context context.Context)
 }
 
 type Listener interface {
@@ -58,6 +55,11 @@ func (listener ListenerFunc) Update(items []model.Item) {
 type Reader interface {
 	// GeItems will return all the current items or an error.
 	GetItems(owner string) ([]model.Item, error)
+
+	Start(ctx context.Context) error
+
+	// Stop will stop all threads and cleanup any necessary resources
+	Stop(ctx context.Context) error
 }
 
 type ConfigureListener interface {

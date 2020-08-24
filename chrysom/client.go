@@ -164,7 +164,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 		return []model.Item{}, nil
 	}
 	if response.StatusCode != 200 {
-		c.loggers.Error.Log(log.MessageKey(), "DB responded with non-200 response for request to get items", "code", response.StatusCode)
+		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to get items", "code", response.StatusCode)
 		return []model.Item{}, errors.New("failed to get items, non 200 statuscode")
 	}
 	data, err := ioutil.ReadAll(response.Body)
@@ -214,7 +214,7 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 		return "", err
 	}
 	if response.StatusCode != 200 {
-		c.loggers.Error.Log(log.MessageKey(), "DB responded with non-200 response for request to add/update an item", "code", response.StatusCode)
+		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to add/update an item", "code", response.StatusCode)
 		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
 	}
 	responsePayload, _ := ioutil.ReadAll(response.Body)
@@ -260,19 +260,19 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 
 	if c.listener == nil {
-		c.loggers.Info.Log(log.MessageKey(), "No listener setup for updates")
+		c.loggers.Info.Log("msg", "No listener setup for updates")
 		return nil
 	}
 
 	go func() {
 		for range c.ticker.C {
 			outcome := SuccessOutcome
-			items, err := clientStore.GetItems("")
+			items, err := c.GetItems("")
 			if err == nil {
 				c.listener.Update(items)
 			} else {
 				outcome = FailureOutcomme
-				c.loggers.Error.Log(log.MessageKey(), "failed to get items", level.ErrorValue(), err)
+				c.loggers.Error.Log("msg", "failed to get items", level.ErrorValue(), err)
 			}
 			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
