@@ -19,6 +19,7 @@ package chrysom
 
 import (
 	"context"
+
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 )
@@ -35,9 +36,6 @@ type Pusher interface {
 
 	// Remove will remove the item from the store
 	Remove(id string, owner string) (model.Item, error)
-
-	// Stop will stop all threads and cleanup any necessary resources
-	Stop(context context.Context)
 }
 
 type Listener interface {
@@ -50,13 +48,18 @@ type Listener interface {
 
 type ListenerFunc func(items []model.Item)
 
-func (listner ListenerFunc) Update(items []model.Item) {
-	listner(items)
+func (listener ListenerFunc) Update(items []model.Item) {
+	listener(items)
 }
 
 type Reader interface {
 	// GeItems will return all the current items or an error.
 	GetItems(owner string) ([]model.Item, error)
+
+	Start(ctx context.Context) error
+
+	// Stop will stop all threads and cleanup any necessary resources
+	Stop(ctx context.Context) error
 }
 
 type ConfigureListener interface {

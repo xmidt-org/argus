@@ -27,33 +27,53 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/webpa-common/logging"
 )
 
 type ClientConfig struct {
-	HttpClient      *http.Client
+	HTTPClient      *http.Client
 	Bucket          string
 	PullInterval    time.Duration
 	Address         string
 	Auth            Auth
 	DefaultTTL      int64
 	MetricsProvider provider.Provider
+	Logger          log.Logger
 }
+
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
 }
 
+type loggerGroup struct {
+	Info  log.Logger
+	Error log.Logger
+	Debug log.Logger
+}
+
 type Client struct {
-	client  *http.Client
-	options *storeConfig
-	config  ClientConfig
-	ticker  *time.Ticker
-	auth    acquire.Acquirer
-	metrics *measures
+	client              *http.Client
+	ticker              *time.Ticker
+	auth                acquire.Acquirer
+	metrics             *measures
+	listener            Listener
+	bucketName          string
+	remoteStoreAddress  string
+	defaultStoreItemTTL int64
+	loggers             loggerGroup
+}
+
+func initLoggers(logger log.Logger) loggerGroup {
+	return loggerGroup{
+		Info:  level.Info(logger),
+		Error: level.Error(logger),
+		Debug: level.Debug(logger),
+	}
 }
 
 func initMetrics(p provider.Provider) *measures {
@@ -62,7 +82,7 @@ func initMetrics(p provider.Provider) *measures {
 	}
 }
 
-func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
+func CreateClient(config ClientConfig) (*Client, error) {
 	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
@@ -72,47 +92,26 @@ func CreateClient(config ClientConfig, options ...Option) (*Client, error) {
 		return nil, err
 	}
 	clientStore := &Client{
-		client: config.HttpClient,
-		options: &storeConfig{
-			logger: logging.DefaultLogger(),
-		},
-		config:  config,
-		ticker:  time.NewTicker(config.PullInterval),
-		auth:    auth,
-		metrics: initMetrics(config.MetricsProvider),
+		client:              config.HTTPClient,
+		ticker:              time.NewTicker(config.PullInterval),
+		auth:                auth,
+		metrics:             initMetrics(config.MetricsProvider),
+		loggers:             initLoggers(config.Logger),
+		remoteStoreAddress:  config.Address,
+		defaultStoreItemTTL: config.DefaultTTL,
+		bucketName:          config.Bucket,
 	}
 
 	if config.PullInterval > 0 {
 		clientStore.ticker = time.NewTicker(config.PullInterval)
 	}
-	for _, o := range options {
-		o(clientStore.options)
-	}
 
-	go func() {
-		if clientStore.ticker == nil {
-			return
-		}
-		for range clientStore.ticker.C {
-			if clientStore.options.listener != nil {
-				outcome := SuccessOutcome
-				items, err := clientStore.GetItems("")
-				if err == nil {
-					clientStore.options.listener.Update(items)
-				} else {
-					outcome = FailureOutcomme
-					logging.Error(clientStore.options.logger).Log(logging.MessageKey(), "failed to get items ", logging.ErrorKey(), err)
-				}
-				clientStore.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
-			}
-		}
-	}()
 	return clientStore, nil
 }
 
 func validateConfig(config *ClientConfig) error {
-	if config.HttpClient == nil {
-		config.HttpClient = http.DefaultClient
+	if config.HTTPClient == nil {
+		config.HTTPClient = http.DefaultClient
 	}
 	if config.Address == "" {
 		return errors.New("address can't be empty")
@@ -125,6 +124,10 @@ func validateConfig(config *ClientConfig) error {
 	}
 	if config.MetricsProvider == nil {
 		return errors.New("a metrics provider is required")
+	}
+
+	if config.Logger == nil {
+		config.Logger = log.NewNopLogger()
 	}
 	return nil
 }
@@ -142,7 +145,7 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 }
 
 func (c *Client) GetItems(owner string) ([]model.Item, error) {
-	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), nil)
+	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), nil)
 	if err != nil {
 		return []model.Item{}, err
 	}
@@ -161,6 +164,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 		return []model.Item{}, nil
 	}
 	if response.StatusCode != 200 {
+		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to get items", "code", response.StatusCode)
 		return []model.Item{}, errors.New("failed to get items, non 200 statuscode")
 	}
 	data, err := ioutil.ReadAll(response.Body)
@@ -188,13 +192,13 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 		return "", errors.New("identifier can't be empty")
 	}
 	if item.TTL < 1 {
-		item.TTL = c.config.DefaultTTL
+		item.TTL = c.defaultStoreItemTTL
 	}
 	data, err := json.Marshal(&item)
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s", c.config.Address, c.config.Bucket), bytes.NewReader(data))
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -210,7 +214,8 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 		return "", err
 	}
 	if response.StatusCode != 200 {
-		return "", errors.New("failed to put item, non 200 statuscode")
+		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to add/update an item", "code", response.StatusCode)
+		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
 	}
 	responsePayload, _ := ioutil.ReadAll(response.Body)
 	key := model.Key{}
@@ -222,7 +227,7 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 }
 
 func (c *Client) Remove(id string, owner string) (model.Item, error) {
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.config.Address, c.config.Bucket, id), nil)
+	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -249,11 +254,36 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	return item, nil
 }
 
-func (c *Client) Stop(context context.Context) {
-	c.ticker.Stop()
+func (c *Client) Start(ctx context.Context) error {
+	if c.ticker == nil {
+		return errors.New("interval ticker is nil")
+	}
+
+	if c.listener == nil {
+		c.loggers.Info.Log("msg", "No listener setup for updates")
+		return nil
+	}
+
+	go func() {
+		for range c.ticker.C {
+			outcome := SuccessOutcome
+			items, err := c.GetItems("")
+			if err == nil {
+				c.listener.Update(items)
+			} else {
+				outcome = FailureOutcomme
+				c.loggers.Error.Log("msg", "failed to get items", level.ErrorValue(), err)
+			}
+			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
+		}
+	}()
+
+	return nil
 }
 
-func (c *Client) SetListener(listener Listener) error {
-	c.options.listener = listener
+func (c *Client) Stop(ctx context.Context) error {
+	if c.ticker != nil {
+		c.ticker.Stop()
+	}
 	return nil
 }
