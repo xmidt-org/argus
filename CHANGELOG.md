@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.5]
 ### Changed
 - Changed setting/getting logger in context to use xlog package. [#17](https://github.com/xmidt-org/argus/pull/17)
 - Simplify client constructor and add error logging. [#26](https://github.com/xmidt-org/argus/pull/26)
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.5...HEAD
+[v0.3.5]: https://github.com/xmidt-org/argus/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/xmidt-org/argus/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/xmidt-org/argus/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/xmidt-org/argus/compare/v0.3.1...v0.3.2
