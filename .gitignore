@@ -12,6 +12,7 @@ lib/
 
 # for goland
 .idea/
+report.json
 
 # for releases
 .ignore/
