@@ -19,11 +19,18 @@ addons:
   sonarcloud:
     organization: "xmidt-org"
     token:
-      secure: "W3/zhSfdLr3zAEgpGWhuxnDnXYQCLRCQ9LbalKDHczF/wv7RaNnc/v3fV3SyKzXT2uGMCW6k4iNeCyGAKe4Y/96uoRkyit7e4ixSD2EwsngIjpG0IL6i3xxTIUdg/+HEAPSXpFDmm1ZLxb8BbDgCDwJR8+qDnqQpJ7GkFADecrhFbi0m7EnjYyqo9e2yBz7OpVDem6ZzZ6CizCY8SGD1SsKVyymIMzUO9Q/h+8rpm+uZQNqtxE3IFKVtNY8fp64s/6MaaQ8PPujrohV1ZVqC50JvcYReArWvbf9U+iTr0ffdFHA4Y3WANRcbKDk+55qroQUVfc7b/AX7c6xpEBbOpqY+vq8zm30xoMECtmmT4S55/uqZBOL6u7vuW6w9Otm4nCXAo0YeQG2bxyBz3kX0vK5qgXYvrLU1CTL2ENqKj149AD9NqqUjiDUZSDNf35WFOcmysqm0BPB6SWhADIY1ls+CFazf0d6SBbHo7DgZy+8Xq350rsR8EJwQak/LuhhS6PHXhVzYVAa/RRXyZWXozrzDnAGW8aV2EddhjnHnEEEE2vHpOOEpQrkQpq9FrW5fGx7U7UYsclrNcEFuFvF62++3UCfkH1iTs69YTSeYjSu97gMCJs3WBf9Fnrvg42hRUa42xfAnZAF/eg6l0ArrMmCdvHQ5RmPgYqHfNNxqpLc="
+      secure: "Hn+GuXFFYoWlzgxLMmYU8Mij3lPGOG/ZbG8BaN3T72COKdt2GHyrSBeuduJNxxiSLv5Ryu8URGc5X3gXR17MkYIXI58YN55po0L98J4RqQDXOHrZCsZ6l2MYexWAZfzdnoD3jA1vHHL/8m+ZeuxqgHNYwSybvvRQeh5oqjLF3LZU3ThYaoRlz+p/6tvO/ob8HYNAv8wTT5UXVPAbFmneggJC8Rkcz7ocDgK7yQKbcnEf3OO230i01O29ETxFXcVbvnSps6Mk1FzPxVqGvoG4Cq/Gy07Ao1PHEnJY6033RWOFOj8hfvC1GrZeDsfeh7R+UKmQUKa6o7k8IurLG+yGA4kLugeTW7r8H05GHbWSUlPddCnrCcLMFE3ev+au3YygZuv7s23SNj+RExvb35/t5+M/xV4IboVGpc5WQlM6SugLwWin7nilO7dI3pabbEjOKQ3s6+8Qr2PsDtRyGJFUbkuTz0aIytwAPTeFXjuCnM6jAvcker9ChhrDk2hEiI3nzLXa5Y34MdooDSjxBBIdlNDe7b1StaPGSCow3Y9gJfTe0Oe/QQkPRVE2i+Kql1uD0OXUtMWDfDtp+g//R7/Rpv2NxwTvz2D/iDh+dYfPLaGI0UXIayEGC4df/6TF0/HKbsToDV9AiGuiyaS4dLvvOOlCvypAr5BKa0Fb6xA2+E8="
 
 script:
   - make style codecov
+
+after_success:
   - sonar-scanner -Dproject.settings=./.sonar-project.properties
+
+stages:
+  - test
+  - tag
+  - release
 
 jobs:
   fast_finish: true
@@ -48,6 +55,8 @@ jobs:
         - export TODAY=`date +'%m/%d/%Y'`
         - export NOTES=$(cat CHANGELOG.md | perl -0777 -ne 'print "$ENV{TODAY}\n\n$1\n" if /.*## \[$ENV{TAG}\]\s(.*?)\s+## \[(v\d+.\d+.\d+)\].*/s')
         - if [[ "$TAG" != "" && "$TAG" != "$OLD_VERSION" ]]; then git tag -a "$TAG" -m "$NOTES"; git push origin --tags; echo $?; fi
+      after_success: skip
+
     - stage: release
       name: "Make a Release"
       if: branch != main
