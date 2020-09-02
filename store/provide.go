@@ -18,9 +18,10 @@
 package store
 
 import (
+	"time"
+
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
-	"time"
 )
 
 // StoreIn is the set of dependencies for this package's components
