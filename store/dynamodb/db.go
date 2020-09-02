@@ -20,48 +20,78 @@ package dynamodb
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/go-kit/kit/log"
+	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/themis/config"
-	"github.com/xmidt-org/webpa-common/logging"
 )
 
-const (
-	DynamoDB = "dynamo"
+// DynamoDB is the path to the configuration structure
+// needed to connect to a dynamo DB instance.
+const DynamoDB = "dynamo"
 
+const (
 	defaultTable      = "gifnoc"
 	defaultMaxRetries = 3
 )
 
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
+
+// Config contains all fields needed to establish a connection
+// with a dynamoDB instance.
 type Config struct {
-	Table      string
-	Endpoint   string
-	Region     string
+	// Table is the name of the target DB table.
+	// (Optional) Defaults to 'gifnoc'
+	Table string
+
+	// Endpoint is the HTTP(S) URL to the DB.
+	Endpoint string `validate:"required"`
+
+	// Region is the AWS region of the running DB.
+	Region string `validate:"required"`
+
+	// MaxRetries is the number of times DB operations will be retried on error.
+	// (Optional) Defaults to 3.
 	MaxRetries int
-	AccessKey  string
-	SecretKey  string
+
+	// AccessKey is the AWS AccessKey credential.
+	AccessKey string `validate:"required"`
+
+	// SecretKey is the AWS SecretKey credential.
+	SecretKey string `validate:"required"`
+
+	// DisableDualStack indicates whether the connection to the DB should be
+	// dual stack (IPv4 and IPv6).
+	// (Optional) Defaults to False.
+	DisableDualStack bool
 }
 
-type DynamoClient struct {
-	client   storeConsumable
-	config   Config
-	logger   log.Logger
-	measures metric.Measures
+// dao adapts the underlying dynamodb data service to match
+// the store.DAO (currently named store.S but we should rename it) interface.
+type dao struct {
+	s service
 }
 
-func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures, logger log.Logger) (store.S, error) {
-	var config Config
-	err := unmarshaller.UnmarshalKey(DynamoDB, &config)
+func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures, logger log.Logger) (store.S, error) {
+	config, err := getConfig(unmarshaller)
 	if err != nil {
 		return nil, err
 	}
-	validateConfig(config)
+
+	err = validate.Struct(config)
+	if err != nil {
+		return nil, err
+	}
+
 	awsConfig := *aws.NewConfig().
 		WithEndpoint(config.Endpoint).
-		WithUseDualStack(true).
+		WithUseDualStack(!config.DisableDualStack).
 		WithMaxRetries(config.MaxRetries).
 		WithCredentialsChainVerboseErrors(true).
 		WithRegion(config.Region).
@@ -70,63 +100,42 @@ func ProvideDynamodDB(unmarshaller config.Unmarshaller, measures metric.Measures
 			SecretAccessKey: config.SecretKey,
 		}))
 
-	executer, err := createDynamoDBexecutor(awsConfig, "", config.Table, logger)
+	svc, err := newService(awsConfig, "", config.Table, logger)
 	if err != nil {
 		return nil, err
 	}
-	return &DynamoClient{
-		client:   executer,
-		config:   config,
-		measures: measures,
-		logger:   logger,
+
+	return &dao{
+		s: svc,
 	}, nil
 }
 
-func (s *DynamoClient) Push(key model.Key, item store.OwnableItem) error {
-	consumedCapacity, err := s.client.Push(key, item)
-	s.updateCapacityMetric(consumedCapacity, store.InsertType)
-	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.InsertType).Add(1.0)
-		return err
-	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.InsertType).Add(1.0)
-	return nil
+func (d dao) Push(key model.Key, item store.OwnableItem) error {
+	_, err := d.s.Push(key, item)
+	return err
 }
 
-func (s *DynamoClient) Get(key model.Key) (store.OwnableItem, error) {
-	item, consumedCapacity, err := s.client.Get(key)
-	s.updateCapacityMetric(consumedCapacity, store.ReadType)
-	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
-		return item, err
-	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.ReadType).Add(1.0)
-	return item, nil
-}
-
-func (s *DynamoClient) Delete(key model.Key) (store.OwnableItem, error) {
-	item, consumedCapacity, err := s.client.Delete(key)
-	s.updateCapacityMetric(consumedCapacity, store.DeleteType)
-	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
-		return item, err
-	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
+func (d dao) Get(key model.Key) (store.OwnableItem, error) {
+	item, _, err := d.s.Get(key)
 	return item, err
 }
 
-func (s *DynamoClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
-	item, consumedCapacity, err := s.client.GetAll(bucket)
-	s.updateCapacityMetric(consumedCapacity, store.ReadType)
-	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
-		return item, err
-	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.ReadType).Add(1.0)
+func (d *dao) Delete(key model.Key) (store.OwnableItem, error) {
+	item, _, err := d.s.Delete(key)
 	return item, err
 }
 
-func validateConfig(config Config) {
+func (d *dao) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+	items, _, err := d.s.GetAll(bucket)
+	return items, err
+}
+
+func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
+	var config Config
+	err := unmarshaller.UnmarshalKey(DynamoDB, &config)
+	if err != nil {
+		return nil, err
+	}
 
 	if config.Table == "" {
 		config.Table = defaultTable
@@ -134,19 +143,6 @@ func validateConfig(config Config) {
 	if config.MaxRetries == 0 {
 		config.MaxRetries = defaultMaxRetries
 	}
-}
 
-func (s *DynamoClient) updateCapacityMetric(consumedCapacity *dynamodb.ConsumedCapacity, action string) {
-	if consumedCapacity != nil {
-		logging.Debug(s.logger).Log(logging.MessageKey(), "Updating consumed capacity", "consumed", consumedCapacity, "action", action)
-		if consumedCapacity.CapacityUnits != nil {
-			s.measures.CapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.CapacityUnits)
-		}
-		if consumedCapacity.ReadCapacityUnits != nil {
-			s.measures.ReadCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.ReadCapacityUnits)
-		}
-		if consumedCapacity.WriteCapacityUnits != nil {
-			s.measures.WriteCapacityUnitConsumedCount.With(store.TypeLabel, action).Add(*consumedCapacity.WriteCapacityUnits)
-		}
-	}
+	return &config, nil
 }
