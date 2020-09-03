@@ -51,7 +51,10 @@ type service interface {
 // executor satisfies the service interface so dao can then adapt the outputs to match
 // the Argus' abstract DAO.
 type executor struct {
-	c         client
+	// c is the dynamodb client
+	c client
+
+	// tableName is the name of the dynamodb table
 	tableName string
 }
 
@@ -65,6 +68,12 @@ var retryableAWSCodes = map[string]bool{
 	dynamodb.ErrCodeProvisionedThroughputExceededException: true,
 	dynamodb.ErrCodeInternalServerError:                    true,
 }
+
+// Dynamo DB attribute keys
+const (
+	bucketAttributeKey = "Bucket"
+	idAttributeKey     = "id"
+)
 
 func handleClientError(err error) error {
 	awsErr, ok := err.(awserr.Error)
@@ -109,10 +118,10 @@ func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapa
 	result, err := d.c.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			"bucket": {
+			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			"id": {
+			idAttributeKey: {
 				S: aws.String(key.ID),
 			},
 		},
@@ -138,14 +147,14 @@ func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapa
 func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result, err := d.c.DeleteItem(&dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
-			"bucket": {
+			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			"id": {
+			idAttributeKey: {
 				S: aws.String(key.ID),
 			},
 		},
-		ReturnValues:           aws.String("ALL_OLD"),
+		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
 		TableName:              aws.String(d.tableName),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
@@ -172,8 +181,8 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 	queryResult, err := d.c.Query(&dynamodb.QueryInput{
 		TableName: aws.String(d.tableName),
 		KeyConditions: map[string]*dynamodb.Condition{
-			"bucket": {
-				ComparisonOperator: aws.String("EQ"),
+			bucketAttributeKey: {
+				ComparisonOperator: aws.String(dynamodb.ComparisonOperatorEq),
 				AttributeValueList: []*dynamodb.AttributeValue{
 					{
 						S: &bucket,

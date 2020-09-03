@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 )
@@ -46,54 +47,14 @@ import (
 //   * InternalServerError
 //   An error occurred on the server side.
 //
-func TestPush(t *testing.T) {
-	testCases := []struct {
-		name         string
-		dynamoOutput *dynamodb.PutItemOutput
-		dynamoErr    error
-		expectedErr  error
-	}{
-		{
-			name:         "Throughput exceeded",
-			dynamoOutput: new(dynamodb.PutItemOutput),
-			dynamoErr:    new(dynamodb.ProvisionedThroughputExceededException),
-			expectedErr:  store.InternalError{Reason: dynamodb.ErrCodeProvisionedThroughputExceededException, Retryable: true},
-		},
-		{
-			name:         "Resource not found",
-			dynamoOutput: new(dynamodb.PutItemOutput),
-			dynamoErr:    new(dynamodb.ResourceNotFoundException),
-			expectedErr:  store.InternalError{Reason: dynamodb.ErrCodeResourceNotFoundException, Retryable: false},
-		},
-		{
-			name:         "Request Limit exceeded",
-			dynamoOutput: new(dynamodb.PutItemOutput),
-			dynamoErr:    new(dynamodb.RequestLimitExceeded),
-			expectedErr:  store.InternalError{Reason: dynamodb.ErrCodeRequestLimitExceeded, Retryable: false},
-		},
-		{
-			name:         "Internal server error",
-			dynamoOutput: new(dynamodb.PutItemOutput),
-			dynamoErr:    new(dynamodb.InternalServerError),
-			expectedErr:  store.InternalError{Reason: dynamodb.ErrCodeInternalServerError, Retryable: true},
-		},
-		{
-			name:         "Non AWS Error",
-			dynamoOutput: new(dynamodb.PutItemOutput),
-			dynamoErr:    errors.New("non AWS internal error"),
-			expectedErr:  store.InternalError{Reason: "non AWS internal error", Retryable: false},
-		},
-		{
-			name: "Success",
-			dynamoOutput: &dynamodb.PutItemOutput{
-				ConsumedCapacity: &dynamodb.ConsumedCapacity{
-					CapacityUnits: aws.Float64(64),
-				},
-			},
-		},
-	}
 
-	item := store.OwnableItem{
+const (
+	testTableName  = "table01"
+	testBucketName = "bucket01"
+)
+
+var (
+	item = store.OwnableItem{
 		Item: model.Item{
 			Identifier: "id01",
 			Data:       map[string]interface{}{"dataKey": "dataValue"},
@@ -101,38 +62,203 @@ func TestPush(t *testing.T) {
 		},
 		Owner: "xmidt",
 	}
-	key := model.Key{
-		Bucket: "bucket01",
+	key = model.Key{
+		Bucket: testBucketName,
 		ID:     "id01",
 	}
+)
+
+type errorCase struct {
+	name        string
+	dynamoErr   error
+	expectedErr error
+}
+
+type operationType struct {
+	name          string
+	mockedMethod  string
+	mockedArgs    []interface{}
+	mockedReturns []interface{}
+}
+
+type ClientErrorTestSuite struct {
+	suite.Suite
+	operationTypes   []operationType
+	clientErrorCases []errorCase
+	putItemInput     *dynamodb.PutItemInput
+	getItemInput     *dynamodb.GetItemInput
+	queryItemInput   *dynamodb.QueryInput
+	deleteItemInput  *dynamodb.DeleteItemInput
+}
+
+func (s *ClientErrorTestSuite) SetupTest() {
+	s.setupOperations()
+	s.setupErrorCases()
+}
+func (s *ClientErrorTestSuite) TestClientErrors() {
+	for _, operationType := range s.operationTypes {
+		s.T().Run(operationType.name, func(t *testing.T) {
+			for _, clientErrorCase := range s.clientErrorCases {
+				s.T().Run(clientErrorCase.name, func(t *testing.T) {
+					assert := assert.New(t)
+					require := require.New(t)
+					m := new(mockClient)
+					require.NotNil(m)
+					m.On(operationType.mockedMethod, operationType.mockedArgs...).Return(append(operationType.mockedReturns, clientErrorCase.dynamoErr)...)
+					service := &executor{
+						c:         m,
+						tableName: testTableName,
+					}
+
+					switch operationType.name {
+					case "Push":
+						consumedCapacity, err := service.Push(key, item)
+						assert.Equal(clientErrorCase.expectedErr, err)
+						assert.Nil(consumedCapacity)
+					case "Get":
+						ownableItem, consumedCapacity, err := service.Get(key)
+						assert.Equal(clientErrorCase.expectedErr, err)
+						assert.Nil(consumedCapacity)
+						assert.Equal(store.OwnableItem{}, ownableItem)
+					case "GetAll":
+						ownableItems, consumedCapacity, err := service.GetAll(testBucketName)
+						assert.Equal(clientErrorCase.expectedErr, err)
+						assert.Nil(consumedCapacity)
+						assert.Equal(map[string]store.OwnableItem{}, ownableItems)
+					case "Delete":
+						ownableItem, consumedCapacity, err := service.Delete(key)
+						assert.Equal(clientErrorCase.expectedErr, err)
+						assert.Nil(consumedCapacity)
+						assert.Equal(store.OwnableItem{}, ownableItem)
+					}
+					m.AssertExpectations(t)
+				})
+			}
+		})
+	}
+}
+
+func TestClientErrors(t *testing.T) {
+	suite.Run(t, new(ClientErrorTestSuite))
+}
+
+func (s *ClientErrorTestSuite) setupInputs() {
+	s.getItemInput = &dynamodb.GetItemInput{
+		TableName: aws.String(testTableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+
+	s.deleteItemInput = &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+		},
+		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
+		TableName:              aws.String(testTableName),
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+
 	expirableItem := element{
 		OwnableItem: item,
 		Expires:     time.Now().Unix() + item.TTL,
 		Key:         key,
 	}
 	encodedItem, err := dynamodbattribute.MarshalMap(expirableItem)
-	input := &dynamodb.PutItemInput{
+	if err != nil {
+		panic(err)
+	}
+	s.putItemInput = &dynamodb.PutItemInput{
 		Item:                   encodedItem,
-		TableName:              aws.String("testTable"),
+		TableName:              aws.String(testTableName),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	require := require.New(t)
-	require.Nil(err)
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			assert := assert.New(t)
-			m := new(mockClient)
-			assert.NotNil(m)
-			m.On("PutItem", input).Return(testCase.dynamoOutput, testCase.dynamoErr)
-			service := &executor{
-				c:         m,
-				tableName: "testTable",
-			}
-			resp, err := service.Push(key, item)
-			assert.Equal(testCase.expectedErr, err)
-			assert.Equal(testCase.dynamoOutput.ConsumedCapacity, resp)
-			m.AssertExpectations(t)
-		})
+
+	s.queryItemInput = &dynamodb.QueryInput{
+		TableName: aws.String(testTableName),
+		KeyConditions: map[string]*dynamodb.Condition{
+			bucketAttributeKey: {
+				ComparisonOperator: aws.String(dynamodb.ComparisonOperatorEq),
+				AttributeValueList: []*dynamodb.AttributeValue{
+					{
+						S: aws.String(testBucketName),
+					},
+				},
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+}
+
+func (s *ClientErrorTestSuite) setupOperations() {
+	s.setupInputs()
+	s.operationTypes = []operationType{
+		{
+			name:          "Push",
+			mockedMethod:  "PutItem",
+			mockedArgs:    []interface{}{s.putItemInput},
+			mockedReturns: []interface{}{new(dynamodb.PutItemOutput)},
+		},
+
+		{
+			name:          "Get",
+			mockedMethod:  "GetItem",
+			mockedArgs:    []interface{}{s.getItemInput},
+			mockedReturns: []interface{}{new(dynamodb.GetItemOutput)},
+		},
+		{
+			name:          "GetAll",
+			mockedMethod:  "Query",
+			mockedArgs:    []interface{}{s.queryItemInput},
+			mockedReturns: []interface{}{new(dynamodb.QueryOutput)},
+		},
+		{
+			name:          "Delete",
+			mockedMethod:  "DeleteItem",
+			mockedArgs:    []interface{}{s.deleteItemInput},
+			mockedReturns: []interface{}{new(dynamodb.DeleteItemOutput)},
+		},
+	}
+}
+
+func (s *ClientErrorTestSuite) setupErrorCases() {
+	s.clientErrorCases = []errorCase{
+		{
+			name:        "Throughput exceeded",
+			dynamoErr:   new(dynamodb.ProvisionedThroughputExceededException),
+			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeProvisionedThroughputExceededException, Retryable: true},
+		},
+		{
+			name:        "Resource not found",
+			dynamoErr:   new(dynamodb.ResourceNotFoundException),
+			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeResourceNotFoundException, Retryable: false},
+		},
+		{
+			name:        "Request Limit exceeded",
+			dynamoErr:   new(dynamodb.RequestLimitExceeded),
+			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeRequestLimitExceeded, Retryable: false},
+		},
+		{
+			name:        "Internal server error",
+			dynamoErr:   new(dynamodb.InternalServerError),
+			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeInternalServerError, Retryable: true},
+		},
+		{
+			name:        "Non AWS Error",
+			dynamoErr:   errors.New("non AWS internal error"),
+			expectedErr: store.InternalError{Reason: "non AWS internal error", Retryable: false},
+		},
 	}
 }
 
