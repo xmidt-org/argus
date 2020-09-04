@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -51,12 +52,20 @@ import (
 const (
 	testTableName  = "table01"
 	testBucketName = "bucket01"
+	testIDName     = "ID01"
+)
+
+var (
+	putItemInput    *dynamodb.PutItemInput
+	getItemInput    *dynamodb.GetItemInput
+	queryInput      *dynamodb.QueryInput
+	deleteItemInput *dynamodb.DeleteItemInput
 )
 
 var (
 	item = store.OwnableItem{
 		Item: model.Item{
-			Identifier: "id01",
+			Identifier: testIDName,
 			Data:       map[string]interface{}{"dataKey": "dataValue"},
 			TTL:        int64(time.Second * 300),
 		},
@@ -64,7 +73,7 @@ var (
 	}
 	key = model.Key{
 		Bucket: testBucketName,
-		ID:     "id01",
+		ID:     testIDName,
 	}
 )
 
@@ -85,10 +94,6 @@ type ClientErrorTestSuite struct {
 	suite.Suite
 	operationTypes   []operationType
 	clientErrorCases []errorCase
-	putItemInput     *dynamodb.PutItemInput
-	getItemInput     *dynamodb.GetItemInput
-	queryItemInput   *dynamodb.QueryInput
-	deleteItemInput  *dynamodb.DeleteItemInput
 }
 
 func (s *ClientErrorTestSuite) SetupTest() {
@@ -138,12 +143,221 @@ func (s *ClientErrorTestSuite) TestClientErrors() {
 	}
 }
 
-func TestClientErrors(t *testing.T) {
+func testClientErrors(t *testing.T) {
 	suite.Run(t, new(ClientErrorTestSuite))
 }
 
-func (s *ClientErrorTestSuite) setupInputs() {
-	s.getItemInput = &dynamodb.GetItemInput{
+func TestAll(t *testing.T) {
+	initGlobalInputs()
+	t.Run("ClientErrors", testClientErrors)
+	t.Run("Push", testPush)
+	t.Run("GetItem", func(t *testing.T) {
+		t.Run("Success", testGetItem)
+		t.Run("NotFound", testGetItemNotFound)
+	})
+	t.Run("Delete", func(t *testing.T) {
+		t.Run("Success", testDelete)
+		t.Run("NotFound", testDeleteNotFound)
+	})
+	t.Run("GetAll", func(t *testing.T) {
+		t.Run("Success", testGetAll)
+	})
+}
+
+func testGetAll(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	queryOutput := &dynamodb.QueryOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+		Items: []map[string]*dynamodb.AttributeValue{
+			{
+				bucketAttributeKey: {
+					S: aws.String(testBucketName),
+				},
+				idAttributeKey: {
+					S: aws.String("id01"),
+				},
+			},
+			{
+				bucketAttributeKey: {
+					S: aws.String(testBucketName),
+				},
+				idAttributeKey: {
+					S: aws.String("id02"),
+				},
+			},
+		},
+	}
+
+	m.On("Query", queryInput).Return(queryOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	ownableItems, actualConsumedCapacity, err := service.GetAll(testBucketName)
+	assert.Nil(err)
+	assert.Len(ownableItems, 2)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func testDelete(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	deleteItemOutput := &dynamodb.DeleteItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+		Attributes: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(testBucketName),
+			},
+			idAttributeKey: {
+				S: aws.String(testIDName),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+
+			"identifier": {
+				S: aws.String("id01"),
+			},
+		},
+	}
+	expectedData := map[string]interface{}{
+		"key": "stringVal",
+	}
+	m.On("DeleteItem", deleteItemInput).Return(deleteItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	ownableItem, actualConsumedCapacity, err := service.Delete(key)
+	assert.Nil(err)
+	assert.Equal("xmidt", ownableItem.Owner)
+	assert.Equal("id01", ownableItem.Identifier)
+	assert.Equal(expectedData, ownableItem.Data)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func testDeleteNotFound(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	deleteItemOutput := &dynamodb.DeleteItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+	}
+	m.On("DeleteItem", deleteItemInput).Return(deleteItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	ownableItem, actualConsumedCapacity, err := service.Delete(key)
+	assert.NotNil(ownableItem)
+	assert.Equal(store.KeyNotFoundError{Key: key}, err)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func testPush(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	putItemOutput := &dynamodb.PutItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+	}
+	m.On("PutItem", putItemInput).Return(putItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	actualConsumedCapacity, err := service.Push(key, item)
+	assert.Nil(err)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func testGetItemNotFound(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	getItemOutput := &dynamodb.GetItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+	}
+	m.On("GetItem", getItemInput).Return(getItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	ownableItem, actualConsumedCapacity, err := service.Get(key)
+	assert.NotNil(ownableItem)
+	assert.Equal(store.KeyNotFoundError{Key: key}, err)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func testGetItem(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	getItemOutput := &dynamodb.GetItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+		Item: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(testBucketName),
+			},
+			idAttributeKey: {
+				S: aws.String(testIDName),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+
+			"identifier": {
+				S: aws.String("id01"),
+			},
+		},
+	}
+	expectedData := map[string]interface{}{
+		"key": "stringVal",
+	}
+	m.On("GetItem", getItemInput).Return(getItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	ownableItem, actualConsumedCapacity, err := service.Get(key)
+	assert.Nil(err)
+	assert.Equal("xmidt", ownableItem.Owner)
+	assert.Equal("id01", ownableItem.Identifier)
+	assert.Equal(expectedData, ownableItem.Data)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func initGlobalInputs() {
+	getItemInput = &dynamodb.GetItemInput{
 		TableName: aws.String(testTableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			bucketAttributeKey: {
@@ -156,7 +370,7 @@ func (s *ClientErrorTestSuite) setupInputs() {
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	s.deleteItemInput = &dynamodb.DeleteItemInput{
+	deleteItemInput = &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
@@ -179,54 +393,45 @@ func (s *ClientErrorTestSuite) setupInputs() {
 	if err != nil {
 		panic(err)
 	}
-	s.putItemInput = &dynamodb.PutItemInput{
+
+	putItemInput = &dynamodb.PutItemInput{
 		Item:                   encodedItem,
 		TableName:              aws.String(testTableName),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	s.queryItemInput = &dynamodb.QueryInput{
-		TableName: aws.String(testTableName),
-		KeyConditions: map[string]*dynamodb.Condition{
-			bucketAttributeKey: {
-				ComparisonOperator: aws.String(dynamodb.ComparisonOperatorEq),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: aws.String(testBucketName),
-					},
-				},
-			},
-		},
+	queryInput = &dynamodb.QueryInput{
+		TableName:              aws.String(testTableName),
+		KeyConditionExpression: aws.String(fmt.Sprintf("%s = %s", bucketAttributeKey, testBucketName)),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 }
 
 func (s *ClientErrorTestSuite) setupOperations() {
-	s.setupInputs()
 	s.operationTypes = []operationType{
 		{
 			name:          "Push",
 			mockedMethod:  "PutItem",
-			mockedArgs:    []interface{}{s.putItemInput},
+			mockedArgs:    []interface{}{putItemInput},
 			mockedReturns: []interface{}{new(dynamodb.PutItemOutput)},
 		},
 
 		{
 			name:          "Get",
 			mockedMethod:  "GetItem",
-			mockedArgs:    []interface{}{s.getItemInput},
+			mockedArgs:    []interface{}{getItemInput},
 			mockedReturns: []interface{}{new(dynamodb.GetItemOutput)},
 		},
 		{
 			name:          "GetAll",
 			mockedMethod:  "Query",
-			mockedArgs:    []interface{}{s.queryItemInput},
+			mockedArgs:    []interface{}{queryInput},
 			mockedReturns: []interface{}{new(dynamodb.QueryOutput)},
 		},
 		{
 			name:          "Delete",
 			mockedMethod:  "DeleteItem",
-			mockedArgs:    []interface{}{s.deleteItemInput},
+			mockedArgs:    []interface{}{deleteItemInput},
 			mockedReturns: []interface{}{new(dynamodb.DeleteItemOutput)},
 		},
 	}

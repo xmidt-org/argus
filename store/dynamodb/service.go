@@ -18,6 +18,7 @@
 package dynamodb
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -71,7 +72,7 @@ var retryableAWSCodes = map[string]bool{
 
 // Dynamo DB attribute keys
 const (
-	bucketAttributeKey = "Bucket"
+	bucketAttributeKey = "bucket"
 	idAttributeKey     = "id"
 )
 
@@ -175,21 +176,12 @@ func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedC
 	return expirableItem.OwnableItem, result.ConsumedCapacity, err
 }
 
+//TODO: For data >= 1MB, we'll need to handle pagination
 func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result := map[string]store.OwnableItem{}
-
 	queryResult, err := d.c.Query(&dynamodb.QueryInput{
-		TableName: aws.String(d.tableName),
-		KeyConditions: map[string]*dynamodb.Condition{
-			bucketAttributeKey: {
-				ComparisonOperator: aws.String(dynamodb.ComparisonOperatorEq),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: &bucket,
-					},
-				},
-			},
-		},
+		TableName:              aws.String(d.tableName),
+		KeyConditionExpression: aws.String(fmt.Sprintf("%s = %s", bucketAttributeKey, bucket)),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
 	var consumedCapacity *dynamodb.ConsumedCapacity
