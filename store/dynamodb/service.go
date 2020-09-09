@@ -18,7 +18,6 @@
 package dynamodb
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -180,10 +179,20 @@ func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedC
 func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result := map[string]store.OwnableItem{}
 	queryResult, err := d.c.Query(&dynamodb.QueryInput{
-		TableName:              aws.String(d.tableName),
-		KeyConditionExpression: aws.String(fmt.Sprintf("%s = %s", bucketAttributeKey, bucket)),
+		TableName: aws.String(d.tableName),
+		KeyConditions: map[string]*dynamodb.Condition{
+			"bucket": {
+				ComparisonOperator: aws.String("EQ"),
+				AttributeValueList: []*dynamodb.AttributeValue{
+					{
+						S: &bucket,
+					},
+				},
+			},
+		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	})
+
 	var consumedCapacity *dynamodb.ConsumedCapacity
 
 	if queryResult != nil {

@@ -2,7 +2,6 @@ package dynamodb
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -402,8 +401,17 @@ func initGlobalInputs() {
 
 	queryInput = &dynamodb.QueryInput{
 		TableName:              aws.String(testTableName),
-		KeyConditionExpression: aws.String(fmt.Sprintf("%s = %s", bucketAttributeKey, testBucketName)),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		KeyConditions: map[string]*dynamodb.Condition{
+			"bucket": {
+				ComparisonOperator: aws.String("EQ"),
+				AttributeValueList: []*dynamodb.AttributeValue{
+					{
+						S: aws.String(testBucketName),
+					},
+				},
+			},
+		},
 	}
 }
 

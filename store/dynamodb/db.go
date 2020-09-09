@@ -92,8 +92,8 @@ func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures,
 	awsConfig := *aws.NewConfig().
 		WithEndpoint(config.Endpoint).
 		WithUseDualStack(!config.DisableDualStack).
-		WithCredentialsChainVerboseErrors(true).
 		WithMaxRetries(config.MaxRetries).
+		WithCredentialsChainVerboseErrors(true).
 		WithRegion(config.Region).
 		WithCredentials(credentials.NewStaticCredentialsFromCreds(credentials.Value{
 			AccessKeyID:     config.AccessKey,
@@ -105,8 +105,8 @@ func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures,
 		return nil, err
 	}
 
-	svc = newLoggingService(logger, svc)
 	svc = newInstrumentingService(measures, svc)
+	svc = newLoggingService(logger, svc)
 	return &dao{
 		s: svc,
 	}, nil
@@ -133,8 +133,8 @@ func (d *dao) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 }
 
 func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
-	var config *Config
-	err := unmarshaller.UnmarshalKey(DynamoDB, config)
+	var config Config
+	err := unmarshaller.UnmarshalKey(DynamoDB, &config)
 	if err != nil {
 		return nil, err
 	}
@@ -146,5 +146,5 @@ func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
 		config.MaxRetries = defaultMaxRetries
 	}
 
-	return config, nil
+	return &config, nil
 }
