@@ -23,7 +23,7 @@ RUN apk add --no-cache --no-progress \
 COPY . .
 RUN make build
 
-FROM alpine:3.11.5
+FROM alpine:latest
 
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
