@@ -22,8 +22,10 @@ const (
 	idVarMissingMsg     = "{id} URL path parameter missing"
 )
 
+// Request and Response Headers
 const (
-	ItemOwnerHeaderKey = "X-Xmidt-Owner"
+	ItemOwnerHeaderKey  = "X-Xmidt-Owner"
+	XmidtErrorHeaderKey = "X-Xmidt-Error"
 )
 
 // TODO: since GET and DELETE are so similar, we could make them share at least the
@@ -77,8 +79,7 @@ func encodeGetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 }
 
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Xmidt-Error", err.Error())
+	w.Header().Set(XmidtErrorHeaderKey, err.Error())
 	if headerer, ok := err.(kithttp.Headerer); ok {
 		for k, values := range headerer.Headers() {
 			for _, v := range values {
