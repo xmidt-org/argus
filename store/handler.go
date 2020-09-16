@@ -60,6 +60,15 @@ func NewHandler(e endpoint.Endpoint, itemTTL ItemTTL) Handler {
 	)
 }
 
+func newGetItemHandler(s S) Handler {
+	return kithttp.NewServer(
+		newGetItemEndpoint(s),
+		decodeGetItemRequest,
+		encodeGetItemResponse,
+		kithttp.ServerErrorEncoder(encodeError),
+	)
+}
+
 type requestHandler struct {
 	ItemTTL ItemTTL
 }
