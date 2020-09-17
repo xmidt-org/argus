@@ -109,25 +109,49 @@ func (s *ClientErrorTestSuite) TestClientErrors() {
 	}
 }
 
-func testClientErrors(t *testing.T) {
+func TestClientErrors(t *testing.T) {
+	initGlobalInputs()
 	suite.Run(t, new(ClientErrorTestSuite))
 }
 
-func TestAll(t *testing.T) {
+func TestGetItem(t *testing.T) {
 	initGlobalInputs()
-	t.Run("ClientErrors", testClientErrors)
-	t.Run("Push", testPush)
-	t.Run("GetItem", func(t *testing.T) {
-		t.Run("Success", testGetItem)
-		t.Run("NotFound", testGetItemNotFound)
-	})
-	t.Run("Delete", func(t *testing.T) {
-		t.Run("Success", testDelete)
-		t.Run("NotFound", testDeleteNotFound)
-	})
-	t.Run("GetAll", func(t *testing.T) {
-		t.Run("Success", testGetAll)
-	})
+	t.Run("Success", testGetItem)
+	t.Run("NotFound", testGetItemNotFound)
+}
+
+func TestPushItem(t *testing.T) {
+	initGlobalInputs()
+
+	assert := assert.New(t)
+	m := new(mockClient)
+	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
+		CapacityUnits: aws.Float64(67),
+	}
+	putItemOutput := &dynamodb.PutItemOutput{
+		ConsumedCapacity: expectedConsumedCapacity,
+	}
+	m.On("PutItem", putItemInput).Return(putItemOutput, error(nil))
+	service := &executor{
+		tableName: testTableName,
+		c:         m,
+	}
+	actualConsumedCapacity, err := service.Push(key, item)
+	assert.Nil(err)
+	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+}
+
+func TestDeleteItem(t *testing.T) {
+	initGlobalInputs()
+
+	t.Run("Success", testDelete)
+	t.Run("NotFound", testDeleteNotFound)
+}
+
+func TestGetAllItems(t *testing.T) {
+	initGlobalInputs()
+
+	t.Run("Success", testGetAll)
 }
 
 func testGetAll(t *testing.T) {
@@ -233,25 +257,6 @@ func testDeleteNotFound(t *testing.T) {
 	ownableItem, actualConsumedCapacity, err := service.Delete(key)
 	assert.NotNil(ownableItem)
 	assert.Equal(store.KeyNotFoundError{Key: key}, err)
-	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
-}
-
-func testPush(t *testing.T) {
-	assert := assert.New(t)
-	m := new(mockClient)
-	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
-		CapacityUnits: aws.Float64(67),
-	}
-	putItemOutput := &dynamodb.PutItemOutput{
-		ConsumedCapacity: expectedConsumedCapacity,
-	}
-	m.On("PutItem", putItemInput).Return(putItemOutput, error(nil))
-	service := &executor{
-		tableName: testTableName,
-		c:         m,
-	}
-	actualConsumedCapacity, err := service.Push(key, item)
-	assert.Nil(err)
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
 
