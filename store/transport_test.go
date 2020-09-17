@@ -81,6 +81,67 @@ func TestDecodeGetItemRequest(t *testing.T) {
 	}
 }
 
+func TestEncodeGetItemResponse(t *testing.T) {
+	testCases := []struct {
+		Name            string
+		ItemResponse    interface{}
+		ExpectedHeaders http.Header
+		ExpectedCode    int
+		ExpectedBody    string
+		ExpectedErr     error
+	}{
+		{
+			Name:            "Unexpected casting error",
+			ItemResponse:    nil,
+			ExpectedHeaders: make(http.Header),
+			ExpectedErr:     ErrCastingEncodeGetItemResponse,
+			// used due to limitations in httptest. In reality, any non-nil error promises nothing
+			// would be written to the response writer
+			ExpectedCode: 200,
+		},
+		{
+			Name: "Expired item",
+			ItemResponse: &OwnableItem{
+				Item: model.Item{
+					TTL: 0,
+				},
+			},
+			ExpectedCode:    http.StatusNotFound,
+			ExpectedHeaders: make(http.Header),
+		},
+		{
+			Name: "Happy path",
+			ItemResponse: &OwnableItem{
+				Owner: "xmidt",
+				Item: model.Item{
+					TTL:        20,
+					Identifier: "id01",
+					Data: map[string]interface{}{
+						"key": 10,
+					},
+				},
+			},
+			ExpectedBody: `{"identifier":"id01","data":{"key":10},"ttl":20}`,
+			ExpectedCode: 200,
+			ExpectedHeaders: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			recorder := httptest.NewRecorder()
+			err := encodeGetItemResponse(context.Background(), recorder, testCase.ItemResponse)
+			assert.Equal(testCase.ExpectedErr, err)
+			assert.Equal(testCase.ExpectedBody, recorder.Body.String())
+			assert.Equal(testCase.ExpectedHeaders, recorder.HeaderMap)
+			assert.Equal(testCase.ExpectedCode, recorder.Code)
+		})
+	}
+}
+
 func transferHeaders(headers map[string][]string, r *http.Request) {
 	for k, values := range headers {
 		for _, value := range values {

@@ -28,6 +28,8 @@ const (
 	XmidtErrorHeaderKey = "X-Xmidt-Error"
 )
 
+var ErrCastingEncodeGetItemResponse = errors.New("casting error in encodeGetItemResponse")
+
 // TODO: since GET and DELETE are so similar, we could make them share at least the
 // decoders
 type getItemRequest struct {
@@ -58,9 +60,9 @@ func decodeGetItemRequest(ctx context.Context, r *http.Request) (interface{}, er
 }
 
 func encodeGetItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
-	item, ok := response.(OwnableItem)
+	item, ok := response.(*OwnableItem)
 	if !ok {
-		return errors.New("casting error in encodeGetItemResponse")
+		return ErrCastingEncodeGetItemResponse
 	}
 
 	if item.TTL <= 0 {
