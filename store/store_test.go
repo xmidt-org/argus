@@ -18,13 +18,63 @@
 package store
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFilterOwner(t *testing.T) {
-	assert := assert.New(t)
+	testCases := []struct {
+		Name                  string
+		InputItems            map[string]OwnableItem
+		InputOwner            string
+		ExpectedFilteredItems map[string]OwnableItem
+	}{
+		{
+			Name:                  "No items",
+			InputOwner:            "Argus",
+			ExpectedFilteredItems: make(map[string]OwnableItem),
+		},
+		{
+			Name: "No owner - nothing filtered out",
+			InputItems: map[string]OwnableItem{
+				"item0": OwnableItem{},
+				"item1": OwnableItem{},
+			},
+			ExpectedFilteredItems: map[string]OwnableItem{
+				"item0": OwnableItem{},
+				"item1": OwnableItem{},
+			},
+		},
+		{
+			Name:       "Filtered by owner",
+			InputOwner: "Argus",
+			InputItems: map[string]OwnableItem{
+				"item0": OwnableItem{
+					Owner: "Tr1d1um",
+				},
 
-	results := FilterOwner(map[string]OwnableItem{}, "")
-	assert.Equal(map[string]OwnableItem{}, results)
+				"item1": OwnableItem{
+					Owner: "Argus",
+				},
+				"item2": OwnableItem{
+					Owner: "Talaria",
+				},
+			},
+			ExpectedFilteredItems: map[string]OwnableItem{
+				"item1": OwnableItem{
+					Owner: "Argus",
+				},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			filteredItems := FilterOwner(testCase.InputItems, testCase.InputOwner)
+			assert.Equal(testCase.ExpectedFilteredItems, filteredItems)
+		})
+
+	}
 }
