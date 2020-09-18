@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Changed
 - Abstract away dynamodb dependency. [#35](https://github.com/xmidt-org/argus/pull/35)
+- Add unit tests for new dynamodb abstraction changes. [#39](https://github.com/xmidt-org/argus/pull/39)
+- Add encoders/decoders for GetItem Handler. [#44](https://github.com/xmidt-org/argus/pull/44)
+
 
 ## [v0.3.5]
 ### Changed
