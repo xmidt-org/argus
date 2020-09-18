@@ -109,13 +109,32 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 
 func newGetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		itemRequest := request.(*getItemRequest)
+		itemRequest := request.(*getOrDeleteItemRequest)
 		itemResponse, err := s.Get(itemRequest.key)
 		if err != nil {
 			return nil, err
 		}
-		if itemRequest.owner == "" || itemRequest.owner == itemResponse.Owner {
+		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
 			return itemResponse, nil
+		}
+
+		return nil, &KeyNotFoundError{Key: itemRequest.key}
+	}
+}
+
+func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
+	return requestItemOwner == "" || requestItemOwner == actualItemOwner
+}
+
+func newDeleteItemEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		itemRequest := request.(*getOrDeleteItemRequest)
+		itemResponse, err := s.Get(itemRequest.key)
+		if err != nil {
+			return nil, err
+		}
+		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
+			return s.Delete(itemRequest.key)
 		}
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}

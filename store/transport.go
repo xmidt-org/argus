@@ -28,16 +28,16 @@ const (
 	XmidtErrorHeaderKey = "X-Xmidt-Error"
 )
 
-var ErrCastingEncodeGetItemResponse = errors.New("casting error in encodeGetItemResponse")
+// ErrCasting indicates there was a middleware wiring mistake with the go-kit style
+// encoders.
+var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
-// TODO: since GET and DELETE are so similar, we could make them share at least the
-// decoders
-type getItemRequest struct {
+type getOrDeleteItemRequest struct {
 	key   model.Key
 	owner string
 }
 
-func decodeGetItemRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeGetOrDeleteItemRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	vars := mux.Vars(r)
 	bucket, ok := vars[bucketVarKey]
 	if !ok {
@@ -50,7 +50,7 @@ func decodeGetItemRequest(ctx context.Context, r *http.Request) (interface{}, er
 		return nil, &BadRequestErr{Message: idVarMissingMsg}
 	}
 
-	return &getItemRequest{
+	return &getOrDeleteItemRequest{
 		key: model.Key{
 			Bucket: bucket,
 			ID:     id,
@@ -59,10 +59,10 @@ func decodeGetItemRequest(ctx context.Context, r *http.Request) (interface{}, er
 	}, nil
 }
 
-func encodeGetItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	item, ok := response.(*OwnableItem)
 	if !ok {
-		return ErrCastingEncodeGetItemResponse
+		return ErrCasting
 	}
 
 	if item.TTL <= 0 {
