@@ -115,7 +115,7 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 			return nil, err
 		}
 		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
-			return itemResponse, nil
+			return &itemResponse, nil
 		}
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}
@@ -134,7 +134,8 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 			return nil, err
 		}
 		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
-			return s.Delete(itemRequest.key)
+			deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
+			return &deleteItemResp, deleteItemRespErr
 		}
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}
