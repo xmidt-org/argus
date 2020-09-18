@@ -22,9 +22,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xmidt-org/argus/model"
-	"net/http"
 )
 
 type KeyNotFoundError struct {
@@ -103,6 +104,21 @@ func NewSetEndpoint(s S) endpoint.Endpoint {
 		}
 		err := s.Push(kv.Key, kv.OwnableItem)
 		return kv.Key, err
+	}
+}
+
+func newGetItemEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		itemRequest := request.(*getItemRequest)
+		itemResponse, err := s.Get(itemRequest.key)
+		if err != nil {
+			return nil, err
+		}
+		if itemRequest.owner == "" || itemRequest.owner == itemResponse.Owner {
+			return itemResponse, nil
+		}
+
+		return nil, &KeyNotFoundError{Key: itemRequest.key}
 	}
 }
 
