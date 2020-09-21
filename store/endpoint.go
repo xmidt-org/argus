@@ -135,7 +135,10 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		}
 		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
 			deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
-			return &deleteItemResp, deleteItemRespErr
+			if deleteItemRespErr != nil {
+				return nil, deleteItemRespErr
+			}
+			return &deleteItemResp, nil
 		}
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}
