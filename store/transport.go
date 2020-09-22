@@ -54,6 +54,24 @@ func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}
 	}, nil
 }
 
+func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+	items := value.(map[string]OwnableItem)
+	payload := map[string]model.Item{}
+	for k, value := range items {
+		if value.TTL <= 0 {
+			continue
+		}
+		payload[k] = value.Item
+	}
+	data, err := json.Marshal(&payload)
+	if err != nil {
+		return err
+	}
+	rw.Header().Add("Content-Type", "application/json")
+	rw.Write(data)
+	return nil
+}
+
 func decodeGetOrDeleteItemRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	vars := mux.Vars(r)
 	bucket, ok := vars[bucketVarKey]
