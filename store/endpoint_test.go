@@ -176,7 +176,7 @@ func testGetAllItemsEndpointDAOFails(t *testing.T) {
 	mockedErr := errors.New("sports cars api is down")
 	m.On("GetAll", "sports-cars").Return(map[string]OwnableItem{}, mockedErr)
 
-	endpoint := newGetAllEndpoint(m)
+	endpoint := newGetAllItemsEndpoint(m)
 	resp, err := endpoint(context.Background(), itemsRequest)
 
 	assert.Nil(resp)
@@ -206,7 +206,7 @@ func testGetAllItemsEndpointFiltered(t *testing.T) {
 	}
 	m.On("GetAll", "sports-cars").Return(mockedItems, error(nil))
 
-	endpoint := newGetAllEndpoint(m)
+	endpoint := newGetAllItemsEndpoint(m)
 	resp, err := endpoint(context.Background(), itemsRequest)
 
 	expectedItems := map[string]OwnableItem{
