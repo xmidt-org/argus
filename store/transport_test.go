@@ -142,6 +142,35 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 	}
 }
 
+func TestDecodeGetAllItemsRequest(t *testing.T) {
+	t.Run("Bucket Missing", testDecodeGetAllItemsRequestBucketMissing)
+	t.Run("Success", testDecodeGetAllItemsRequestSuccessful)
+}
+
+func testDecodeGetAllItemsRequestBucketMissing(t *testing.T) {
+	assert := assert.New(t)
+	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
+
+	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
+	assert.Nil(decodedRequest)
+	assert.Equal(&BadRequestErr{Message: bucketVarMissingMsg}, err)
+}
+
+func testDecodeGetAllItemsRequestSuccessful(t *testing.T) {
+	assert := assert.New(t)
+	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
+	r.Header.Set(ItemOwnerHeaderKey, "bob-ross")
+	r = mux.SetURLVars(r, map[string]string{bucketVarKey: "happy-little-accidents"})
+	expectedDecodedRequest := &getAllItemsRequest{
+		bucket: "happy-little-accidents",
+		owner:  "bob-ross",
+	}
+
+	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
+	assert.Nil(err)
+	assert.Equal(expectedDecodedRequest, decodedRequest)
+}
+
 func transferHeaders(headers map[string][]string, r *http.Request) {
 	for k, values := range headers {
 		for _, value := range values {

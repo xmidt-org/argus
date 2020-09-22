@@ -37,6 +37,23 @@ type getOrDeleteItemRequest struct {
 	owner string
 }
 
+type getAllItemsRequest struct {
+	bucket string
+	owner  string
+}
+
+func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	vars := mux.Vars(r)
+	bucket, ok := vars[bucketVarKey]
+	if !ok {
+		return nil, &BadRequestErr{Message: bucketVarMissingMsg}
+	}
+	return &getAllItemsRequest{
+		bucket: bucket,
+		owner:  r.Header.Get(ItemOwnerHeaderKey),
+	}, nil
+}
+
 func decodeGetOrDeleteItemRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	vars := mux.Vars(r)
 	bucket, ok := vars[bucketVarKey]
