@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Abstract away dynamodb dependency. [#35](https://github.com/xmidt-org/argus/pull/35)
 - Add unit tests for new dynamodb abstraction changes. [#39](https://github.com/xmidt-org/argus/pull/39)
-- Add encoders/decoders for GetItem Handler. [#44](https://github.com/xmidt-org/argus/pull/44)
+- Add helper functions for GetItem Handler. [#44](https://github.com/xmidt-org/argus/pull/44)
+- Add helper functions for DeleteItem Handler. [#52](https://github.com/xmidt-org/argus/pull/52)
+- Add helper functions for GetAllItems Handler. [#53](https://github.com/xmidt-org/argus/pull/53)
 
 
 ## [v0.3.5]
