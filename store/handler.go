@@ -80,7 +80,7 @@ func newDeleteItemHandler(s S) Handler {
 
 func newGetAllItemsHandler(s S) Handler {
 	return kithttp.NewServer(
-		newGetAllItemsEndpoint(s)
+		newGetAllItemsEndpoint(s),
 		decodeGetAllItemsRequest,
 		encodeGetAllItemsResponse,
 		kithttp.ServerErrorEncoder(encodeError),

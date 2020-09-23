@@ -55,7 +55,7 @@ func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
-	items := value.(map[string]OwnableItem)
+	items := response.(map[string]OwnableItem)
 	payload := map[string]model.Item{}
 	for k, value := range items {
 		if value.TTL <= 0 {
