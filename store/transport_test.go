@@ -142,6 +142,67 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 	}
 }
 
+func TestDecodeGetAllItemsRequest(t *testing.T) {
+	t.Run("Bucket Missing", testDecodeGetAllItemsRequestBucketMissing)
+	t.Run("Success", testDecodeGetAllItemsRequestSuccessful)
+}
+
+func testDecodeGetAllItemsRequestBucketMissing(t *testing.T) {
+	assert := assert.New(t)
+	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
+
+	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
+	assert.Nil(decodedRequest)
+	assert.Equal(&BadRequestErr{Message: bucketVarMissingMsg}, err)
+}
+
+func testDecodeGetAllItemsRequestSuccessful(t *testing.T) {
+	assert := assert.New(t)
+	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
+	r.Header.Set(ItemOwnerHeaderKey, "bob-ross")
+	r = mux.SetURLVars(r, map[string]string{bucketVarKey: "happy-little-accidents"})
+	expectedDecodedRequest := &getAllItemsRequest{
+		bucket: "happy-little-accidents",
+		owner:  "bob-ross",
+	}
+
+	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
+	assert.Nil(err)
+	assert.Equal(expectedDecodedRequest, decodedRequest)
+}
+
+func TestEncodeGetAllItemsResponse(t *testing.T) {
+	assert := assert.New(t)
+	response := map[string]OwnableItem{
+		"fix-you": OwnableItem{
+			Item: model.Item{
+				Identifier: "coldplay-04",
+				TTL:        1,
+				Data:       map[string]interface{}{},
+			},
+		},
+		"bohemian-rhapsody": OwnableItem{
+			Item: model.Item{
+				Identifier: "queen-03",
+				TTL:        0,
+				Data:       map[string]interface{}{},
+			},
+		},
+		"don't-stop-me-know": OwnableItem{
+			Item: model.Item{
+				Identifier: "queen-02",
+				TTL:        0,
+				Data:       map[string]interface{}{},
+			},
+		},
+	}
+	recorder := httptest.NewRecorder()
+	expectedResponseBody := `{"fix-you":{"identifier":"coldplay-04","data":{},"ttl":1}}`
+	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
+	assert.Nil(err)
+	assert.Equal(expectedResponseBody, recorder.Body.String())
+}
+
 func transferHeaders(headers map[string][]string, r *http.Request) {
 	for k, values := range headers {
 		for _, value := range values {

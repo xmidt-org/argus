@@ -160,3 +160,64 @@ func TestDeleteItemEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAllItemsEndpoint(t *testing.T) {
+	t.Run("DAOFails", testGetAllItemsEndpointDAOFails)
+	t.Run("FilteredItems", testGetAllItemsEndpointFiltered)
+}
+
+func testGetAllItemsEndpointDAOFails(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	itemsRequest := &getAllItemsRequest{
+		bucket: "sports-cars",
+		owner:  "alfa-romeo",
+	}
+	mockedErr := errors.New("sports cars api is down")
+	m.On("GetAll", "sports-cars").Return(map[string]OwnableItem{}, mockedErr)
+
+	endpoint := newGetAllItemsEndpoint(m)
+	resp, err := endpoint(context.Background(), itemsRequest)
+
+	assert.Nil(resp)
+	assert.Equal(mockedErr, err)
+}
+
+func testGetAllItemsEndpointFiltered(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	itemsRequest := &getAllItemsRequest{
+		bucket: "sports-cars",
+		owner:  "alfa-romeo",
+	}
+	mockedItems := map[string]OwnableItem{
+		"mustang": OwnableItem{
+			Owner: "ford",
+		},
+		"4c-spider": OwnableItem{
+			Owner: "alfa-romeo",
+		},
+		"gtr": OwnableItem{
+			Owner: "nissan",
+		},
+		"giulia": OwnableItem{
+			Owner: "alfa-romeo",
+		},
+	}
+	m.On("GetAll", "sports-cars").Return(mockedItems, error(nil))
+
+	endpoint := newGetAllItemsEndpoint(m)
+	resp, err := endpoint(context.Background(), itemsRequest)
+
+	expectedItems := map[string]OwnableItem{
+		"4c-spider": OwnableItem{
+			Owner: "alfa-romeo",
+		},
+		"giulia": OwnableItem{
+			Owner: "alfa-romeo",
+		},
+	}
+
+	assert.Equal(expectedItems, resp)
+	assert.Nil(err)
+}

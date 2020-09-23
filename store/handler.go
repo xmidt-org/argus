@@ -76,7 +76,15 @@ func newDeleteItemHandler(s S) Handler {
 		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
+}
 
+func newGetAllItemsHandler(s S) Handler {
+	return kithttp.NewServer(
+		newGetAllItemsEndpoint(s),
+		decodeGetAllItemsRequest,
+		encodeGetAllItemsResponse,
+		kithttp.ServerErrorEncoder(encodeError),
+	)
 }
 
 type requestHandler struct {

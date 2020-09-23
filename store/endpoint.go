@@ -174,6 +174,18 @@ func NewGetEndpoint(s S) endpoint.Endpoint {
 	}
 }
 
+func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		itemsRequest := request.(*getAllItemsRequest)
+		items, err := s.GetAll(itemsRequest.bucket)
+		if err != nil {
+			return nil, err
+		}
+
+		return FilterOwner(items, itemsRequest.owner), nil
+	}
+}
+
 func NewGetAllEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
