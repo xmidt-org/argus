@@ -63,10 +63,20 @@ func NewHandler(e endpoint.Endpoint, itemTTL ItemTTL) Handler {
 func newGetItemHandler(s S) Handler {
 	return kithttp.NewServer(
 		newGetItemEndpoint(s),
-		decodeGetItemRequest,
-		encodeGetItemResponse,
+		decodeGetOrDeleteItemRequest,
+		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
+}
+
+func newDeleteItemHandler(s S) Handler {
+	return kithttp.NewServer(
+		newDeleteItemEndpoint(s),
+		decodeGetOrDeleteItemRequest,
+		encodeGetOrDeleteItemResponse,
+		kithttp.ServerErrorEncoder(encodeError),
+	)
+
 }
 
 type requestHandler struct {

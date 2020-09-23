@@ -1,0 +1,162 @@
+package store
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/xmidt-org/argus/model"
+)
+
+func TestGetItemEndpoint(t *testing.T) {
+	testCases := []struct {
+		Name             string
+		ItemRequest      *getOrDeleteItemRequest
+		DAOResponse      OwnableItem
+		DAOResponseErr   error
+		ExpectedResponse *OwnableItem
+		ExpectedErr      error
+	}{
+		{
+			Name: "DAO failure",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "Donkey Kong",
+			},
+			DAOResponseErr: errors.New("database failure"),
+			ExpectedErr:    errors.New("database failure"),
+		},
+		{
+			Name: "Wrong owner",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "Kirby",
+				key: model.Key{
+					ID: "hammer",
+				},
+			},
+			DAOResponse: OwnableItem{
+				Owner: "Yoshi",
+			},
+			ExpectedErr: &KeyNotFoundError{Key: model.Key{
+				ID: "hammer",
+			}},
+		},
+		{
+			Name: "Success",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "Cloud",
+			},
+			DAOResponse: OwnableItem{
+				Owner: "Cloud",
+			},
+			ExpectedResponse: &OwnableItem{
+				Owner: "Cloud",
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(MockDAO)
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.DAOResponse, error(testCase.DAOResponseErr))
+			endpoint := newGetItemEndpoint(m)
+
+			resp, err := endpoint(context.Background(), testCase.ItemRequest)
+			if testCase.ExpectedResponse == nil {
+				assert.Nil(resp)
+			} else {
+				ownableItemResponse := resp.(*OwnableItem)
+				assert.Equal(testCase.ExpectedResponse, ownableItemResponse)
+			}
+			assert.Equal(testCase.ExpectedErr, err)
+		})
+	}
+}
+
+func TestDeleteItemEndpoint(t *testing.T) {
+	testCases := []struct {
+		Name                 string
+		ItemRequest          *getOrDeleteItemRequest
+		GetDAOResponse       OwnableItem
+		GetDAOResponseErr    error
+		DeleteDAOResponse    OwnableItem
+		DeleteDAOResponseErr error
+		ExpectedResponse     *OwnableItem
+		ExpectedErr          error
+	}{
+		{
+			Name: "Get DAO failure",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "dsl",
+			},
+			GetDAOResponseErr: errors.New("error fetching item"),
+			ExpectedErr:       errors.New("error fetching item"),
+		},
+		{
+			Name: "Wrong owner",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "cable",
+			},
+			GetDAOResponse: OwnableItem{
+				Owner: "fiber",
+			},
+			ExpectedErr: &KeyNotFoundError{},
+		},
+		{
+			Name: "Deletion fails",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "dsl",
+			},
+			GetDAOResponse: OwnableItem{
+				Owner: "dsl",
+			},
+			DeleteDAOResponseErr: errors.New("failed to delete item"),
+			ExpectedErr:          errors.New("failed to delete item"),
+		},
+		{
+			Name: "Successful deletion",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "dial-up",
+			},
+			GetDAOResponse: OwnableItem{
+				Owner: "dial-up",
+			},
+			DeleteDAOResponse: OwnableItem{
+				Owner: "dial-up",
+			},
+			ExpectedResponse: &OwnableItem{
+				Owner: "dial-up",
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(MockDAO)
+
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr))
+
+			// verify item is not deleted by user who doesn't own it
+			allowDelete := testCase.ItemRequest.owner == "" || testCase.ItemRequest.owner == testCase.GetDAOResponse.Owner
+
+			if testCase.GetDAOResponseErr != nil || !allowDelete {
+				m.AssertNotCalled(t, "Delete", testCase.ItemRequest)
+			} else {
+				m.On("Delete", testCase.ItemRequest.key).Return(testCase.DeleteDAOResponse, error(testCase.DeleteDAOResponseErr))
+			}
+
+			deleteEndpoint := newDeleteItemEndpoint(m)
+
+			resp, err := deleteEndpoint(context.Background(), testCase.ItemRequest)
+
+			if testCase.ExpectedResponse == nil {
+				assert.Nil(resp)
+			}
+
+			assert.Equal(testCase.ExpectedErr, err)
+			m.AssertExpectations(t)
+		})
+	}
+}

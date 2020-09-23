@@ -11,7 +11,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 )
 
-func TestDecodeGetItemRequest(t *testing.T) {
+func TestDecodeGetOrDeleteItemRequest(t *testing.T) {
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
@@ -39,7 +39,7 @@ func TestDecodeGetItemRequest(t *testing.T) {
 				"bucket": "california",
 				"id":     "san francisco",
 			},
-			ExpectedDecodedRequest: &getItemRequest{
+			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
 					ID:     "san francisco",
@@ -53,7 +53,7 @@ func TestDecodeGetItemRequest(t *testing.T) {
 				"id":     "san francisco",
 			},
 
-			ExpectedDecodedRequest: &getItemRequest{
+			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
 					ID:     "san francisco",
@@ -73,7 +73,7 @@ func TestDecodeGetItemRequest(t *testing.T) {
 			transferHeaders(testCase.Headers, r)
 
 			r = mux.SetURLVars(r, testCase.URLVars)
-			decodedRequest, err := decodeGetItemRequest(context.Background(), r)
+			decodedRequest, err := decodeGetOrDeleteItemRequest(context.Background(), r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
 			assert.Equal(testCase.ExpectedErr, err)
@@ -81,7 +81,7 @@ func TestDecodeGetItemRequest(t *testing.T) {
 	}
 }
 
-func TestEncodeGetItemResponse(t *testing.T) {
+func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		ItemResponse    interface{}
@@ -94,7 +94,7 @@ func TestEncodeGetItemResponse(t *testing.T) {
 			Name:            "Unexpected casting error",
 			ItemResponse:    nil,
 			ExpectedHeaders: make(http.Header),
-			ExpectedErr:     ErrCastingEncodeGetItemResponse,
+			ExpectedErr:     ErrCasting,
 			// used due to limitations in httptest. In reality, any non-nil error promises nothing
 			// would be written to the response writer
 			ExpectedCode: 200,
@@ -133,7 +133,7 @@ func TestEncodeGetItemResponse(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			recorder := httptest.NewRecorder()
-			err := encodeGetItemResponse(context.Background(), recorder, testCase.ItemResponse)
+			err := encodeGetOrDeleteItemResponse(context.Background(), recorder, testCase.ItemResponse)
 			assert.Equal(testCase.ExpectedErr, err)
 			assert.Equal(testCase.ExpectedBody, recorder.Body.String())
 			assert.Equal(testCase.ExpectedHeaders, recorder.HeaderMap)
