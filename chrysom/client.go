@@ -43,6 +43,7 @@ type ClientConfig struct {
 	DefaultTTL      int64
 	MetricsProvider provider.Provider
 	Logger          log.Logger
+	Listener        Listener
 }
 
 type Auth struct {
@@ -97,6 +98,7 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		auth:                auth,
 		metrics:             initMetrics(config.MetricsProvider),
 		loggers:             initLoggers(config.Logger),
+		listener:            config.Listener,
 		remoteStoreAddress:  config.Address,
 		defaultStoreItemTTL: config.DefaultTTL,
 		bucketName:          config.Bucket,
