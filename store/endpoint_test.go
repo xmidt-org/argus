@@ -221,3 +221,43 @@ func testGetAllItemsEndpointFiltered(t *testing.T) {
 	assert.Equal(expectedItems, resp)
 	assert.Nil(err)
 }
+
+func TestPushItemEndpoint(t *testing.T) {
+	t.Run("DAOFails", testPushItemEndpointDAOFails)
+	t.Run("Happy Path", testPushItemEndpointHappyPath)
+}
+
+func testPushItemEndpointHappyPath(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	key := model.Key{
+		Bucket: "fruits",
+		ID:     "strawberry",
+	}
+
+	item := OwnableItem{
+		Item: model.Item{
+			Identifier: "strawberry",
+		},
+		Owner: "Bob",
+	}
+
+	m.On("Push", key, item).Return(nil)
+	endpoint := newPushItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &pushItemRequest{
+		bucket: "fruits",
+		item:   item,
+	})
+	assert.Nil(err)
+	assert.Equal(&key, resp)
+}
+
+func testPushItemEndpointDAOFails(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	m.On("Push", model.Key{}, OwnableItem{}).Return(errors.New("DB failed"))
+	endpoint := newPushItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &pushItemRequest{})
+	assert.Nil(resp)
+	assert.Equal(errors.New("DB failed"), err)
+}
