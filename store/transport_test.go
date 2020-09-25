@@ -1,10 +1,12 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -209,4 +211,141 @@ func transferHeaders(headers map[string][]string, r *http.Request) {
 			r.Header.Add(k, value)
 		}
 	}
+}
+
+func TestPushItemRequestDecoder(t *testing.T) {
+	testCases := []struct {
+		Name            string
+		Bucket          string
+		Owner           string
+		RequestBody     string
+		ExpectedErr     error
+		ExpectedRequest *pushItemRequest
+	}{
+		{
+			Name: "Missing bucket",
+			ExpectedErr: &BadRequestErr{
+				Message: bucketVarMissingMsg,
+			},
+		},
+		{
+			Name:        "Bad JSON data",
+			RequestBody: `{"validJSON": false,}`,
+			Bucket:      "invalid",
+			ExpectedErr: &BadRequestErr{
+				Message: "failed to unmarshal json",
+			},
+		},
+		{
+			Name:        "Missing data item field",
+			RequestBody: `{"identifier": "xyz"}`,
+			Bucket:      "no-data",
+			ExpectedErr: &BadRequestErr{
+				Message: "data field must be set",
+			},
+		},
+
+		{
+			Name:        "Capped TTL",
+			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			Bucket:      "variables",
+			Owner:       "math",
+			ExpectedRequest: &pushItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: int64(time.Hour.Seconds()),
+					},
+					Owner: "math",
+				},
+				bucket: "variables",
+			},
+		},
+
+		{
+			Name:        "Defaulted TTL",
+			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}}`,
+			Bucket:      "variables",
+			Owner:       "math",
+			ExpectedRequest: &pushItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: 60,
+					},
+					Owner: "math",
+				},
+				bucket: "variables",
+			},
+		},
+
+		{
+			Name:        "Happy path",
+			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
+			Bucket:      "variables",
+			Owner:       "math",
+			ExpectedRequest: &pushItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: 120,
+					},
+					Owner: "math",
+				},
+				bucket: "variables",
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			r := httptest.NewRequest(http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
+			if len(testCase.Bucket) > 0 {
+				r = mux.SetURLVars(r, map[string]string{
+					bucketVarKey: testCase.Bucket,
+				})
+			}
+			if len(testCase.Owner) > 0 {
+				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
+			}
+			decoder := pushItemRequestDecoder(ItemTTL{
+				DefaultTTL: time.Minute,
+				MaxTTL:     time.Hour,
+			})
+			decodedRequest, err := decoder(context.Background(), r)
+			if testCase.ExpectedRequest == nil {
+				assert.Nil(decodedRequest)
+			} else {
+				assert.Equal(testCase.ExpectedRequest, decodedRequest)
+			}
+			assert.Equal(testCase.ExpectedErr, err)
+		})
+	}
+}
+
+func TestEncodePushItemResponse(t *testing.T) {
+	assert := assert.New(t)
+	recorder := httptest.NewRecorder()
+	err := encodePushItemResponse(context.Background(), recorder, &model.Key{
+		Bucket: "north-america",
+		ID:     "usa",
+	})
+	assert.Nil(err)
+	assert.Equal(`{"bucket":"north-america","id":"usa"}`, recorder.Body.String())
 }

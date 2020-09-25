@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -42,6 +45,11 @@ type getAllItemsRequest struct {
 	owner  string
 }
 
+type pushItemRequest struct {
+	item   OwnableItem
+	bucket string
+}
+
 func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	vars := mux.Vars(r)
 	bucket, ok := vars[bucketVarKey]
@@ -54,6 +62,67 @@ func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}
 	}, nil
 }
 
+func pushItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		vars := mux.Vars(r)
+		bucket, ok := vars[bucketVarKey]
+		if !ok {
+			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
+		}
+
+		data, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, &BadRequestErr{Message: "failed to read body"}
+		}
+
+		item := model.Item{}
+		err = json.Unmarshal(data, &item)
+		if err != nil {
+			return nil, &BadRequestErr{Message: "failed to unmarshal json"}
+		}
+
+		if len(item.Data) <= 0 {
+			return nil, &BadRequestErr{Message: "data field must be set"}
+		}
+
+		item.Identifier = transformPushItemID(item.Identifier)
+		validateItemTTL(&item, itemTTLInfo)
+
+		return &pushItemRequest{
+			item: OwnableItem{
+				Item:  item,
+				Owner: r.Header.Get(ItemOwnerHeaderKey),
+			},
+			bucket: bucket,
+		}, nil
+	}
+}
+
+func validateItemTTL(item *model.Item, itemTTLInfo ItemTTL) {
+	if item.TTL > int64(itemTTLInfo.MaxTTL.Seconds()) {
+		item.TTL = int64(itemTTLInfo.MaxTTL.Seconds())
+	}
+
+	if item.TTL < 1 {
+		item.TTL = int64(itemTTLInfo.DefaultTTL.Seconds())
+	}
+}
+
+func transformPushItemID(ID string) string {
+	var checkSum [32]byte = sha256.Sum256([]byte(ID))
+	return base64.RawURLEncoding.EncodeToString(checkSum[:])
+}
+
+func encodePushItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+	pushItemResponse := response.(*model.Key)
+	data, err := json.Marshal(&pushItemResponse)
+	if err != nil {
+		return err
+	}
+	rw.Header().Add("Content-Type", "application/json")
+	rw.Write(data)
+	return nil
+}
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
 	payload := map[string]model.Item{}
