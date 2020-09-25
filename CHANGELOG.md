@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add helper functions for GetItem Handler. [#44](https://github.com/xmidt-org/argus/pull/44)
 - Add helper functions for DeleteItem Handler. [#52](https://github.com/xmidt-org/argus/pull/52)
 - Add helper functions for GetAllItems Handler. [#53](https://github.com/xmidt-org/argus/pull/53)
-- Add listener to chrysom config  [#54](https://github.com/xmidt-org/argus/pull/54)
+- Add helper functions for PushItem Handler. [#55](https://github.com/xmidt-org/argus/pull/55)
+
+### Fixed 
+- Add back listener to chrysom config. [#54](https://github.com/xmidt-org/argus/pull/54)
 
 ## [v0.3.5]
 ### Changed
