@@ -52,7 +52,7 @@ func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 		MaxTTL:     YearTTL,
 	}
 	unmarshaller.UnmarshalKey("itemTTL", itemTTL)
-	validateItemTTL(itemTTL)
+	validateItemTTLConfig(itemTTL)
 
 	return StoreOut{
 		SetKeyHandler: NewHandler(NewSetEndpoint(in.Store), *itemTTL),
@@ -61,7 +61,7 @@ func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 	}
 }
 
-func validateItemTTL(ttl *ItemTTL) {
+func validateItemTTLConfig(ttl *ItemTTL) {
 	if ttl.MaxTTL <= time.Second {
 		ttl.MaxTTL = YearTTL * time.Second
 	}
