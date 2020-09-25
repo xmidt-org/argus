@@ -87,6 +87,15 @@ func newGetAllItemsHandler(s S) Handler {
 	)
 }
 
+func newPushItemHandler(itemTTLInfo ItemTTL, s S) Handler {
+	return kithttp.NewServer(
+		newPushItemEndpoint(s),
+		pushItemRequestDecoder(itemTTLInfo),
+		encodePushItemResponse,
+		kithttp.ServerErrorEncoder(encodeError),
+	)
+}
+
 type requestHandler struct {
 	ItemTTL ItemTTL
 }
