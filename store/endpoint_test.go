@@ -59,7 +59,7 @@ func TestGetItemEndpoint(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.DAOResponse, error(testCase.DAOResponseErr))
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.DAOResponse, error(testCase.DAOResponseErr)).Once()
 			endpoint := newGetItemEndpoint(m)
 
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
@@ -70,6 +70,7 @@ func TestGetItemEndpoint(t *testing.T) {
 				assert.Equal(testCase.ExpectedResponse, ownableItemResponse)
 			}
 			assert.Equal(testCase.ExpectedErr, err)
+			m.AssertExpectations(t)
 		})
 	}
 }
@@ -136,7 +137,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr))
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
 
 			// verify item is not deleted by user who doesn't own it
 			allowDelete := testCase.ItemRequest.owner == "" || testCase.ItemRequest.owner == testCase.GetDAOResponse.Owner
@@ -144,7 +145,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			if testCase.GetDAOResponseErr != nil || !allowDelete {
 				m.AssertNotCalled(t, "Delete", testCase.ItemRequest)
 			} else {
-				m.On("Delete", testCase.ItemRequest.key).Return(testCase.DeleteDAOResponse, error(testCase.DeleteDAOResponseErr))
+				m.On("Delete", testCase.ItemRequest.key).Return(testCase.DeleteDAOResponse, error(testCase.DeleteDAOResponseErr)).Once()
 			}
 
 			deleteEndpoint := newDeleteItemEndpoint(m)
@@ -174,13 +175,14 @@ func testGetAllItemsEndpointDAOFails(t *testing.T) {
 		owner:  "alfa-romeo",
 	}
 	mockedErr := errors.New("sports cars api is down")
-	m.On("GetAll", "sports-cars").Return(map[string]OwnableItem{}, mockedErr)
+	m.On("GetAll", "sports-cars").Return(map[string]OwnableItem{}, mockedErr).Once()
 
 	endpoint := newGetAllItemsEndpoint(m)
 	resp, err := endpoint(context.Background(), itemsRequest)
 
 	assert.Nil(resp)
 	assert.Equal(mockedErr, err)
+	m.AssertExpectations(t)
 }
 
 func testGetAllItemsEndpointFiltered(t *testing.T) {
@@ -204,7 +206,7 @@ func testGetAllItemsEndpointFiltered(t *testing.T) {
 			Owner: "alfa-romeo",
 		},
 	}
-	m.On("GetAll", "sports-cars").Return(mockedItems, error(nil))
+	m.On("GetAll", "sports-cars").Return(mockedItems, error(nil)).Once()
 
 	endpoint := newGetAllItemsEndpoint(m)
 	resp, err := endpoint(context.Background(), itemsRequest)
@@ -220,4 +222,47 @@ func testGetAllItemsEndpointFiltered(t *testing.T) {
 
 	assert.Equal(expectedItems, resp)
 	assert.Nil(err)
+	m.AssertExpectations(t)
+}
+
+func TestPushItemEndpoint(t *testing.T) {
+	t.Run("DAOFails", testPushItemEndpointDAOFails)
+	t.Run("Happy Path", testPushItemEndpointHappyPath)
+}
+
+func testPushItemEndpointHappyPath(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	key := model.Key{
+		Bucket: "fruits",
+		ID:     "strawberry",
+	}
+
+	item := OwnableItem{
+		Item: model.Item{
+			Identifier: "strawberry",
+		},
+		Owner: "Bob",
+	}
+
+	m.On("Push", key, item).Return(nil).Once()
+	endpoint := newPushItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &pushItemRequest{
+		bucket: "fruits",
+		item:   item,
+	})
+	assert.Nil(err)
+	assert.Equal(&key, resp)
+	m.AssertExpectations(t)
+}
+
+func testPushItemEndpointDAOFails(t *testing.T) {
+	assert := assert.New(t)
+	m := new(MockDAO)
+	m.On("Push", model.Key{}, OwnableItem{}).Return(errors.New("DB failed")).Once()
+	endpoint := newPushItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &pushItemRequest{})
+	assert.Nil(resp)
+	assert.Equal(errors.New("DB failed"), err)
+	m.AssertExpectations(t)
 }

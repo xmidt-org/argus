@@ -186,6 +186,21 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 	}
 }
 
+func newPushItemEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		pushItemRequest := request.(*pushItemRequest)
+		key := model.Key{
+			Bucket: pushItemRequest.bucket,
+			ID:     pushItemRequest.item.Identifier,
+		}
+		err := s.Push(key, pushItemRequest.item)
+		if err != nil {
+			return nil, err
+		}
+		return &key, nil
+	}
+}
+
 func NewGetAllEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
