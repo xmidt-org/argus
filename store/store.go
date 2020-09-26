@@ -47,7 +47,6 @@ type S interface {
 
 type OwnableItem struct {
 	model.Item
-
 	Owner string `json:"owner"`
 }
 

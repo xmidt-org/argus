@@ -19,93 +19,10 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
-	"fmt"
-	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/xmidt-org/argus/model"
 )
-
-type KeyNotFoundError struct {
-	Key model.Key
-}
-
-func (knfe KeyNotFoundError) Error() string {
-	if knfe.Key.ID == "" && knfe.Key.Bucket == "" {
-		return fmt.Sprint("parameters for key not set")
-	} else if knfe.Key.ID == "" && knfe.Key.Bucket != "" {
-		return fmt.Sprintf("no value exists for bucket %s", knfe.Key.Bucket)
-
-	}
-	return fmt.Sprintf("no value exists with bucket: %s, id: %s", knfe.Key.Bucket, knfe.Key.ID)
-}
-
-func (knfe KeyNotFoundError) StatusCode() int {
-	return http.StatusNotFound
-}
-
-type BadRequestError struct {
-	Request interface{}
-}
-
-func (bre BadRequestError) Error() string {
-	return fmt.Sprintf("No value exists with request: %#v", bre)
-}
-
-func (bre BadRequestError) StatusCode() int {
-	return http.StatusBadRequest
-}
-
-type InternalError struct {
-	Reason    interface{}
-	Retryable bool
-}
-
-func (ie InternalError) Error() string {
-	return fmt.Sprintf("Request Failed: \n%#v", ie.Reason)
-}
-
-func (ie InternalError) StatusCode() int {
-	return http.StatusInternalServerError
-}
-
-type InvalidRequestError struct {
-	Reason string
-}
-
-func (ire InvalidRequestError) Error() string {
-	return ire.Reason
-}
-
-func (ire InvalidRequestError) StatusCode() int {
-	return http.StatusBadRequest
-}
-
-func NewSetEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		var (
-			kv KeyItemPairRequest
-			ok bool
-		)
-		if kv, ok = request.(KeyItemPairRequest); !ok {
-			return nil, BadRequestError{Request: request}
-		}
-		if kv.Identifier == "" {
-			return nil, BadRequestError{Request: request}
-		}
-
-		// Generate ID from Item identifier
-		sum := sha256.Sum256([]byte(kv.Identifier))
-		kv.ID = base64.RawURLEncoding.EncodeToString(sum[:])
-		if len([]byte(kv.ID)) >= 1024 {
-			return nil, InvalidRequestError{Reason: "identifier is too big"}
-		}
-		err := s.Push(kv.Key, kv.OwnableItem)
-		return kv.Key, err
-	}
-}
 
 func newGetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
@@ -120,10 +37,6 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}
 	}
-}
-
-func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
-	return requestItemOwner == "" || requestItemOwner == actualItemOwner
 }
 
 func newDeleteItemEndpoint(s S) endpoint.Endpoint {
@@ -142,35 +55,6 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		}
 
 		return nil, &KeyNotFoundError{Key: itemRequest.key}
-	}
-}
-
-func NewGetEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		var (
-			kv KeyItemPairRequest
-			ok bool
-		)
-		if kv, ok = request.(KeyItemPairRequest); !ok {
-			return nil, BadRequestError{Request: request}
-		}
-		if kv.Key.Bucket == "" || kv.Key.ID == "" {
-			return nil, BadRequestError{Request: request}
-		}
-		value, err := s.Get(kv.Key)
-		if err != nil {
-			return nil, err
-		}
-		if kv.Owner == value.Owner || kv.Owner == "" {
-			if kv.Method == "DELETE" {
-				value, err = s.Delete(kv.Key)
-				return value, err
-			}
-			return value, nil
-		}
-		return nil, KeyNotFoundError{
-			Key: kv.Key,
-		}
 	}
 }
 
@@ -201,18 +85,6 @@ func newPushItemEndpoint(s S) endpoint.Endpoint {
 	}
 }
 
-func NewGetAllEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		var (
-			kv KeyItemPairRequest
-			ok bool
-		)
-		if kv, ok = request.(KeyItemPairRequest); !ok {
-			return nil, BadRequestError{Request: request}
-		}
-
-		value, err := s.GetAll(kv.Key.Bucket)
-
-		return FilterOwner(value, kv.Owner), err
-	}
+func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
+	return requestItemOwner == "" || requestItemOwner == actualItemOwner
 }
