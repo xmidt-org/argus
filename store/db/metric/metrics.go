@@ -46,6 +46,13 @@ const (
 	GetAllQueryType = "getall"
 	DeleteQueryType = "delete"
 	PushQueryType   = "push"
+	PingQueryType   = "ping"
+)
+
+// Metric label values for Query Outcomes.
+const (
+	FailQueryOutcome    = "fail"
+	SuccessQueryOutcome = "success"
 )
 
 // ProvideMetrics returns the Metrics relevant to this package
@@ -71,18 +78,17 @@ func ProvideMetrics() fx.Option {
 
 		xmetrics.ProvideCounter(
 			prometheus.CounterOpts{
-				Name: Dynamodb,
-				Help: "The number of capacity units consumed by the operation.",
+				Name: DynamodbConsumedCapacityCounter,
+				Help: "Capacity units consumed by the DynamoDB operation.",
 			},
-			MethodLabelKey,
+			QueryTypeLabelKey,
 		),
 	)
 }
 
 type Measures struct {
 	fx.In
-	Queries       metrics.Counter   `name:"db_queries_total"`
-	QueryDuration metrics.Histogram `name:"db_query_duration_seconds"`
-
-	DynamodbConsumedCapacity metrics.Counter `name:"dynamodb_consumed_capacity_total"`
+	Queries                  metrics.Counter   `name:"db_queries_total"`
+	QueryDuration            metrics.Histogram `name:"db_query_duration_seconds"`
+	DynamodbConsumedCapacity metrics.Counter   `name:"dynamodb_consumed_capacity_total"`
 }
