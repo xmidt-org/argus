@@ -36,8 +36,9 @@ const (
 
 // Metric label keys.
 const (
-	QueryOutcomeLabelKey = "outcome"
-	QueryTypeLabelKey    = "type"
+	QueryOutcomeLabelKey     = "outcome"
+	QueryTypeLabelKey        = "type"
+	DynamoCapacityOpLabelKey = "op"
 )
 
 // Metric label values for DAO operation types.
@@ -53,6 +54,12 @@ const (
 const (
 	FailQueryOutcome    = "fail"
 	SuccessQueryOutcome = "success"
+)
+
+// Metric label values for DynamoDB Consumed capacity type
+const (
+	DynamoCapacityReadOp  = "read"
+	DynamoCapacityWriteOp = "write"
 )
 
 // ProvideMetrics returns the Metrics relevant to this package
@@ -82,6 +89,7 @@ func ProvideMetrics() fx.Option {
 				Help: "Capacity units consumed by the DynamoDB operation.",
 			},
 			QueryTypeLabelKey,
+			DynamoCapacityOpLabelKey
 		),
 	)
 }
