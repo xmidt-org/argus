@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
@@ -89,28 +90,27 @@ type PrimaryRouter struct {
 	AuthChain *alice.Chain `name:"auth_chain"`
 }
 
-type SetRoutesIn struct {
+type PrimaryRoutes struct {
 	fx.In
-	Handler store.Handler `name:"setHandler"`
-}
-type GetRoutesIn struct {
-	fx.In
-	Handler store.Handler `name:"getHandler"`
-}
-type GetAllRoutesIn struct {
-	fx.In
-	Handler store.Handler `name:"getAllHandler"`
+	Set    store.Handler `name:"setHandler"`
+	Delete store.Handler `name:"deleteHandler"`
+	Get    store.Handler `name:"getHandler"`
+	GetAll store.Handler `name:"getAllHandler"`
 }
 
-func BuildPrimaryRoutes(router PrimaryRouter, sin SetRoutesIn, gin GetRoutesIn, gain GetAllRoutesIn) {
-	if sin.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(sin.Handler)).Methods("PUT")
+func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {
+	router.Router.Use(router.AuthChain.Then)
+	if routes.Set != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.Set).Methods(http.MethodPut)
 	}
-	if gin.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{key}", apiBase), router.AuthChain.Then(gin.Handler)).Methods("GET", "DELETE")
+	if routes.Get != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Get).Methods(http.MethodGet)
 	}
-	if gain.Handler != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(gain.Handler)).Methods("GET")
+	if routes.GetAll != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.GetAll).Methods(http.MethodGet)
+	}
+	if routes.Delete != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Delete).Methods(http.MethodDelete)
 	}
 }
 
