@@ -99,17 +99,18 @@ type PrimaryRoutes struct {
 }
 
 func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {
+	router.Router.Use(router.AuthChain.Then)
 	if routes.Set != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(routes.Set)).Methods(http.MethodPut)
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.Set).Methods(http.MethodPut)
 	}
 	if routes.Get != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), router.AuthChain.Then(routes.Get)).Methods(http.MethodGet)
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Get).Methods(http.MethodGet)
 	}
 	if routes.GetAll != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), router.AuthChain.Then(routes.GetAll)).Methods(http.MethodGet)
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.GetAll).Methods(http.MethodGet)
 	}
 	if routes.Delete != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), router.AuthChain.Then(routes.Delete)).Methods(http.MethodDelete)
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Delete).Methods(http.MethodDelete)
 	}
 }
 
