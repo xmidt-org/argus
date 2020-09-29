@@ -89,7 +89,7 @@ func ProvideMetrics() fx.Option {
 				Help: "Capacity units consumed by the DynamoDB operation.",
 			},
 			QueryTypeLabelKey,
-			DynamoCapacityOpLabelKey
+			DynamoCapacityOpLabelKey,
 		),
 	)
 }
