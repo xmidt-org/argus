@@ -97,6 +97,6 @@ func ProvideMetrics() fx.Option {
 type Measures struct {
 	fx.In
 	Queries                  metrics.Counter   `name:"db_queries_total"`
-	QueryDuration            metrics.Histogram `name:"db_query_duration_seconds"`
+	QueryDurationSeconds     metrics.Histogram `name:"db_query_duration_seconds"`
 	DynamodbConsumedCapacity metrics.Counter   `name:"dynamodb_consumed_capacity_total"`
 }
