@@ -20,115 +20,69 @@ package metric
 import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/themis/xmetrics"
 	"go.uber.org/fx"
 )
 
-// Generic Metrics
+// Metric names.
 const (
-	PoolInUseConnectionsGauge = "pool_in_use_connections"
-	SQLDurationSeconds        = "sql_duration_seconds"
-	SQLQuerySuccessCounter    = "sql_query_success_count"
-	SQLQueryFailureCounter    = "sql_query_failure_count"
-	SQLInsertedRecordsCounter = "sql_inserted_rows_count"
-	SQLReadRecordsCounter     = "sql_read_rows_count"
-	SQLDeletedRecordsCounter  = "sql_deleted_rows_count"
+	// Common across data backends.
+	QueryDurationSecondsHistogram = "db_query_duration_seconds"
+	QueriesCounter                = "db_queries_total"
+
+	// DynamoDB-specific metrics.
+	DynamodbConsumedCapacityCounter = "dynamodb_consumed_capacity_total"
 )
 
-// DynamoDB metrics
+// Metric label keys.
 const (
-	CapacityUnitConsumedCounter  = "capacity_unit_consumed"
-	ReadCapacityConsumedCounter  = "read_capacity_unit_consumed"
-	WriteCapacityConsumedCounter = "write_capacity_unit_consumed"
+	QueryOutcomeLabelKey = "outcome"
+	QueryTypeLabelKey    = "type"
 )
 
-// Metrics returns the Metrics relevant to this package
+// Metric label values for DAO operation types.
+const (
+	GetQueryType    = "get"
+	GetAllQueryType = "getall"
+	DeleteQueryType = "delete"
+	PushQueryType   = "push"
+)
+
+// ProvideMetrics returns the Metrics relevant to this package
 func ProvideMetrics() fx.Option {
 	return fx.Provide(
-		xmetrics.ProvideGauge(
-			prometheus.GaugeOpts{
-				Name: PoolInUseConnectionsGauge,
-				Help: "The number of connections currently in use",
+		xmetrics.ProvideCounter(
+			prometheus.CounterOpts{
+				Name: QueriesCounter,
+				Help: "The total number of DB queries Argus has performed.",
 			},
+			QueryOutcomeLabelKey,
+			QueryTypeLabelKey,
 		),
+
 		xmetrics.ProvideHistogram(
 			prometheus.HistogramOpts{
-				Name:    SQLDurationSeconds,
-				Help:    "A histogram of latencies for requests.",
+				Name:    QueryDurationSecondsHistogram,
+				Help:    "A histogram of latencies for queries.",
 				Buckets: []float64{0.0625, 0.125, .25, .5, 1, 5, 10, 20, 40, 80, 160},
 			},
-			store.TypeLabel,
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: SQLQuerySuccessCounter,
-				Help: "The total number of successful SQL queries",
-			},
-			store.TypeLabel,
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: SQLQueryFailureCounter,
-				Help: "The total number of failed SQL queries",
-			},
-			store.TypeLabel,
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: SQLInsertedRecordsCounter,
-				Help: "The total number of rows inserted",
-			},
+			QueryTypeLabelKey,
 		),
 
 		xmetrics.ProvideCounter(
 			prometheus.CounterOpts{
-				Name: SQLReadRecordsCounter,
-				Help: "The total number of rows read",
-			},
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: SQLDeletedRecordsCounter,
-				Help: "The total number of rows deleted",
-			},
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: CapacityUnitConsumedCounter,
+				Name: Dynamodb,
 				Help: "The number of capacity units consumed by the operation.",
 			},
-			store.TypeLabel,
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: ReadCapacityConsumedCounter,
-				Help: "The number of read capacity units consumed by the operation.",
-			},
-			store.TypeLabel,
-		),
-		xmetrics.ProvideCounter(
-			prometheus.CounterOpts{
-				Name: WriteCapacityConsumedCounter,
-				Help: "The number of write capacity units consumed by the operation.",
-			},
-			store.TypeLabel,
+			MethodLabelKey,
 		),
 	)
 }
 
 type Measures struct {
 	fx.In
-	PoolInUseConnections metrics.Gauge     `name:"pool_in_use_connections"`
-	SQLDuration          metrics.Histogram `name:"sql_duration_seconds"`
-	SQLQuerySuccessCount metrics.Counter   `name:"sql_query_success_count"`
-	SQLQueryFailureCount metrics.Counter   `name:"sql_query_failure_count"`
-	SQLInsertedRecords   metrics.Counter   `name:"sql_inserted_rows_count"`
-	SQLReadRecords       metrics.Counter   `name:"sql_read_rows_count"`
-	SQLDeletedRecords    metrics.Counter   `name:"sql_deleted_rows_count"`
+	Queries       metrics.Counter   `name:"db_queries_total"`
+	QueryDuration metrics.Histogram `name:"db_query_duration_seconds"`
 
-	// DynamoDB Metrics
-	CapacityUnitConsumedCount      metrics.Counter `name:"capacity_unit_consumed"`
-	ReadCapacityUnitConsumedCount  metrics.Counter `name:"read_capacity_unit_consumed"`
-	WriteCapacityUnitConsumedCount metrics.Counter `name:"write_capacity_unit_consumed"`
+	DynamodbConsumedCapacity metrics.Counter `name:"dynamodb_consumed_capacity_total"`
 }
