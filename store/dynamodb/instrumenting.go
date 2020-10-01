@@ -27,52 +27,56 @@ type measureUpdateRequest struct {
 }
 
 func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
+	start := s.now()
 	consumedCapacity, err := s.service.Push(key, item)
 
 	s.measures.Update(&measureUpdateRequest{
 		err:              err,
 		consumedCapacity: consumedCapacity,
 		queryType:        metric.PushQueryType,
-		start:            s.now(),
+		start:            start,
 	})
 
 	return consumedCapacity, err
 }
 
 func (s *instrumentingService) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	start := s.now()
 	item, consumedCapacity, err := s.service.Get(key)
 
 	s.measures.Update(&measureUpdateRequest{
 		err:              err,
 		consumedCapacity: consumedCapacity,
 		queryType:        metric.GetQueryType,
-		start:            s.now(),
+		start:            start,
 	})
 
 	return item, consumedCapacity, err
 }
 
 func (s *instrumentingService) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	start := s.now()
 	item, consumedCapacity, err := s.service.Delete(key)
 
 	s.measures.Update(&measureUpdateRequest{
 		err:              err,
 		consumedCapacity: consumedCapacity,
 		queryType:        metric.DeleteQueryType,
-		start:            s.now(),
+		start:            start,
 	})
 
 	return item, consumedCapacity, err
 }
 
 func (s *instrumentingService) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	start := s.now()
 	items, consumedCapacity, err := s.service.GetAll(bucket)
 
 	s.measures.Update(&measureUpdateRequest{
 		err:              err,
 		consumedCapacity: consumedCapacity,
 		queryType:        metric.GetAllQueryType,
-		start:            s.now(),
+		start:            start,
 	})
 	return items, consumedCapacity, err
 }
