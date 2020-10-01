@@ -18,6 +18,8 @@
 package dynamodb
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/go-kit/kit/log"
@@ -105,6 +107,7 @@ func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures,
 		return nil, err
 	}
 
+	svc = newInstrumentingService(&dynamoMeasuresUpdater{measures: &measures}, svc, time.Now)
 	return &dao{
 		s: svc,
 	}, nil

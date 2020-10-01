@@ -11,8 +11,14 @@ import (
 
 type instrumentingService struct {
 	service
-	measures metric.Measures
+	measures measuresUpdater
+	now      func() time.Time
 }
+
+type measuresUpdater interface {
+	Update(*measureUpdateRequest)
+}
+
 type measureUpdateRequest struct {
 	err              error
 	consumedCapacity *dynamodb.ConsumedCapacity
@@ -22,13 +28,13 @@ type measureUpdateRequest struct {
 
 func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (consumedCapacity *dynamodb.ConsumedCapacity, err error) {
 	defer func(start time.Time) {
-		s.updateMeasures(&measureUpdateRequest{
+		s.measures.Update(&measureUpdateRequest{
 			err:              err,
 			consumedCapacity: consumedCapacity,
 			queryType:        metric.PushQueryType,
 			start:            start,
 		})
-	}(time.Now())
+	}(s.now())
 
 	consumedCapacity, err = s.service.Push(key, item)
 	return
@@ -36,13 +42,13 @@ func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (cons
 
 func (s *instrumentingService) Get(key model.Key) (item store.OwnableItem, consumedCapacity *dynamodb.ConsumedCapacity, err error) {
 	defer func(start time.Time) {
-		s.updateMeasures(&measureUpdateRequest{
+		s.measures.Update(&measureUpdateRequest{
 			err:              err,
 			consumedCapacity: consumedCapacity,
 			queryType:        metric.GetQueryType,
 			start:            start,
 		})
-	}(time.Now())
+	}(s.now())
 
 	item, consumedCapacity, err = s.service.Get(key)
 	return
@@ -50,13 +56,13 @@ func (s *instrumentingService) Get(key model.Key) (item store.OwnableItem, consu
 
 func (s *instrumentingService) Delete(key model.Key) (item store.OwnableItem, consumedCapacity *dynamodb.ConsumedCapacity, err error) {
 	defer func(start time.Time) {
-		s.updateMeasures(&measureUpdateRequest{
+		s.measures.Update(&measureUpdateRequest{
 			err:              err,
 			consumedCapacity: consumedCapacity,
 			queryType:        metric.DeleteQueryType,
 			start:            start,
 		})
-	}(time.Now())
+	}(s.now())
 
 	item, consumedCapacity, err = s.service.Delete(key)
 	return
@@ -64,48 +70,56 @@ func (s *instrumentingService) Delete(key model.Key) (item store.OwnableItem, co
 
 func (s *instrumentingService) GetAll(bucket string) (items map[string]store.OwnableItem, consumedCapacity *dynamodb.ConsumedCapacity, err error) {
 	defer func(start time.Time) {
-		s.updateMeasures(&measureUpdateRequest{
+		s.measures.Update(&measureUpdateRequest{
 			err:              err,
 			consumedCapacity: consumedCapacity,
 			queryType:        metric.GetAllQueryType,
 			start:            start,
 		})
-	}(time.Now())
+	}(s.now())
 
 	items, consumedCapacity, err = s.service.GetAll(bucket)
 	return
 }
 
-func (s *instrumentingService) updateMeasures(request *measureUpdateRequest) {
-	queryDurationSeconds := time.Since(request.start).Seconds()
-	s.measures.QueryDurationSeconds.With(metric.QueryTypeLabelKey, request.queryType).Observe(queryDurationSeconds)
-
-	s.updateDynamoCapacityMeasures(request.consumedCapacity, request.queryType)
-	s.updateQueryMeasures(request.err, request.queryType)
+type dynamoMeasuresUpdater struct {
+	measures *metric.Measures
 }
 
-func (s *instrumentingService) updateDynamoCapacityMeasures(consumedCapacity *dynamodb.ConsumedCapacity, queryType string) {
+func (m *dynamoMeasuresUpdater) Update(request *measureUpdateRequest) {
+	queryDurationSeconds := time.Since(request.start).Seconds()
+	m.measures.QueryDurationSeconds.With(metric.QueryTypeLabelKey, request.queryType).Observe(queryDurationSeconds)
+
+	m.updateDynamoCapacityMeasures(request.consumedCapacity, request.queryType)
+	m.updateQueryMeasures(request.err, request.queryType)
+}
+
+func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *dynamodb.ConsumedCapacity, queryType string) {
 	if consumedCapacity == nil {
 		return
 	}
 
 	if consumedCapacity.ReadCapacityUnits != nil {
-		s.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp).Add(1)
+		m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp).Add(*consumedCapacity.ReadCapacityUnits)
 	}
 
 	if consumedCapacity.WriteCapacityUnits != nil {
-		s.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp).Add(1)
+		m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp).Add(*consumedCapacity.WriteCapacityUnits)
 	}
 }
 
-func (s *instrumentingService) updateQueryMeasures(err error, queryType string) {
+func (m *dynamoMeasuresUpdater) updateQueryMeasures(err error, queryType string) {
 	if err != nil {
-		s.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1)
+		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1)
 	} else {
-		s.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1)
+		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1.0)
 	}
 }
 
-func newInstrumentingService(measures metric.Measures, s service) service {
-	return &instrumentingService{measures: measures, service: s}
+func newInstrumentingService(updater measuresUpdater, s service, now func() time.Time) service {
+	return &instrumentingService{
+		measures: updater,
+		service:  s,
+		now:      now,
+	}
 }
