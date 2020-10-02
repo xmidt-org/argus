@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [v0.3.6]
 ### Changed
 - Abstract away dynamodb dependency. [#35](https://github.com/xmidt-org/argus/pull/35)
 - Add unit tests for new dynamodb abstraction changes. [#39](https://github.com/xmidt-org/argus/pull/39)
@@ -15,9 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Switch store provider to use new handlers. [#56](https://github.com/xmidt-org/argus/pull/56)
 - Simplify metrics and add back instrumentation for dynamo. [#58](https://github.com/xmidt-org/argus/pull/58)
 
-
 ### Fixed 
 - Add back listener to chrysom config. [#54](https://github.com/xmidt-org/argus/pull/54)
+
 
 ## [v0.3.5]
 ### Changed
@@ -74,7 +77,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.6...HEAD
+[v0.3.6]: https://github.com/xmidt-org/argus/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/xmidt-org/argus/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/xmidt-org/argus/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/xmidt-org/argus/compare/v0.3.2...v0.3.3
