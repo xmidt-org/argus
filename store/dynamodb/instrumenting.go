@@ -78,6 +78,7 @@ func (s *instrumentingService) GetAll(bucket string) (map[string]store.OwnableIt
 		queryType:        metric.GetAllQueryType,
 		start:            start,
 	})
+
 	return items, consumedCapacity, err
 }
 
@@ -93,18 +94,20 @@ func (m *dynamoMeasuresUpdater) Update(request *measureUpdateRequest) {
 	m.updateQueryMeasures(request.err, request.queryType)
 }
 
+// For some reason, the go-aws sdk does not return the consumed read and write units separately.
+// Here https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ProvisionedThroughput.html we found
+// that provisioned tables consume read units for GetItem and Query operations while write units for Putitem and DeleteItem.
 func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *dynamodb.ConsumedCapacity, queryType string) {
-	if consumedCapacity == nil {
+	if consumedCapacity == nil || consumedCapacity.CapacityUnits == nil {
 		return
 	}
 
-	if consumedCapacity.ReadCapacityUnits != nil {
-		m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp).Add(*consumedCapacity.ReadCapacityUnits)
+	capacityOp := metric.DynamoCapacityReadOp
+	if queryType == metric.PushQueryType || queryType == metric.DeleteQueryType {
+		capacityOp = metric.DynamoCapacityWriteOp
 	}
 
-	if consumedCapacity.WriteCapacityUnits != nil {
-		m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp).Add(*consumedCapacity.WriteCapacityUnits)
-	}
+	m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, capacityOp).Add(*consumedCapacity.CapacityUnits)
 }
 
 func (m *dynamoMeasuresUpdater) updateQueryMeasures(err error, queryType string) {

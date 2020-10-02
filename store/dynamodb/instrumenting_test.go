@@ -96,14 +96,11 @@ func TestInstrumentingService(t *testing.T) {
 }
 
 func TestMeasuresUpdate(t *testing.T) {
-	var (
-		readCapacityUnits  float64 = 3
-		writeCapacityUnits float64 = 5
-	)
-	testCases := []struct {
+	var capacityUnits float64 = 5
+	tcs := []struct {
 		Name                  string
-		IncludeReadCapacity   bool
-		IncludeWriteCapacity  bool
+		QueryType             string
+		IncludeCapacity       bool
 		IncludeError          bool
 		ExpectedSuccessCount  float64
 		ExpectedFailCount     float64
@@ -111,45 +108,46 @@ func TestMeasuresUpdate(t *testing.T) {
 		ExpectedWriteCapacity float64
 	}{
 		{
-			Name:                  "Successful Query",
-			IncludeReadCapacity:   true,
-			IncludeWriteCapacity:  true,
-			ExpectedSuccessCount:  1,
-			ExpectedReadCapacity:  readCapacityUnits,
-			ExpectedWriteCapacity: writeCapacityUnits,
-		},
-
-		{
-			Name:                  "Failed Query",
-			IncludeReadCapacity:   true,
-			IncludeWriteCapacity:  true,
-			IncludeError:          true,
-			ExpectedFailCount:     1,
-			ExpectedReadCapacity:  readCapacityUnits,
-			ExpectedWriteCapacity: writeCapacityUnits,
-		},
-
-		{
 			Name:                 "Consumed Capacity Missing",
 			ExpectedSuccessCount: 1,
 		},
+
 		{
-			Name:                  "Read Consumed Capacity Missing",
-			IncludeWriteCapacity:  true,
-			ExpectedSuccessCount:  1,
-			ExpectedWriteCapacity: writeCapacityUnits,
+			Name:                 "Successful Get Query",
+			IncludeCapacity:      true,
+			ExpectedSuccessCount: 1,
+			QueryType:            metric.GetQueryType,
+			ExpectedReadCapacity: capacityUnits,
 		},
 
 		{
-			Name:                 "Write Consumed Capacity Missing",
-			IncludeReadCapacity:  true,
+			Name:                 "Successful GetAll Query",
+			IncludeCapacity:      true,
 			ExpectedSuccessCount: 1,
-			ExpectedReadCapacity: readCapacityUnits,
+			QueryType:            metric.GetAllQueryType,
+			ExpectedReadCapacity: capacityUnits,
+		},
+
+		{
+			Name:                  "Successful Delete Query",
+			IncludeCapacity:       true,
+			ExpectedSuccessCount:  1,
+			QueryType:             metric.DeleteQueryType,
+			ExpectedWriteCapacity: capacityUnits,
+		},
+
+		{
+			Name:                  "Failed Push Query",
+			IncludeCapacity:       true,
+			IncludeError:          true,
+			ExpectedFailCount:     1,
+			QueryType:             metric.PushQueryType,
+			ExpectedWriteCapacity: capacityUnits,
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.Name, func(t *testing.T) {
+	for _, tc := range tcs {
+		t.Run(tc.Name, func(t *testing.T) {
 			p := xmetricstest.NewProvider(&xmetrics.Options{})
 			updater := &dynamoMeasuresUpdater{
 				measures: &metric.Measures{
@@ -159,30 +157,26 @@ func TestMeasuresUpdate(t *testing.T) {
 				},
 			}
 			r := &measureUpdateRequest{
-				queryType: "insert",
+				queryType: tc.QueryType,
 				start:     time.Now(),
 			}
 
-			if testCase.IncludeError {
+			if tc.IncludeError {
 				r.err = errors.New("bummer")
 			}
 
-			if testCase.IncludeReadCapacity || testCase.IncludeWriteCapacity {
-				r.consumedCapacity = &dynamodb.ConsumedCapacity{}
-				if testCase.IncludeReadCapacity {
-					r.consumedCapacity.ReadCapacityUnits = aws.Float64(readCapacityUnits)
-				}
-				if testCase.IncludeWriteCapacity {
-					r.consumedCapacity.WriteCapacityUnits = aws.Float64(writeCapacityUnits)
+			if tc.IncludeCapacity {
+				r.consumedCapacity = &dynamodb.ConsumedCapacity{
+					CapacityUnits: aws.Float64(capacityUnits),
 				}
 			}
 
 			updater.Update(r)
-			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, "insert")(xmetricstest.Value(testCase.ExpectedSuccessCount))
-			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, "insert")(xmetricstest.Value(testCase.ExpectedFailCount))
+			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedSuccessCount))
+			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedFailCount))
 
-			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(testCase.ExpectedReadCapacity))
-			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(testCase.ExpectedWriteCapacity))
+			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(tc.ExpectedReadCapacity))
+			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(tc.ExpectedWriteCapacity))
 
 			//TODO: due to limitations in xmetricstest, we can't explore the values observed in a histogram for the QueryDurationSeconds
 		})
