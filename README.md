@@ -131,10 +131,10 @@ make build
 
 The Makefile has the following options you may find helpful:
 * `make build`: builds the argus binary
-* `make docker`: builds a docker image for argus, making sure to get all
-   dependencies
-* `make local-docker`: builds a docker image for argus with the assumption
-   that the dependencies can be found already
+* `make docker`: fetches all dependencies from source and builds an argus
+   docker image
+* `make local-docker`: vendors dependencies and builds an argus docker image
+   (recommended for local testing)
 * `make test`: runs unit tests with coverage for argus
 * `make clean`: deletes previously-built binaries and object files
 
@@ -154,20 +154,27 @@ command.  Either option requires first getting the source code.
 
 See [Makefile](#Makefile) on specifics of how to build the image that way.
 
-For running a command, either you can run `docker build` after getting all
-dependencies, or make the command fetch the dependencies.  If you don't want to
-get the dependencies, run the following command:
-```bash
-docker build -t argus:local -f deploy/Dockerfile .
-```
-If you want to get the dependencies then build, run the following commands:
+If you'd like to build it without make, follow these instructions based on your use case:
+
+- Local testing
 ```bash
 go mod vendor
-docker build -t argus:local -f deploy/Dockerfile.local .
+docker build -t argus:local -f deploy/Dockerfile .
+```
+This allows you to test local changes to a dependency. For example, you can build 
+a argus image with the changes to an upcoming changes to [webpa-common](https://github.com/xmidt-org/webpa-common) by using the [replace](https://golang.org/ref/mod#go) directive in your go.mod file like so:
+```
+replace github.com/xmidt-org/webpa-common v1.10.2-0.20200604164000-f07406b4eb63 => ../webpa-common
+```
+**Note:** if you omit `go mod vendor`, your build will fail as the path `../webpa-common` does not exist on the builder container.
+
+- Building a specific version
+```bash
+git checkout v0.3.6
+docker build -t argus:v0.3.6 -f deploy/Dockerfile .
 ```
 
-For either command, if you want the tag to be a version instead of `local`,
-then replace `local` in the `docker build` command.
+**Additional Info:** If you'd like to stand up a XMiDT docker-compose cluster, read [this](https://github.com/xmidt-org/xmidt/blob/master/deploy/docker-compose/README.md).
 
 ### Kubernetes
 
