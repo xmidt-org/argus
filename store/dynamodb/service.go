@@ -170,9 +170,9 @@ func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedC
 	err = dynamodbattribute.UnmarshalMap(result.Attributes, &expirableItem)
 	expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
 	if expirableItem.Key.Bucket == "" || expirableItem.Key.ID == "" {
-		return expirableItem.OwnableItem, result.ConsumedCapacity, store.KeyNotFoundError{Key: key}
+		return expirableItem.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
 	}
-	return expirableItem.OwnableItem, result.ConsumedCapacity, err
+	return expirableItem.OwnableItem, consumedCapacity, err
 }
 
 //TODO: For data >= 1MB, we'll need to handle pagination
@@ -194,7 +194,6 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 	})
 
 	var consumedCapacity *dynamodb.ConsumedCapacity
-
 	if queryResult != nil {
 		consumedCapacity = queryResult.ConsumedCapacity
 	}
@@ -213,7 +212,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 
 		result[expirableItem.Key.ID] = expirableItem.OwnableItem
 	}
-	return result, queryResult.ConsumedCapacity, nil
+	return result, consumedCapacity, nil
 }
 
 func newService(config aws.Config, awsProfile string, tableName string, logger log.Logger) (service, error) {
