@@ -107,7 +107,7 @@ func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *d
 		capacityOp = metric.DynamoCapacityWriteOp
 	}
 
-	m.measures.DynamodbConsumedCapacity.With(metric.DynamoCapacityOpLabelKey, capacityOp).Add(*consumedCapacity.CapacityUnits)
+	m.measures.DynamodbConsumedCapacity.With(metric.QueryTypeLabelKey, queryType, metric.DynamoCapacityOpLabelKey, capacityOp).Add(*consumedCapacity.CapacityUnits)
 }
 
 func (m *dynamoMeasuresUpdater) updateQueryMeasures(err error, queryType string) {

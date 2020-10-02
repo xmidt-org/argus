@@ -175,8 +175,8 @@ func TestMeasuresUpdate(t *testing.T) {
 			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedSuccessCount))
 			p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedFailCount))
 
-			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(tc.ExpectedReadCapacity))
-			p.Assert(t, "dynamo", metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(tc.ExpectedWriteCapacity))
+			p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(tc.ExpectedReadCapacity))
+			p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(tc.ExpectedWriteCapacity))
 
 			//TODO: due to limitations in xmetricstest, we can't explore the values observed in a histogram for the QueryDurationSeconds
 		})
