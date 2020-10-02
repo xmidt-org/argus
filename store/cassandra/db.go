@@ -19,14 +19,16 @@ package cassandra
 
 import (
 	"context"
-	"emperror.dev/emperror"
 	"errors"
+	"time"
+
+	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
+	dbmetric "github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/webpa-common/logging"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/themis/config"
@@ -179,10 +181,10 @@ func CreateCassandraClient(config CassandraConfig, measures metric.Measures, log
 func (s *CassandraClient) Push(key model.Key, item store.OwnableItem) error {
 	err := s.client.Push(key, item)
 	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.InsertType).Add(1.0)
+		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		return err
 	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.InsertType).Add(1.0)
+	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return nil
 }
 
@@ -192,10 +194,10 @@ func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 		if err == noDataResponse {
 			return item, store.KeyNotFoundError{Key: key}
 		}
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
+		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		return item, err
 	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.ReadType).Add(1.0)
+	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, nil
 }
 
@@ -205,10 +207,10 @@ func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 		if err == noDataResponse {
 			return item, store.KeyNotFoundError{Key: key}
 		}
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
+		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		return item, err
 	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.DeleteType).Add(1.0)
+	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
 }
 
@@ -220,10 +222,10 @@ func (s *CassandraClient) GetAll(bucket string) (map[string]store.OwnableItem, e
 				Bucket: bucket,
 			}}
 		}
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.ReadType).Add(1.0)
+		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		return item, err
 	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.ReadType).Add(1.0)
+	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
 }
 
@@ -235,10 +237,10 @@ func (s *CassandraClient) Close() {
 func (s *CassandraClient) Ping() error {
 	err := s.client.Ping()
 	if err != nil {
-		s.measures.SQLQueryFailureCount.With(store.TypeLabel, store.PingType).Add(1.0)
+		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		return emperror.WrapWith(err, "Pinging connection failed")
 	}
-	s.measures.SQLQuerySuccessCount.With(store.TypeLabel, store.PingType).Add(1.0)
+	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return nil
 }
 

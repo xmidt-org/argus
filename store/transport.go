@@ -27,8 +27,8 @@ const (
 
 // Request and Response Headers
 const (
-	ItemOwnerHeaderKey  = "X-Xmidt-Owner"
-	XmidtErrorHeaderKey = "X-Xmidt-Error"
+	ItemOwnerHeaderKey  = "X-Midt-Owner"
+	XmidtErrorHeaderKey = "X-Midt-Error"
 )
 
 // ErrCasting indicates there was a middleware wiring mistake with the go-kit style

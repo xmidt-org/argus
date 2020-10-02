@@ -71,3 +71,11 @@ func (c *mockClient) Query(input *dynamodb.QueryInput) (*dynamodb.QueryOutput, e
 	args := c.Called(input)
 	return args.Get(0).(*dynamodb.QueryOutput), args.Error(1)
 }
+
+type mockMeasuresUpdater struct {
+	mock.Mock
+}
+
+func (m *mockMeasuresUpdater) Update(r *measureUpdateRequest) {
+	m.Called(r)
+}
