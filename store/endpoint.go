@@ -85,6 +85,26 @@ func newPushItemEndpoint(s S) endpoint.Endpoint {
 	}
 }
 
+func newUpdateItemEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		updateItemRequest := request.(*updateItemRequest)
+		itemResponse, err := s.Get(updateItemRequest.key)
+		if err != nil {
+			return nil, err
+		}
+
+		if userOwnsItem(updateItemRequest.item.Owner, itemResponse.Owner) {
+			err := s.Push(updateItemRequest.key, updateItemRequest.item)
+			if err != nil {
+				return nil, err
+			}
+			return &updateItemRequest.key, nil
+		}
+
+		return nil, &KeyNotFoundError{Key: updateItemRequest.key}
+	}
+}
+
 func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
 	return requestItemOwner == "" || requestItemOwner == actualItemOwner
 }

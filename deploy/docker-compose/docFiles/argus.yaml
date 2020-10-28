@@ -1,3 +1,4 @@
+---
 prometheus:
   defaultNamespace: xmidt
   defaultSubsystem: argus
@@ -84,7 +85,7 @@ servers:
 dynamo:
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
-  endpoint: "http://localhost:8042"
+  endpoint: http://dynamodb:8000
 
   # table is the name of the table that is already configured with bucket and id as the key.
   table: "gifnoc"
@@ -160,4 +161,3 @@ jwtValidator:
 # endpointBuckets:
 #   - "store\\b"
 #   - "store/.*\\b"
-

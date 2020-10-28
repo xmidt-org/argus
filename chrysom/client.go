@@ -200,7 +200,7 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), bytes.NewReader(data))
+	request, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -226,6 +226,46 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 		return "", err
 	}
 	return key.ID, nil
+}
+
+func (c *Client) Update(item model.Item, id string, owner string) (string, error) {
+	if item.Identifier == "" {
+		return "", errors.New("identifier can't be empty")
+	}
+	if item.TTL < 1 {
+		item.TTL = c.defaultStoreItemTTL
+	}
+	data, err := json.Marshal(&item)
+	if err != nil {
+		return "", err
+	}
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	err = acquire.AddAuth(request, c.auth)
+	if err != nil {
+		return "", err
+	}
+	if owner != "" {
+		request.Header.Add("X-Midt-Owner", owner)
+	}
+	response, err := c.client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	if response.StatusCode != 200 {
+		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to update an item", "code", response.StatusCode)
+		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
+	}
+	responsePayload, _ := ioutil.ReadAll(response.Body)
+	key := model.Key{}
+	err = json.Unmarshal(responsePayload, &key)
+	if err != nil {
+		return "", err
+	}
+	return key.ID, nil
+
 }
 
 func (c *Client) Remove(id string, owner string) (model.Item, error) {

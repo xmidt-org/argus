@@ -73,3 +73,12 @@ func newPushItemHandler(itemTTLInfo ItemTTL, s S) Handler {
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
+
+func newUpdateItemHandler(itemTTLInfo ItemTTL, s S) Handler {
+	return kithttp.NewServer(
+		newUpdateItemEndpoint(s),
+		updateItemRequestDecoder(itemTTLInfo),
+		encodePushItemResponse,
+		kithttp.ServerErrorEncoder(encodeError),
+	)
+}
