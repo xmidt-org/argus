@@ -19,31 +19,25 @@ package chrysom
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-kit/kit/metrics/provider"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule/acquire"
 )
 
 type ClientConfig struct {
-	HTTPClient      *http.Client
-	Bucket          string
-	PullInterval    time.Duration
-	Address         string
-	Auth            Auth
-	DefaultTTL      int64
-	MetricsProvider provider.Provider
-	Logger          log.Logger
-	Listener        Listener
+	HTTPClient *http.Client
+	Bucket     string
+	Address    string
+	Auth       Auth
+	DefaultTTL int64
+	Logger     log.Logger
 }
 
 type Auth struct {
@@ -59,10 +53,7 @@ type loggerGroup struct {
 
 type Client struct {
 	client              *http.Client
-	ticker              *time.Ticker
 	auth                acquire.Acquirer
-	metrics             *measures
-	listener            Listener
 	bucketName          string
 	remoteStoreAddress  string
 	defaultStoreItemTTL int64
@@ -77,12 +68,6 @@ func initLoggers(logger log.Logger) loggerGroup {
 	}
 }
 
-func initMetrics(p provider.Provider) *measures {
-	return &measures{
-		pollCount: p.NewCounter(PollCounter),
-	}
-}
-
 func CreateClient(config ClientConfig) (*Client, error) {
 	err := validateConfig(&config)
 	if err != nil {
@@ -94,18 +79,11 @@ func CreateClient(config ClientConfig) (*Client, error) {
 	}
 	clientStore := &Client{
 		client:              config.HTTPClient,
-		ticker:              time.NewTicker(config.PullInterval),
 		auth:                auth,
-		metrics:             initMetrics(config.MetricsProvider),
 		loggers:             initLoggers(config.Logger),
-		listener:            config.Listener,
 		remoteStoreAddress:  config.Address,
 		defaultStoreItemTTL: config.DefaultTTL,
 		bucketName:          config.Bucket,
-	}
-
-	if config.PullInterval > 0 {
-		clientStore.ticker = time.NewTicker(config.PullInterval)
 	}
 
 	return clientStore, nil
@@ -124,10 +102,6 @@ func validateConfig(config *ClientConfig) error {
 	if config.DefaultTTL < 1 {
 		config.DefaultTTL = 300
 	}
-	if config.MetricsProvider == nil {
-		return errors.New("a metrics provider is required")
-	}
-
 	if config.Logger == nil {
 		config.Logger = log.NewNopLogger()
 	}
@@ -254,38 +228,4 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 		return model.Item{}, err
 	}
 	return item, nil
-}
-
-func (c *Client) Start(ctx context.Context) error {
-	if c.ticker == nil {
-		return errors.New("interval ticker is nil")
-	}
-
-	if c.listener == nil {
-		c.loggers.Info.Log("msg", "No listener setup for updates")
-		return nil
-	}
-
-	go func() {
-		for range c.ticker.C {
-			outcome := SuccessOutcome
-			items, err := c.GetItems("")
-			if err == nil {
-				c.listener.Update(items)
-			} else {
-				outcome = FailureOutcomme
-				c.loggers.Error.Log("msg", "failed to get items", level.ErrorValue(), err)
-			}
-			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
-		}
-	}()
-
-	return nil
-}
-
-func (c *Client) Stop(ctx context.Context) error {
-	if c.ticker != nil {
-		c.ticker.Stop()
-	}
-	return nil
 }
