@@ -2,14 +2,14 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/xmidt-org/argus/model"
 )
@@ -46,11 +46,6 @@ type getAllItemsRequest struct {
 }
 
 type pushItemRequest struct {
-	item   OwnableItem
-	bucket string
-}
-
-type updateItemRequest struct {
 	key  model.Key
 	item OwnableItem
 }
@@ -67,12 +62,22 @@ func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}
 	}, nil
 }
 
-func pushItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
+func pushItemRequestDecoder(itemTTLInfo ItemTTL, update bool) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		vars := mux.Vars(r)
 		bucket, ok := vars[bucketVarKey]
 		if !ok {
 			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
+		}
+
+		var id string
+
+		if update {
+			id, ok = vars[idVarKey]
+
+			if !ok {
+				return nil, &BadRequestErr{Message: idVarMissingMsg}
+			}
 		}
 
 		data, err := ioutil.ReadAll(r.Body)
@@ -90,7 +95,10 @@ func pushItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
 			return nil, &BadRequestErr{Message: "data field must be set"}
 		}
 
-		item.Identifier = transformPushItemID(item.Identifier)
+		if !update {
+			id = generateID()
+		}
+
 		validateItemTTL(&item, itemTTLInfo)
 
 		return &pushItemRequest{
@@ -98,51 +106,9 @@ func pushItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
 				Item:  item,
 				Owner: r.Header.Get(ItemOwnerHeaderKey),
 			},
-			bucket: bucket,
-		}, nil
-	}
-}
-
-func updateItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		vars := mux.Vars(r)
-		bucket, ok := vars[bucketVarKey]
-		if !ok {
-			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
-		}
-
-		id, ok := vars[idVarKey]
-
-		if !ok {
-			return nil, &BadRequestErr{Message: idVarMissingMsg}
-		}
-
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return nil, &BadRequestErr{Message: "failed to read body"}
-		}
-
-		item := model.Item{}
-		err = json.Unmarshal(data, &item)
-		if err != nil {
-			return nil, &BadRequestErr{Message: "failed to unmarshal json"}
-		}
-
-		if len(item.Data) <= 0 {
-			return nil, &BadRequestErr{Message: "data field must be set"}
-		}
-
-		item.Identifier = id
-		validateItemTTL(&item, itemTTLInfo)
-
-		return &updateItemRequest{
 			key: model.Key{
 				Bucket: bucket,
 				ID:     id,
-			},
-			item: OwnableItem{
-				Item:  item,
-				Owner: r.Header.Get(ItemOwnerHeaderKey),
 			},
 		}, nil
 	}
@@ -158,9 +124,9 @@ func validateItemTTL(item *model.Item, itemTTLInfo ItemTTL) {
 	}
 }
 
-func transformPushItemID(ID string) string {
-	var checkSum [32]byte = sha256.Sum256([]byte(ID))
-	return base64.RawURLEncoding.EncodeToString(checkSum[:])
+func generateID() string {
+	uuidWithHyphen := uuid.New()
+	return strings.Replace(uuidWithHyphen.String(), "-", "", -1)
 }
 
 func encodePushItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {

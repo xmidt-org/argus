@@ -68,7 +68,7 @@ func newGetAllItemsHandler(s S) Handler {
 func newPushItemHandler(itemTTLInfo ItemTTL, s S) Handler {
 	return kithttp.NewServer(
 		newPushItemEndpoint(s),
-		pushItemRequestDecoder(itemTTLInfo),
+		pushItemRequestDecoder(itemTTLInfo, false),
 		encodePushItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
@@ -77,7 +77,7 @@ func newPushItemHandler(itemTTLInfo ItemTTL, s S) Handler {
 func newUpdateItemHandler(itemTTLInfo ItemTTL, s S) Handler {
 	return kithttp.NewServer(
 		newUpdateItemEndpoint(s),
-		updateItemRequestDecoder(itemTTLInfo),
+		pushItemRequestDecoder(itemTTLInfo, true),
 		encodePushItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)

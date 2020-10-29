@@ -9,6 +9,7 @@ require (
 	github.com/go-kit/kit v0.9.0
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.7.3
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/justinas/alice v1.2.0
