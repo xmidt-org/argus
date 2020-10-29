@@ -218,8 +218,10 @@ func TestPushItemRequestDecoder(t *testing.T) {
 		Name            string
 		Bucket          string
 		Owner           string
+		ID              string
 		RequestBody     string
 		ExpectedErr     error
+		UpdateRequest   bool
 		ExpectedRequest *pushItemRequest
 	}{
 		{
@@ -253,7 +255,7 @@ func TestPushItemRequestDecoder(t *testing.T) {
 			ExpectedRequest: &pushItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Identifier: "xyz",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -263,7 +265,9 @@ func TestPushItemRequestDecoder(t *testing.T) {
 					},
 					Owner: "math",
 				},
-				bucket: "variables",
+				key: model.Key{
+					Bucket: "variables",
+				},
 			},
 		},
 
@@ -275,7 +279,7 @@ func TestPushItemRequestDecoder(t *testing.T) {
 			ExpectedRequest: &pushItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Identifier: "xyz",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -285,7 +289,9 @@ func TestPushItemRequestDecoder(t *testing.T) {
 					},
 					Owner: "math",
 				},
-				bucket: "variables",
+				key: model.Key{
+					Bucket: "variables",
+				},
 			},
 		},
 
@@ -297,7 +303,7 @@ func TestPushItemRequestDecoder(t *testing.T) {
 			ExpectedRequest: &pushItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "Ngi8oeROpsTSaOttsCJgJpiSwLQrhrvx53pvoWw8koI",
+						Identifier: "xyz",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -307,7 +313,35 @@ func TestPushItemRequestDecoder(t *testing.T) {
 					},
 					Owner: "math",
 				},
-				bucket: "variables",
+				key: model.Key{
+					Bucket: "variables",
+				},
+			},
+		},
+		{
+			Name:          "Update Request",
+			RequestBody:   `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
+			Bucket:        "variables",
+			Owner:         "math",
+			ID:            "id-that-should-stay-the-same",
+			UpdateRequest: true,
+			ExpectedRequest: &pushItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						Identifier: "xyz",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: 120,
+					},
+					Owner: "math",
+				},
+				key: model.Key{
+					Bucket: "variables",
+					ID:     "id-that-should-stay-the-same",
+				},
 			},
 		},
 	}
@@ -316,22 +350,40 @@ func TestPushItemRequestDecoder(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			r := httptest.NewRequest(http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
-			if len(testCase.Bucket) > 0 {
-				r = mux.SetURLVars(r, map[string]string{
-					bucketVarKey: testCase.Bucket,
-				})
+			if len(testCase.Bucket) > 0 || len(testCase.ID) > 0 {
+
+				pathVars := make(map[string]string)
+
+				if len(testCase.Bucket) > 0 {
+					pathVars[bucketVarKey] = testCase.Bucket
+				}
+
+				if len(testCase.ID) > 0 {
+					pathVars[idVarKey] = testCase.ID
+				}
+
+				r = mux.SetURLVars(r, pathVars)
 			}
+
 			if len(testCase.Owner) > 0 {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
 			decoder := pushItemRequestDecoder(ItemTTL{
 				DefaultTTL: time.Minute,
 				MaxTTL:     time.Hour,
-			})
+			}, testCase.UpdateRequest)
 			decodedRequest, err := decoder(context.Background(), r)
 			if testCase.ExpectedRequest == nil {
 				assert.Nil(decodedRequest)
 			} else {
+				decodedRequestCast, ok := decodedRequest.(*pushItemRequest)
+				assert.True(ok)
+
+				// id should only be generated if it is not an update request
+				if !testCase.UpdateRequest {
+					testCase.ExpectedRequest.key.ID = decodedRequestCast.key.ID
+				}
+
 				assert.Equal(testCase.ExpectedRequest, decodedRequest)
 			}
 			assert.Equal(testCase.ExpectedErr, err)
