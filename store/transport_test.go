@@ -344,6 +344,14 @@ func TestPushItemRequestDecoder(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:          "Update Request-No ID",
+			RequestBody:   `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
+			Bucket:        "variables",
+			Owner:         "math",
+			UpdateRequest: true,
+			ExpectedErr:   &BadRequestErr{Message: idVarMissingMsg},
+		},
 	}
 
 	for _, testCase := range testCases {
