@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.3.7]
 ### Changed
 - Changes the PUT creation route to a POST. [#68](https://github.com/xmidt-org/argus/pull/68)
 - Adds a PUT route to update a specific resource. [#68](https://github.com/xmidt-org/argus/pull/68)
@@ -81,7 +82,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.6...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.7...HEAD
+[v0.3.7]: https://github.com/xmidt-org/argus/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/xmidt-org/argus/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/xmidt-org/argus/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/xmidt-org/argus/compare/v0.3.3...v0.3.4
