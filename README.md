@@ -25,21 +25,37 @@ Refer the [overview docs](https://xmidt.io/docs/introduction/overview/)for more 
 
 ## Code of Conduct
 
-This project and everyone participating in it are governed by the [XMiDT Code Of Conduct](https://xmidt.io/code_of_conduct/). 
+This project and everyone participating in it are governed by the [XMiDT Code Of Conduct](https://xmidt.io/code_of_conduct/).
 By participating, you agree to this Code.
 
 ## Details
 argus has one function: interact with a database whether it is internal or external.
 To enable this, argus has two endpoints: 1) individual items, and 2) buckets containing items.
 
-### Create Individual Item - `store/{bucket}` endpoint
-This endpoint allows for clients to `PUT` an object into argus. The body must be in json format with _identifier_ and
-_data_. _ttl_ is an optional field in seconds, if not set it will become 5 minutes. An optional header `X-Midt-Owner` can be sent
-to associate the object with an owner. 
+### Create Individual Item - `store/{bucket}/{uuid}` endpoint
+This endpoint allows for clients to `PUT` an object into argus.  The placeholder variables in the path must contain:
 
-An example put object
+* _bucket_ - The name used to indicate the resource type of which the stored data represents.  A plural form of a noun word should be used for stylistic reasons.
+* _uuid_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<identifier>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.
+
+
+The body must be in JSON format with the following attributes:
+
+* _uuid_ - Required.  See above.
+* _identifier_ - Required.  Common name of the provided resource.  There is no enforcement of uniqueness across resource of this type.
+* _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
+* _owner_ - Optional.  Free form string to identify the owner of this object.
+* _ttl_ - Optional.  Specified in units of seconds.  Defaults to 0 if omitted, which means this object will not auto expire.
+
+An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
+
+An example PUT request
+```
+PUT /store/planets/7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7
+```
 ```json
 {
+  "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
   "identifier" : "earth",
   "data": {
     "year":  1967,
@@ -49,58 +65,62 @@ An example put object
 }
 ```
 
-An example response: 
-```json
-{
-  "bucket" : "world",
-  "id":  "ZWFydGjjsMRCmPwcFJr79MiZb7kkJ65B5GSbk0yklZkbeFK4VQ"
-}
+Example responses:
 ```
+HTTP/1.1 201 Created
+```
+The above response would indicate a new object has been created (no existing object with the given UUID was found).
 
-### Bucket - `store/{bucket}` endpoint
+```
+HTTP/1.1 200 OK
+```
+The above response would indicate an existing object has been updated (existing object with the given UUID was found).  Note that a PUT operation on an existing record may also result in "403 Forbidden" error.
+
+
+### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
-An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent
-with the request, if supplied the results will be filtered down. If `X-Midt-Owner` is empty then all the items will be returned.
+
+An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list.
 
 An example response:
 ```json
-{
-    "ZWFydGjjsMRCmPwcFJr79MiZb7kkJ65B5GSbk0yklZkbeFK4VQ": {
-        "identifier": "earth",
-        "data": {
-            "words": [
-                "What",
-                "a",
-                "Wonderful",
-                "World"
-            ],
-            "year": 1967
-        },
-        "ttl": 255
-    }
-}
-```
-
-
-### Individual Item - `store/{bucket}/{id}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any json object that was created with the previous
-`PUT` request. An optional header `X-Midt-Owner` can be sent with the request, if the owner of the object matches the header value
-the object is returned, otherwise 404 will be returned. 
-
-An example response:
-```json
-{
+[
+  {
+    "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
     "identifier": "earth",
     "data": {
-        "words": [
-            "What",
-            "a",
-            "Wonderful",
-            "World"
-        ],
-        "year": 1967
+      "words": [
+        "What",
+        "a",
+        "Wonderful",
+        "World"
+      ],
+      "year": 1967
     },
-    "ttl": 295
+    "ttl": 255
+  }
+]
+```
+
+
+### Individual Item - `store/{bucket}/{uuid}` endpoint
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  If supplied, the value is validated against the secret stored with this record.  A mismatch will result in a "403 Forbidden" error.
+
+An example response:
+```json
+{
+  "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+  "identifier": "earth",
+  "data": {
+    "words": [
+      "What",
+      "a",
+      "Wonderful",
+      "World"
+    ],
+    "year": 1967
+  },
+  "ttl": 100
 }
 ```
 
@@ -140,7 +160,7 @@ The Makefile has the following options you may find helpful:
 
 ### RPM
 
-First have a local clone of the source and go into the root directory of the 
+First have a local clone of the source and go into the root directory of the
 repository.  Then use rpkg to build the rpm:
 ```bash
 rpkg srpm --spec <repo location>/<spec file location in repo>
@@ -161,7 +181,7 @@ If you'd like to build it without make, follow these instructions based on your 
 go mod vendor
 docker build -t argus:local -f deploy/Dockerfile .
 ```
-This allows you to test local changes to a dependency. For example, you can build 
+This allows you to test local changes to a dependency. For example, you can build
 a argus image with the changes to an upcoming changes to [webpa-common](https://github.com/xmidt-org/webpa-common) by using the [replace](https://golang.org/ref/mod#go) directive in your go.mod file like so:
 ```
 replace github.com/xmidt-org/webpa-common v1.10.2-0.20200604164000-f07406b4eb63 => ../webpa-common
