@@ -39,7 +39,7 @@ type StoreOut struct {
 	PushItemHandler Handler `name:"pushHandler"`
 
 	// SetItemHandler is the http.Handler to update an item in the store.
-	SetItemHandler Handler `name:"setHandler"`
+	UpdateItemHandler Handler `name:"updateHandler"`
 
 	// SetKeyHandler is the http.Handler to fetch an individual item from the store.
 	GetItemHandler Handler `name:"getHandler"`
@@ -62,7 +62,7 @@ func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 
 	return StoreOut{
 		PushItemHandler:    newPushItemHandler(itemTTL, in.Store),
-		SetItemHandler:     newUpdateItemHandler(itemTTL, in.Store),
+		UpdateItemHandler:  newUpdateItemHandler(itemTTL, in.Store),
 		GetItemHandler:     newGetItemHandler(in.Store),
 		GetAllItemsHandler: newGetAllItemsHandler(in.Store),
 		DeleteKeyHandler:   newDeleteItemHandler(in.Store),

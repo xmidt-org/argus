@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
@@ -125,8 +124,7 @@ func validateItemTTL(item *model.Item, itemTTLInfo ItemTTL) {
 }
 
 func generateID() string {
-	uuidWithHyphen := uuid.New()
-	return strings.Replace(uuidWithHyphen.String(), "-", "", -1)
+	return uuid.New().String()
 }
 
 func encodePushItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
