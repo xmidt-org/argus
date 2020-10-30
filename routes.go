@@ -92,7 +92,8 @@ type PrimaryRouter struct {
 
 type PrimaryRoutes struct {
 	fx.In
-	Set    store.Handler `name:"setHandler"`
+	Push   store.Handler `name:"pushHandler"`
+	Update store.Handler `name:"updateHandler"`
 	Delete store.Handler `name:"deleteHandler"`
 	Get    store.Handler `name:"getHandler"`
 	GetAll store.Handler `name:"getAllHandler"`
@@ -100,8 +101,11 @@ type PrimaryRoutes struct {
 
 func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {
 	router.Router.Use(router.AuthChain.Then)
-	if routes.Set != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.Set).Methods(http.MethodPut)
+	if routes.Push != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.Push).Methods(http.MethodPost)
+	}
+	if routes.Update != nil {
+		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Update).Methods(http.MethodPut)
 	}
 	if routes.Get != nil {
 		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{id}", apiBase), routes.Get).Methods(http.MethodGet)

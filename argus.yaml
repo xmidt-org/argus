@@ -82,7 +82,6 @@ servers:
 
 # dyanmo is the configuration block to communicate with dynamoDB.
 dynamo:
-
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
   endpoint: "http://localhost:8042"
@@ -102,7 +101,6 @@ dynamo:
 
   # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
   secretKey: "secretKey"
-
 
 # itemTTL configures the default time based ttls for each item.
 itemTTL:
@@ -131,7 +129,6 @@ jwtValidator:
       uri: "http://sample-jwt-validator-uri/{keyId}"
     purpose: 0
     updateInterval: 604800000000000
-
 # capabilityCheck provides the details needed for checking an incoming JWT's
 # capabilities.  If the type of check isn't provided, no checking is done.  The
 # type can be "monitor" or "enforce".  If it is empty or a different value, no
@@ -163,3 +160,4 @@ jwtValidator:
 # endpointBuckets:
 #   - "store\\b"
 #   - "store/.*\\b"
+

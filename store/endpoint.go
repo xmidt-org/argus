@@ -21,7 +21,6 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/xmidt-org/argus/model"
 )
 
 func newGetItemEndpoint(s S) endpoint.Endpoint {
@@ -73,15 +72,31 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 func newPushItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		pushItemRequest := request.(*pushItemRequest)
-		key := model.Key{
-			Bucket: pushItemRequest.bucket,
-			ID:     pushItemRequest.item.Identifier,
-		}
-		err := s.Push(key, pushItemRequest.item)
+		err := s.Push(pushItemRequest.key, pushItemRequest.item)
 		if err != nil {
 			return nil, err
 		}
-		return &key, nil
+		return &pushItemRequest.key, nil
+	}
+}
+
+func newUpdateItemEndpoint(s S) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		updateItemRequest := request.(*pushItemRequest)
+		itemResponse, err := s.Get(updateItemRequest.key)
+		if err != nil {
+			return nil, err
+		}
+
+		if userOwnsItem(updateItemRequest.item.Owner, itemResponse.Owner) {
+			err := s.Push(updateItemRequest.key, updateItemRequest.item)
+			if err != nil {
+				return nil, err
+			}
+			return &updateItemRequest.key, nil
+		}
+
+		return nil, &KeyNotFoundError{Key: updateItemRequest.key}
 	}
 }
 

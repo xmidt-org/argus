@@ -19,3 +19,6 @@ report.json
 
 # vendor package
 vendor/
+
+# docker-compose
+deploy/docker-compose/

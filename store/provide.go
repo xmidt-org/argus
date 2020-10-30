@@ -35,8 +35,11 @@ type StoreIn struct {
 type StoreOut struct {
 	fx.Out
 
-	// SetItemHandler is the http.Handler to add a new item to the store.
-	SetItemHandler Handler `name:"setHandler"`
+	// PushItemHandler is the http.Handler to add a new item to the store.
+	PushItemHandler Handler `name:"pushHandler"`
+
+	// SetItemHandler is the http.Handler to update an item in the store.
+	UpdateItemHandler Handler `name:"updateHandler"`
 
 	// SetKeyHandler is the http.Handler to fetch an individual item from the store.
 	GetItemHandler Handler `name:"getHandler"`
@@ -58,7 +61,8 @@ func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 	validateItemTTLConfig(&itemTTL)
 
 	return StoreOut{
-		SetItemHandler:     newPushItemHandler(itemTTL, in.Store),
+		PushItemHandler:    newPushItemHandler(itemTTL, in.Store),
+		UpdateItemHandler:  newUpdateItemHandler(itemTTL, in.Store),
 		GetItemHandler:     newGetItemHandler(in.Store),
 		GetAllItemsHandler: newGetAllItemsHandler(in.Store),
 		DeleteKeyHandler:   newDeleteItemHandler(in.Store),
