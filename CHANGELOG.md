@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+- Changes the PUT creation route to a POST. [#68](https://github.com/xmidt-org/argus/pull/68)
+- Adds a PUT route to update a specific resource. [#68](https://github.com/xmidt-org/argus/pull/68)
+- Changes the way IDs are generated for resources on creation. [#68](https://github.com/xmidt-org/argus/pull/68)
 
 ## [v0.3.6]
 ### Changed
