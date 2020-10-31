@@ -104,7 +104,7 @@ An example response:
 
 
 ### Individual Item - `store/{bucket}/{uuid}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  If supplied, the value is validated against the secret stored with this record.  A mismatch will result in a "403 Forbidden" error.
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.
 
 An example response:
 ```json
