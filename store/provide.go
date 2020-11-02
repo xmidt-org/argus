@@ -35,11 +35,8 @@ type StoreIn struct {
 type StoreOut struct {
 	fx.Out
 
-	// PushItemHandler is the http.Handler to add a new item to the store.
-	PushItemHandler Handler `name:"pushHandler"`
-
 	// SetItemHandler is the http.Handler to update an item in the store.
-	UpdateItemHandler Handler `name:"updateHandler"`
+	SetItemHandler Handler `name:"setHandler"`
 
 	// SetKeyHandler is the http.Handler to fetch an individual item from the store.
 	GetItemHandler Handler `name:"getHandler"`
@@ -54,15 +51,13 @@ type StoreOut struct {
 // Provide is an uber/fx style provider for this package's components
 func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 	itemTTL := ItemTTL{
-		DefaultTTL: DefaultTTL,
-		MaxTTL:     YearTTL,
+		MaxTTL: YearTTL,
 	}
 	unmarshaller.UnmarshalKey("itemTTL", itemTTL)
 	validateItemTTLConfig(&itemTTL)
 
 	return StoreOut{
-		PushItemHandler:    newPushItemHandler(itemTTL, in.Store),
-		UpdateItemHandler:  newUpdateItemHandler(itemTTL, in.Store),
+		SetItemHandler:     newSetItemHandler(itemTTL, in.Store),
 		GetItemHandler:     newGetItemHandler(in.Store),
 		GetAllItemsHandler: newGetAllItemsHandler(in.Store),
 		DeleteKeyHandler:   newDeleteItemHandler(in.Store),
@@ -72,8 +67,5 @@ func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
 func validateItemTTLConfig(ttl *ItemTTL) {
 	if ttl.MaxTTL <= time.Second {
 		ttl.MaxTTL = YearTTL * time.Second
-	}
-	if ttl.DefaultTTL <= time.Millisecond {
-		ttl.DefaultTTL = DefaultTTL * time.Second
 	}
 }

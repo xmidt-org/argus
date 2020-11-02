@@ -84,7 +84,7 @@ servers:
 dynamo:
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
-  endpoint: "http://localhost:8042"
+  endpoint: "http://localhost:8000"
 
   # table is the name of the table that is already configured with bucket and id as the key.
   table: "gifnoc"
@@ -104,11 +104,6 @@ dynamo:
 
 # itemTTL configures the default time based ttls for each item.
 itemTTL:
-  # defaultTTL is used if not ttl is provided via the api.
-  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
-  # (Optional) default: 5m
-  defaultTTL: "5m"
-
   # maxTTL is limit the maxTTL provided via the api.
   # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
   # (Optional) default: 1y

@@ -20,6 +20,7 @@ package cassandra
 import (
 	"encoding/json"
 	"errors"
+
 	"github.com/go-kit/kit/log"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
@@ -60,7 +61,7 @@ func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 		return err
 	}
 
-	return s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
+	return s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.UUID, data, item.TTL).Exec()
 }
 
 func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
@@ -68,17 +69,17 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 		data []byte
 		ttl  int64
 	)
-	iter := s.session.Query("SELECT data, ttl(data) from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
+	iter := s.session.Query("SELECT data, ttl(data) from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.UUID).Iter()
 	defer func() {
 		err := iter.Close()
 		if err != nil {
-			logging.Error(s.logger).Log(logging.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
+			logging.Error(s.logger).Log(logging.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.UUID)
 		}
 	}()
 	for iter.Scan(&data, &ttl) {
 		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
-		item.TTL = ttl
+		item.TTL = &ttl
 		return item, err
 	}
 	return store.OwnableItem{}, noDataResponse
@@ -89,7 +90,7 @@ func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	if err != nil {
 		return item, err
 	}
-	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
+	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.UUID).Exec()
 	return item, err
 }
 
@@ -110,7 +111,7 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem,
 			key = ""
 			continue
 		}
-		item.TTL = ttl
+		item.TTL = &ttl
 		result[key] = item
 	}
 	err := iter.Close()

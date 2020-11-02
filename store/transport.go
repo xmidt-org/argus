@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/xmidt-org/argus/model"
 )
@@ -16,12 +15,12 @@ import (
 // request URL path keys
 const (
 	bucketVarKey = "bucket"
-	idVarKey     = "id"
+	uuidVarKey   = "uuid"
 )
 
 const (
 	bucketVarMissingMsg = "{bucket} URL path parameter missing"
-	idVarMissingMsg     = "{id} URL path parameter missing"
+	uuidVarMissingMsg   = "{uuid} URL path parameter missing"
 )
 
 // Request and Response Headers
@@ -44,9 +43,14 @@ type getAllItemsRequest struct {
 	owner  string
 }
 
-type pushItemRequest struct {
+type setItemRequest struct {
 	key  model.Key
 	item OwnableItem
+}
+
+type setItemResponse struct {
+	key              model.Key
+	existingResource bool
 }
 
 func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -61,7 +65,7 @@ func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}
 	}, nil
 }
 
-func pushItemRequestDecoder(itemTTLInfo ItemTTL, update bool) kithttp.DecodeRequestFunc {
+func setItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		vars := mux.Vars(r)
 		bucket, ok := vars[bucketVarKey]
@@ -69,14 +73,9 @@ func pushItemRequestDecoder(itemTTLInfo ItemTTL, update bool) kithttp.DecodeRequ
 			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
 		}
 
-		var id string
-
-		if update {
-			id, ok = vars[idVarKey]
-
-			if !ok {
-				return nil, &BadRequestErr{Message: idVarMissingMsg}
-			}
+		uuid, ok := vars[uuidVarKey]
+		if !ok {
+			return nil, &BadRequestErr{Message: uuidVarMissingMsg}
 		}
 
 		data, err := ioutil.ReadAll(r.Body)
@@ -94,56 +93,44 @@ func pushItemRequestDecoder(itemTTLInfo ItemTTL, update bool) kithttp.DecodeRequ
 			return nil, &BadRequestErr{Message: "data field must be set"}
 		}
 
-		if !update {
-			id = generateID()
-		}
-
 		validateItemTTL(&item, itemTTLInfo)
 
-		return &pushItemRequest{
+		return &setItemRequest{
 			item: OwnableItem{
 				Item:  item,
 				Owner: r.Header.Get(ItemOwnerHeaderKey),
 			},
 			key: model.Key{
 				Bucket: bucket,
-				ID:     id,
+				UUID:   uuid,
 			},
 		}, nil
 	}
 }
 
 func validateItemTTL(item *model.Item, itemTTLInfo ItemTTL) {
-	if item.TTL > int64(itemTTLInfo.MaxTTL.Seconds()) {
-		item.TTL = int64(itemTTLInfo.MaxTTL.Seconds())
-	}
-
-	if item.TTL < 1 {
-		item.TTL = int64(itemTTLInfo.DefaultTTL.Seconds())
+	if item.TTL != nil {
+		ttlCapSeconds := int64(itemTTLInfo.MaxTTL.Seconds())
+		if *item.TTL > ttlCapSeconds {
+			item.TTL = &ttlCapSeconds
+		}
 	}
 }
 
-func generateID() string {
-	return uuid.New().String()
-}
-
-func encodePushItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
-	pushItemResponse := response.(*model.Key)
-	data, err := json.Marshal(&pushItemResponse)
-	if err != nil {
-		return err
+func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+	r := response.(*setItemResponse)
+	if r.existingResource {
+		rw.WriteHeader(http.StatusOK)
+	} else {
+		rw.WriteHeader(http.StatusCreated)
 	}
-	rw.Header().Add("Content-Type", "application/json")
-	rw.Write(data)
 	return nil
 }
+
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
 	payload := map[string]model.Item{}
 	for k, value := range items {
-		if value.TTL <= 0 {
-			continue
-		}
 		payload[k] = value.Item
 	}
 	data, err := json.Marshal(&payload)
@@ -162,16 +149,16 @@ func decodeGetOrDeleteItemRequest(ctx context.Context, r *http.Request) (interfa
 		return nil, &BadRequestErr{Message: bucketVarMissingMsg}
 	}
 
-	id, ok := vars[idVarKey]
+	uuid, ok := vars[uuidVarKey]
 
 	if !ok {
-		return nil, &BadRequestErr{Message: idVarMissingMsg}
+		return nil, &BadRequestErr{Message: uuidVarMissingMsg}
 	}
 
 	return &getOrDeleteItemRequest{
 		key: model.Key{
 			Bucket: bucket,
-			ID:     id,
+			UUID:   uuid,
 		},
 		owner: r.Header.Get(ItemOwnerHeaderKey),
 	}, nil
@@ -181,11 +168,6 @@ func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, 
 	item, ok := response.(*OwnableItem)
 	if !ok {
 		return ErrCasting
-	}
-
-	if item.TTL <= 0 {
-		rw.WriteHeader(http.StatusNotFound)
-		return nil
 	}
 
 	data, err := json.Marshal(&item.Item)

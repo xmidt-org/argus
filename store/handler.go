@@ -34,8 +34,7 @@ type KeyItemPairRequest struct {
 }
 
 type ItemTTL struct {
-	DefaultTTL time.Duration
-	MaxTTL     time.Duration
+	MaxTTL time.Duration
 }
 
 func newGetItemHandler(s S) Handler {
@@ -65,20 +64,11 @@ func newGetAllItemsHandler(s S) Handler {
 	)
 }
 
-func newPushItemHandler(itemTTLInfo ItemTTL, s S) Handler {
+func newSetItemHandler(itemTTLInfo ItemTTL, s S) Handler {
 	return kithttp.NewServer(
-		newPushItemEndpoint(s),
-		pushItemRequestDecoder(itemTTLInfo, false),
-		encodePushItemResponse,
-		kithttp.ServerErrorEncoder(encodeError),
-	)
-}
-
-func newUpdateItemHandler(itemTTLInfo ItemTTL, s S) Handler {
-	return kithttp.NewServer(
-		newUpdateItemEndpoint(s),
-		pushItemRequestDecoder(itemTTLInfo, true),
-		encodePushItemResponse,
+		newSetItemEndpoint(s),
+		setItemRequestDecoder(itemTTLInfo),
+		encodeSetItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }

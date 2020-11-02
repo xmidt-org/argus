@@ -51,10 +51,6 @@ type OwnableItem struct {
 }
 
 func FilterOwner(value map[string]OwnableItem, owner string) map[string]OwnableItem {
-	if owner == "" {
-		return value
-	}
-
 	filteredResults := map[string]OwnableItem{}
 	for k, v := range value {
 		if v.Owner == owner {

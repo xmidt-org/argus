@@ -30,7 +30,7 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
+		if itemRequest.owner == itemResponse.Owner {
 			return &itemResponse, nil
 		}
 
@@ -45,15 +45,16 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
-			deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
-			if deleteItemRespErr != nil {
-				return nil, deleteItemRespErr
-			}
-			return &deleteItemResp, nil
+
+		if itemRequest.owner != itemResponse.Owner {
+			return nil, &ForbiddenRequestErr{}
 		}
 
-		return nil, &KeyNotFoundError{Key: itemRequest.key}
+		deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
+		if deleteItemRespErr != nil {
+			return nil, deleteItemRespErr
+		}
+		return &deleteItemResp, nil
 	}
 }
 
@@ -64,42 +65,40 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-
 		return FilterOwner(items, itemsRequest.owner), nil
 	}
 }
 
-func newPushItemEndpoint(s S) endpoint.Endpoint {
+func newSetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		pushItemRequest := request.(*pushItemRequest)
-		err := s.Push(pushItemRequest.key, pushItemRequest.item)
-		if err != nil {
-			return nil, err
-		}
-		return &pushItemRequest.key, nil
-	}
-}
+		setItemRequest := request.(*setItemRequest)
+		itemResponse, err := s.Get(setItemRequest.key)
 
-func newUpdateItemEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		updateItemRequest := request.(*pushItemRequest)
-		itemResponse, err := s.Get(updateItemRequest.key)
 		if err != nil {
-			return nil, err
-		}
+			switch err.(type) {
+			case KeyNotFoundError:
+				err = s.Push(setItemRequest.key, setItemRequest.item)
+				if err != nil {
+					return nil, err
+				}
+				return &setItemResponse{}, nil
 
-		if userOwnsItem(updateItemRequest.item.Owner, itemResponse.Owner) {
-			err := s.Push(updateItemRequest.key, updateItemRequest.item)
-			if err != nil {
+			default:
 				return nil, err
 			}
-			return &updateItemRequest.key, nil
 		}
 
-		return nil, &KeyNotFoundError{Key: updateItemRequest.key}
-	}
-}
+		if setItemRequest.item.Owner != itemResponse.Owner {
+			return nil, &ForbiddenRequestErr{Message: "resource owner mismatch"}
+		}
 
-func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
-	return requestItemOwner == "" || requestItemOwner == actualItemOwner
+		err = s.Push(setItemRequest.key, setItemRequest.item)
+		if err != nil {
+			return nil, err
+		}
+
+		return &setItemResponse{
+			existingResource: true,
+		}, nil
+	}
 }
