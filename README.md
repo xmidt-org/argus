@@ -12,7 +12,7 @@
 
 ## Summary
 The [XMiDT](https://xmidt.io/) server for storing webhooks to be used by caduceus. This service is used to replace SNS.
-Refer the [overview docs](https://xmidt.io/docs/introduction/overview/)for more information on how argus fits into the overall picture.
+Refer the [overview docs](https://xmidt.io/docs/introduction/overview/) for more information on how argus fits into the overall picture.
 
 ## Table of Contents
 
