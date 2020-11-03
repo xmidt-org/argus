@@ -31,15 +31,31 @@ func TestGetItemEndpoint(t *testing.T) {
 			ItemRequest: &getOrDeleteItemRequest{
 				owner: "Kirby",
 				key: model.Key{
-					ID: "hammer",
+					UUID: "hammer",
 				},
 			},
 			DAOResponse: OwnableItem{
 				Owner: "Yoshi",
 			},
-			ExpectedErr: &KeyNotFoundError{Key: model.Key{
-				ID: "hammer",
-			}},
+			ExpectedErr: accessDeniedErr,
+		},
+
+		{
+			Name: "Wrong owner but admin mode",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner: "Kirby",
+				key: model.Key{
+					UUID: "hammer",
+				},
+				adminMode: true,
+			},
+			DAOResponse: OwnableItem{
+				Owner: "Yoshi",
+			},
+
+			ExpectedResponse: &OwnableItem{
+				Owner: "Yoshi",
+			},
 		},
 		{
 			Name: "Success",
@@ -102,8 +118,28 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			GetDAOResponse: OwnableItem{
 				Owner: "fiber",
 			},
-			ExpectedErr: &KeyNotFoundError{},
+			ExpectedErr: accessDeniedErr,
 		},
+
+		{
+			Name: "Wrong owner but admin mode",
+			ItemRequest: &getOrDeleteItemRequest{
+				owner:     "cable",
+				adminMode: true,
+			},
+			GetDAOResponse: OwnableItem{
+				Owner: "fiber",
+			},
+
+			DeleteDAOResponse: OwnableItem{
+				Owner: "fiber",
+			},
+
+			ExpectedResponse: &OwnableItem{
+				Owner: "fiber",
+			},
+		},
+
 		{
 			Name: "Deletion fails",
 			ItemRequest: &getOrDeleteItemRequest{
@@ -140,7 +176,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
 
 			// verify item is not deleted by user who doesn't own it
-			allowDelete := testCase.ItemRequest.owner == "" || testCase.ItemRequest.owner == testCase.GetDAOResponse.Owner
+			allowDelete := testCase.ItemRequest.adminMode || testCase.ItemRequest.owner == testCase.GetDAOResponse.Owner
 
 			if testCase.GetDAOResponseErr != nil || !allowDelete {
 				m.AssertNotCalled(t, "Delete", testCase.ItemRequest)
@@ -162,23 +198,23 @@ func TestDeleteItemEndpoint(t *testing.T) {
 	}
 }
 
-func TestUpdateItemEndpoint(t *testing.T) {
+func TestSetItemEndpoint(t *testing.T) {
 	testCases := []struct {
-		Name                 string
-		ItemRequest          *pushItemRequest
-		UpdateDAOResponse    OwnableItem
-		UpdateDAOResponseErr error
-		GetDAOResponse       OwnableItem
-		GetDAOResponseErr    error
-		ExpectedResponse     *model.Key
-		ExpectedErr          error
+		Name               string
+		ItemRequest        *setItemRequest
+		PushDAOResponse    OwnableItem
+		PushDAOResponseErr error
+		GetDAOResponse     OwnableItem
+		GetDAOResponseErr  error
+		ExpectedResponse   *setItemResponse
+		ExpectedErr        error
 	}{
 		{
-			Name: "Update DAO failure",
-			ItemRequest: &pushItemRequest{
+			Name: "Push DAO failure",
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -190,15 +226,15 @@ func TestUpdateItemEndpoint(t *testing.T) {
 			GetDAOResponse: OwnableItem{
 				Owner: "Bob",
 			},
-			UpdateDAOResponseErr: errors.New("DB failed"),
-			ExpectedErr:          errors.New("DB failed"),
+			PushDAOResponseErr: errors.New("DB failed"),
+			ExpectedErr:        errors.New("DB failed"),
 		},
 		{
 			Name: "Get DAO failure",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -212,10 +248,10 @@ func TestUpdateItemEndpoint(t *testing.T) {
 		},
 		{
 			Name: "Wrong owner",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -225,35 +261,52 @@ func TestUpdateItemEndpoint(t *testing.T) {
 			GetDAOResponse: OwnableItem{
 				Owner: "fiber",
 			},
-			ExpectedErr: &KeyNotFoundError{
-				Key: model.Key{
-					Bucket: "fruits",
-					ID:     "random-UUID",
-				},
-			},
+			ExpectedErr: accessDeniedErr,
 		},
 		{
-			Name: "Successful Update",
-			ItemRequest: &pushItemRequest{
+			Name: "Successful Update. Wrong owner but admin mode",
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+				},
+				item: OwnableItem{
+					Item:  model.Item{},
+					Owner: "cable",
+				},
+				adminMode: true,
+			},
+			GetDAOResponse: OwnableItem{
+				Owner: "cable",
+			},
+			PushDAOResponse: OwnableItem{
+				Owner: "cable",
+				Item:  model.Item{},
+			},
+			ExpectedResponse: &setItemResponse{
+				existingResource: true,
+			},
+		},
+
+		{
+			Name: "Successful Creation",
+			ItemRequest: &setItemRequest{
+				key: model.Key{
+					Bucket: "fruits",
+					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
 					Owner: "cable",
 				},
 			},
-			GetDAOResponse: OwnableItem{
-				Owner: "cable",
-			},
-			UpdateDAOResponse: OwnableItem{
+			GetDAOResponseErr: KeyNotFoundError{},
+			PushDAOResponse: OwnableItem{
 				Owner: "cable",
 				Item:  model.Item{},
 			},
-			ExpectedResponse: &model.Key{
-				Bucket: "fruits",
-				ID:     "random-UUID",
+			ExpectedResponse: &setItemResponse{
+				existingResource: false,
 			},
 		},
 	}
@@ -263,130 +316,150 @@ func TestUpdateItemEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
-			if testCase.UpdateDAOResponseErr == nil {
+			if testCase.PushDAOResponseErr == nil {
 				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(nil).Once()
 			} else {
-				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(testCase.UpdateDAOResponseErr).Once()
+				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(testCase.PushDAOResponseErr).Once()
 			}
 
 			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
 
-			endpoint := newUpdateItemEndpoint(m)
+			endpoint := newSetItemEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
 
 			if testCase.ExpectedErr == nil {
 				assert.Nil(err)
-				assert.Equal(&testCase.ItemRequest.key, resp)
+				assert.Equal(testCase.ExpectedResponse, resp)
 				m.AssertExpectations(t)
 			} else {
 				assert.Equal(testCase.ExpectedErr, err)
 			}
-
 		})
 	}
 }
 
 func TestGetAllItemsEndpoint(t *testing.T) {
-	t.Run("DAOFails", testGetAllItemsEndpointDAOFails)
-	t.Run("FilteredItems", testGetAllItemsEndpointFiltered)
-}
+	testCases := []struct {
+		Name                 string
+		ItemRequest          *getAllItemsRequest
+		GetAllDAOResponse    map[string]OwnableItem
+		GetAllDAOResponseErr error
+		ExpectedResponse     map[string]OwnableItem
+		ExpectedErr          error
+	}{
+		{
+			Name: "DAO failure",
+			ItemRequest: &getAllItemsRequest{
+				bucket: "sports-cars",
+				owner:  "alfa-romeo",
+			},
+			GetAllDAOResponseErr: errors.New("DB failed"),
+			ExpectedErr:          errors.New("DB failed"),
+		},
+		{
+			Name: "Filtered results",
+			ItemRequest: &getAllItemsRequest{
+				bucket: "sports-cars",
+				owner:  "alfa-romeo",
+			},
+			GetAllDAOResponse: map[string]OwnableItem{
+				"mustang": OwnableItem{
+					Owner: "ford",
+				},
+				"4c-spider": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+				"gtr": OwnableItem{
+					Owner: "nissan",
+				},
+				"giulia": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+			},
 
-func testGetAllItemsEndpointDAOFails(t *testing.T) {
-	assert := assert.New(t)
-	m := new(MockDAO)
-	itemsRequest := &getAllItemsRequest{
-		bucket: "sports-cars",
-		owner:  "alfa-romeo",
+			ExpectedResponse: map[string]OwnableItem{
+				"4c-spider": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+
+				"giulia": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+			},
+		},
+
+		{
+			Name: "Admin mode",
+			ItemRequest: &getAllItemsRequest{
+				bucket:    "sports-cars",
+				owner:     "alfa-romeo",
+				adminMode: true,
+			},
+			GetAllDAOResponse: map[string]OwnableItem{
+				"mustang": OwnableItem{
+					Owner: "ford",
+				},
+				"4c-spider": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+				"gtr": OwnableItem{
+					Owner: "nissan",
+				},
+				"giulia": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+			},
+
+			ExpectedResponse: map[string]OwnableItem{
+				"mustang": OwnableItem{
+					Owner: "ford",
+				},
+				"4c-spider": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+				"gtr": OwnableItem{
+					Owner: "nissan",
+				},
+				"giulia": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+			},
+		},
+
+		{
+			Name: "Empty results",
+			ItemRequest: &getAllItemsRequest{
+				bucket: "sports-cars",
+				owner:  "volkswagen",
+			},
+			GetAllDAOResponse: map[string]OwnableItem{
+				"mustang": OwnableItem{
+					Owner: "ford",
+				},
+				"giulia": OwnableItem{
+					Owner: "alfa-romeo",
+				},
+			},
+
+			ExpectedResponse: map[string]OwnableItem{},
+		},
 	}
-	mockedErr := errors.New("sports cars api is down")
-	m.On("GetAll", "sports-cars").Return(map[string]OwnableItem{}, mockedErr).Once()
 
-	endpoint := newGetAllItemsEndpoint(m)
-	resp, err := endpoint(context.Background(), itemsRequest)
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(MockDAO)
 
-	assert.Nil(resp)
-	assert.Equal(mockedErr, err)
-	m.AssertExpectations(t)
-}
+			m.On("GetAll", testCase.ItemRequest.bucket).Return(testCase.GetAllDAOResponse, error(testCase.GetAllDAOResponseErr))
 
-func testGetAllItemsEndpointFiltered(t *testing.T) {
-	assert := assert.New(t)
-	m := new(MockDAO)
-	itemsRequest := &getAllItemsRequest{
-		bucket: "sports-cars",
-		owner:  "alfa-romeo",
+			endpoint := newGetAllItemsEndpoint(m)
+			resp, err := endpoint(context.Background(), testCase.ItemRequest)
+			if testCase.ExpectedErr == nil {
+				assert.Nil(err)
+				assert.Equal(testCase.ExpectedResponse, resp)
+			} else {
+				assert.Equal(testCase.ExpectedErr, err)
+			}
+		})
 	}
-	mockedItems := map[string]OwnableItem{
-		"mustang": OwnableItem{
-			Owner: "ford",
-		},
-		"4c-spider": OwnableItem{
-			Owner: "alfa-romeo",
-		},
-		"gtr": OwnableItem{
-			Owner: "nissan",
-		},
-		"giulia": OwnableItem{
-			Owner: "alfa-romeo",
-		},
-	}
-	m.On("GetAll", "sports-cars").Return(mockedItems, error(nil)).Once()
-
-	endpoint := newGetAllItemsEndpoint(m)
-	resp, err := endpoint(context.Background(), itemsRequest)
-
-	expectedItems := map[string]OwnableItem{
-		"4c-spider": OwnableItem{
-			Owner: "alfa-romeo",
-		},
-		"giulia": OwnableItem{
-			Owner: "alfa-romeo",
-		},
-	}
-
-	assert.Equal(expectedItems, resp)
-	assert.Nil(err)
-	m.AssertExpectations(t)
-}
-
-func TestPushItemEndpoint(t *testing.T) {
-	t.Run("DAOFails", testPushItemEndpointDAOFails)
-	t.Run("Happy Path", testPushItemEndpointHappyPath)
-}
-
-func testPushItemEndpointHappyPath(t *testing.T) {
-	assert := assert.New(t)
-	m := new(MockDAO)
-	key := model.Key{
-		Bucket: "fruits",
-		ID:     "strawberry",
-	}
-
-	item := OwnableItem{
-		Item: model.Item{
-			Identifier: "strawberry",
-		},
-		Owner: "Bob",
-	}
-
-	m.On("Push", key, item).Return(nil).Once()
-	endpoint := newPushItemEndpoint(m)
-	resp, err := endpoint(context.Background(), &pushItemRequest{
-		key:  key,
-		item: item,
-	})
-	assert.Nil(err)
-	assert.Equal(&key, resp)
-	m.AssertExpectations(t)
-}
-
-func testPushItemEndpointDAOFails(t *testing.T) {
-	assert := assert.New(t)
-	m := new(MockDAO)
-	m.On("Push", model.Key{}, OwnableItem{}).Return(errors.New("DB failed")).Once()
-	endpoint := newPushItemEndpoint(m)
-	resp, err := endpoint(context.Background(), &pushItemRequest{})
-	assert.Nil(resp)
-	assert.Equal(errors.New("DB failed"), err)
-	m.AssertExpectations(t)
 }

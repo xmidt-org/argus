@@ -58,9 +58,9 @@ type executor struct {
 	tableName string
 }
 
-type element struct {
+type storableItem struct {
 	store.OwnableItem
-	Expires int64 `json:"expires"`
+	Expires *int64 `json:"expires,omitempty"`
 	model.Key
 }
 
@@ -71,8 +71,10 @@ var retryableAWSCodes = map[string]bool{
 
 // Dynamo DB attribute keys
 const (
-	bucketAttributeKey = "bucket"
-	idAttributeKey     = "id"
+	bucketAttributeKey     = "bucket"
+	uuidAttributeKey       = "uuid"
+	identifierAttributeKey = "identifier"
+	expirationAttributeKey = "expires"
 )
 
 func handleClientError(err error) error {
@@ -87,12 +89,17 @@ func handleClientError(err error) error {
 }
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
-	expirableItem := element{
+	storingItem := storableItem{
 		OwnableItem: item,
-		Expires:     time.Now().Unix() + item.TTL,
 		Key:         key,
 	}
-	av, err := dynamodbattribute.MarshalMap(expirableItem)
+
+	if item.TTL != nil {
+		unixExpSeconds := time.Now().Unix() + *item.TTL
+		storingItem.Expires = &unixExpSeconds
+	}
+
+	av, err := dynamodbattribute.MarshalMap(storingItem)
 	if err != nil {
 		return nil, err
 	}
@@ -113,66 +120,80 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 	}
 	return consumedCapacity, nil
 }
-
-func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
-	result, err := d.c.GetItem(&dynamodb.GetItemInput{
+func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.ConsumedCapacity, map[string]*dynamodb.AttributeValue, error) {
+	if delete {
+		deleteInput := &dynamodb.DeleteItemInput{
+			TableName: aws.String(d.tableName),
+			Key: map[string]*dynamodb.AttributeValue{
+				bucketAttributeKey: {
+					S: aws.String(key.Bucket),
+				},
+				uuidAttributeKey: {
+					S: aws.String(key.UUID),
+				},
+			},
+			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+			ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
+		}
+		deleteOutput, err := d.c.DeleteItem(deleteInput)
+		if err != nil {
+			return nil, nil, err
+		}
+		return deleteOutput.ConsumedCapacity, deleteOutput.Attributes, nil
+	}
+	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
+			uuidAttributeKey: {
+				S: aws.String(key.UUID),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	})
-
-	var consumedCapacity *dynamodb.ConsumedCapacity
-	if result != nil {
-		consumedCapacity = result.ConsumedCapacity
 	}
+	getOutput, err := d.c.GetItem(getInput)
+	if err != nil {
+		return nil, nil, err
+	}
+	return getOutput.ConsumedCapacity, getOutput.Item, nil
+}
+func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
 	}
-	var expirableItem element
-	err = dynamodbattribute.UnmarshalMap(result.Item, &expirableItem)
-	expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
-	if expirableItem.Key.Bucket == "" || expirableItem.Key.ID == "" {
-		return expirableItem.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+	item := new(storableItem)
+	err = dynamodbattribute.UnmarshalMap(attributes, item)
+	if err != nil {
+		return store.OwnableItem{}, consumedCapacity, err
 	}
-	return expirableItem.OwnableItem, consumedCapacity, err
+
+	if itemNotFound(item) {
+		return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+	}
+
+	if item.Expires != nil {
+		remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
+		if remainingTTLSeconds < 1 {
+			return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+		}
+		item.TTL = &remainingTTLSeconds
+	}
+
+	item.OwnableItem.UUID = key.UUID
+
+	return item.OwnableItem, consumedCapacity, err
+
+}
+
+func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	return d.getOrDelete(key, false)
 }
 
 func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
-	result, err := d.c.DeleteItem(&dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
-		},
-		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
-		TableName:              aws.String(d.tableName),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	})
-	var consumedCapacity *dynamodb.ConsumedCapacity
-	if result != nil {
-		consumedCapacity = result.ConsumedCapacity
-	}
-	if err != nil {
-		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
-	}
-
-	var expirableItem element
-	err = dynamodbattribute.UnmarshalMap(result.Attributes, &expirableItem)
-	expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
-	if expirableItem.Key.Bucket == "" || expirableItem.Key.ID == "" {
-		return expirableItem.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
-	}
-	return expirableItem.OwnableItem, consumedCapacity, err
+	return d.getOrDelete(key, true)
 }
 
 //TODO: For data >= 1MB, we'll need to handle pagination
@@ -202,17 +223,32 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 	}
 
 	for _, i := range queryResult.Items {
-		var expirableItem element
-		err = dynamodbattribute.UnmarshalMap(i, &expirableItem)
+		item := new(storableItem)
+		err = dynamodbattribute.UnmarshalMap(i, item)
 		if err != nil {
 			//logging.Error(d.logger).Log(logging.MessageKey(), "failed to unmarshal item", logging.ErrorKey(), err)
 			continue
 		}
-		expirableItem.OwnableItem.TTL = int64(time.Unix(expirableItem.Expires, 0).Sub(time.Now()).Seconds())
+		if itemNotFound(item) {
+			continue
+		}
 
-		result[expirableItem.Key.ID] = expirableItem.OwnableItem
+		if item.Expires != nil {
+			remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
+			if remainingTTLSeconds < 1 {
+				continue
+			}
+			item.TTL = &remainingTTLSeconds
+		}
+		item.OwnableItem.UUID = item.Key.UUID
+
+		result[item.Key.UUID] = item.OwnableItem
 	}
 	return result, consumedCapacity, nil
+}
+
+func itemNotFound(item *storableItem) bool {
+	return item.Key.Bucket == "" || item.Key.UUID == ""
 }
 
 func newService(config aws.Config, awsProfile string, tableName string, logger log.Logger) (service, error) {

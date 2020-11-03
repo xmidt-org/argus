@@ -31,7 +31,18 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
+)
+
+// PushResult is a simple type to indicate the result type for the
+// PushItem operation.
+type PushResult string
+
+// Types of pushItem successful results.
+const (
+	CreatedPushResult PushResult = "created"
+	UpdatedPushResult PushResult = "ok"
 )
 
 type ClientConfig struct {
@@ -40,10 +51,10 @@ type ClientConfig struct {
 	PullInterval    time.Duration
 	Address         string
 	Auth            Auth
-	DefaultTTL      int64
 	MetricsProvider provider.Provider
 	Logger          log.Logger
 	Listener        Listener
+	AdminToken      string
 }
 
 type Auth struct {
@@ -58,15 +69,15 @@ type loggerGroup struct {
 }
 
 type Client struct {
-	client              *http.Client
-	ticker              *time.Ticker
-	auth                acquire.Acquirer
-	metrics             *measures
-	listener            Listener
-	bucketName          string
-	remoteStoreAddress  string
-	defaultStoreItemTTL int64
-	loggers             loggerGroup
+	client             *http.Client
+	ticker             *time.Ticker
+	auth               acquire.Acquirer
+	metrics            *measures
+	listener           Listener
+	bucketName         string
+	remoteStoreAddress string
+	loggers            loggerGroup
+	adminToken         string
 }
 
 func initLoggers(logger log.Logger) loggerGroup {
@@ -93,15 +104,15 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	clientStore := &Client{
-		client:              config.HTTPClient,
-		ticker:              time.NewTicker(config.PullInterval),
-		auth:                auth,
-		metrics:             initMetrics(config.MetricsProvider),
-		loggers:             initLoggers(config.Logger),
-		listener:            config.Listener,
-		remoteStoreAddress:  config.Address,
-		defaultStoreItemTTL: config.DefaultTTL,
-		bucketName:          config.Bucket,
+		client:             config.HTTPClient,
+		ticker:             time.NewTicker(config.PullInterval),
+		auth:               auth,
+		metrics:            initMetrics(config.MetricsProvider),
+		loggers:            initLoggers(config.Logger),
+		listener:           config.Listener,
+		remoteStoreAddress: config.Address,
+		bucketName:         config.Bucket,
+		adminToken:         config.AdminToken,
 	}
 
 	if config.PullInterval > 0 {
@@ -121,11 +132,12 @@ func validateConfig(config *ClientConfig) error {
 	if config.Bucket == "" {
 		config.Bucket = "testing"
 	}
-	if config.DefaultTTL < 1 {
-		config.DefaultTTL = 300
-	}
 	if config.MetricsProvider == nil {
 		return errors.New("a metrics provider is required")
+	}
+
+	if config.PullInterval == 0 {
+		config.PullInterval = time.Second * 5
 	}
 
 	if config.Logger == nil {
@@ -133,6 +145,7 @@ func validateConfig(config *ClientConfig) error {
 	}
 	return nil
 }
+
 func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 	defaultAcquirer := &acquire.DefaultAcquirer{}
 	if config.Auth.JWT.AuthURL != "" && config.Auth.JWT.Buffer != 0 && config.Auth.JWT.Timeout != 0 {
@@ -146,38 +159,46 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 	return defaultAcquirer, nil
 }
 
-func (c *Client) GetItems(owner string) ([]model.Item, error) {
+func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), nil)
 	if err != nil {
-		return []model.Item{}, err
+		return nil, err
 	}
 	err = acquire.AddAuth(request, c.auth)
 	if err != nil {
-		return []model.Item{}, err
+		return nil, err
 	}
 	if owner != "" {
-		request.Header.Add("X-Midt-Owner", owner)
+		request.Header.Set(store.ItemOwnerHeaderKey, owner)
 	}
+
+	if adminMode {
+		if c.adminToken == "" {
+			return nil, errors.New("adminToken needed to run as admin")
+		}
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
+	}
+
 	response, err := c.client.Do(request)
 	if err != nil {
-		return []model.Item{}, err
+		return nil, err
 	}
 	if response.StatusCode == 404 {
 		return []model.Item{}, nil
 	}
 	if response.StatusCode != 200 {
 		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to get items", "code", response.StatusCode)
-		return []model.Item{}, errors.New("failed to get items, non 200 statuscode")
+		return nil, errors.New("failed to get items, non 200 statuscode")
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return []model.Item{}, err
+		return nil, err
 	}
 
 	body := map[string]model.Item{}
 	err = json.Unmarshal(data, &body)
 	if err != nil {
-		return []model.Item{}, err
+		return nil, err
 	}
 
 	responseData := make([]model.Item, len(body))
@@ -189,18 +210,24 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 	return responseData, nil
 }
 
-func (c *Client) Push(item model.Item, owner string) (string, error) {
+func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
 	if item.Identifier == "" {
 		return "", errors.New("identifier can't be empty")
 	}
-	if item.TTL < 1 {
-		item.TTL = c.defaultStoreItemTTL
+
+	if item.UUID == "" {
+		return "", errors.New("uuid can't be empty")
 	}
+
+	if item.TTL != nil && *item.TTL < 1 {
+		return "", errors.New("when provided, TTL must be > 0")
+	}
+
 	data, err := json.Marshal(&item)
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), bytes.NewReader(data))
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, item.UUID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -208,68 +235,36 @@ func (c *Client) Push(item model.Item, owner string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if owner != "" {
-		request.Header.Add("X-Midt-Owner", owner)
+	request.Header.Add(store.ItemOwnerHeaderKey, owner)
+
+	if adminMode {
+		if c.adminToken == "" {
+			return "", errors.New("adminToken needed to run as admin")
+		}
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
 	}
+
 	response, err := c.client.Do(request)
 	if err != nil {
 		return "", err
 	}
-	if response.StatusCode != 200 {
-		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to add/update an item", "code", response.StatusCode)
-		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
+
+	switch response.StatusCode {
+	case http.StatusCreated:
+		return CreatedPushResult, nil
+	case http.StatusOK:
+		return UpdatedPushResult, nil
 	}
-	responsePayload, _ := ioutil.ReadAll(response.Body)
-	key := model.Key{}
-	err = json.Unmarshal(responsePayload, &key)
-	if err != nil {
-		return "", err
-	}
-	return key.ID, nil
+
+	c.loggers.Error.Log("msg", "DB responded with non-successful response for request to update an item", "code", response.StatusCode)
+	return "", errors.New("Failed to set item as DB responded with non-success statuscode")
 }
 
-func (c *Client) Update(item model.Item, id string, owner string) (string, error) {
-	if item.Identifier == "" {
-		return "", errors.New("identifier can't be empty")
+func (c *Client) Remove(uuid string, owner string, adminMode bool) (model.Item, error) {
+	if uuid == "" {
+		return model.Item{}, errors.New("uuid can't be empty")
 	}
-	if item.TTL < 1 {
-		item.TTL = c.defaultStoreItemTTL
-	}
-	data, err := json.Marshal(&item)
-	if err != nil {
-		return "", err
-	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), bytes.NewReader(data))
-	if err != nil {
-		return "", err
-	}
-	err = acquire.AddAuth(request, c.auth)
-	if err != nil {
-		return "", err
-	}
-	if owner != "" {
-		request.Header.Add("X-Midt-Owner", owner)
-	}
-	response, err := c.client.Do(request)
-	if err != nil {
-		return "", err
-	}
-	if response.StatusCode != 200 {
-		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to update an item", "code", response.StatusCode)
-		return "", errors.New("Failed to put item as DB responded with non-200 statuscode")
-	}
-	responsePayload, _ := ioutil.ReadAll(response.Body)
-	key := model.Key{}
-	err = json.Unmarshal(responsePayload, &key)
-	if err != nil {
-		return "", err
-	}
-	return key.ID, nil
-
-}
-
-func (c *Client) Remove(id string, owner string) (model.Item, error) {
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), nil)
+	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, uuid), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -277,9 +272,16 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	if err != nil {
 		return model.Item{}, err
 	}
-	if owner != "" {
-		request.Header.Add("X-Midt-Owner", owner)
+
+	request.Header.Add(store.ItemOwnerHeaderKey, owner)
+
+	if adminMode {
+		if c.adminToken == "" {
+			return model.Item{}, errors.New("adminToken needed to run as admin")
+		}
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
 	}
+
 	response, err := c.client.Do(request)
 	if err != nil {
 		return model.Item{}, err
@@ -309,7 +311,7 @@ func (c *Client) Start(ctx context.Context) error {
 	go func() {
 		for range c.ticker.C {
 			outcome := SuccessOutcome
-			items, err := c.GetItems("")
+			items, err := c.GetItems("", true)
 			if err == nil {
 				c.listener.Update(items)
 			} else {

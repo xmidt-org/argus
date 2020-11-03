@@ -22,18 +22,25 @@ type Key struct {
 	// Bucket is a collection of items.
 	Bucket string `json:"bucket"`
 
-	// ID is the unique ID for an item in a bucket
-	ID string `json:"id"`
+	// UUID is the unique ID for an item in a bucket.
+	UUID string `json:"uuid"`
 }
 
 // Item defines the abstract item to be stored.
 type Item struct {
-	// Identifier is how the client refers to the object.
+	// UUID is the unique ID identifying this item. It is recommended this value is the resulting
+	// value of a SHA256 calculation, using the unique attributes of the object being represented
+	// (e.g. SHA256(<identifier>)). This will be used by argus to determine uniqueness of objects being stored or updated.
+	UUID string `json:"uuid"`
+
+	// Identifier is the common name of the provided resource. There is no enforcement of uniqueness
+	// across resource of this type.
 	Identifier string `json:"identifier"`
 
-	// Data is an abstract json object
+	// Data is the JSON object to be stored. Opaque to argus.
 	Data map[string]interface{} `json:"data"`
 
-	// TTL is the time to live in storage. If not provided and if the storage requires it the default configuration will be used.
-	TTL int64 `json:"ttl,omitempty"`
+	// TTL is the time to live in storage, specified in seconds.
+	// Optional. When not set, items don't expire.
+	TTL *int64 `json:"ttl,omitempty"`
 }

@@ -23,6 +23,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+var accessDeniedErr = &ForbiddenRequestErr{Message: "resource owner mismatch"}
+
 func newGetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		itemRequest := request.(*getOrDeleteItemRequest)
@@ -30,11 +32,11 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
+		if authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
 			return &itemResponse, nil
 		}
 
-		return nil, &KeyNotFoundError{Key: itemRequest.key}
+		return nil, accessDeniedErr
 	}
 }
 
@@ -45,15 +47,16 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if userOwnsItem(itemRequest.owner, itemResponse.Owner) {
-			deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
-			if deleteItemRespErr != nil {
-				return nil, deleteItemRespErr
-			}
-			return &deleteItemResp, nil
+
+		if !authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
+			return nil, accessDeniedErr
 		}
 
-		return nil, &KeyNotFoundError{Key: itemRequest.key}
+		deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
+		if deleteItemRespErr != nil {
+			return nil, deleteItemRespErr
+		}
+		return &deleteItemResp, nil
 	}
 }
 
@@ -64,42 +67,47 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-
+		if itemsRequest.adminMode {
+			return items, nil
+		}
 		return FilterOwner(items, itemsRequest.owner), nil
 	}
 }
 
-func newPushItemEndpoint(s S) endpoint.Endpoint {
+func newSetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		pushItemRequest := request.(*pushItemRequest)
-		err := s.Push(pushItemRequest.key, pushItemRequest.item)
-		if err != nil {
-			return nil, err
-		}
-		return &pushItemRequest.key, nil
-	}
-}
+		setItemRequest := request.(*setItemRequest)
+		itemResponse, err := s.Get(setItemRequest.key)
 
-func newUpdateItemEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		updateItemRequest := request.(*pushItemRequest)
-		itemResponse, err := s.Get(updateItemRequest.key)
 		if err != nil {
-			return nil, err
-		}
+			switch err.(type) {
+			case KeyNotFoundError:
+				err = s.Push(setItemRequest.key, setItemRequest.item)
+				if err != nil {
+					return nil, err
+				}
+				return &setItemResponse{}, nil
 
-		if userOwnsItem(updateItemRequest.item.Owner, itemResponse.Owner) {
-			err := s.Push(updateItemRequest.key, updateItemRequest.item)
-			if err != nil {
+			default:
 				return nil, err
 			}
-			return &updateItemRequest.key, nil
 		}
 
-		return nil, &KeyNotFoundError{Key: updateItemRequest.key}
+		if !authorized(setItemRequest.adminMode, itemResponse.Owner, setItemRequest.item.Owner) {
+			return nil, accessDeniedErr
+		}
+
+		err = s.Push(setItemRequest.key, setItemRequest.item)
+		if err != nil {
+			return nil, err
+		}
+
+		return &setItemResponse{
+			existingResource: true,
+		}, nil
 	}
 }
 
-func userOwnsItem(requestItemOwner, actualItemOwner string) bool {
-	return requestItemOwner == "" || requestItemOwner == actualItemOwner
+func authorized(adminMode bool, resourceOwner, requestOwner string) bool {
+	return adminMode || resourceOwner == requestOwner
 }
