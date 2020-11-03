@@ -39,10 +39,10 @@ import (
 // PushItem operation.
 type PushResult string
 
-// Types of set item successful results.
+// Types of pushItem successful results.
 const (
-	CreatedSetResult PushResult = "created"
-	UpdatedSetResult PushResult = "ok"
+	CreatedPushResult PushResult = "created"
+	UpdatedPushResult PushResult = "ok"
 )
 
 type ClientConfig struct {
@@ -134,6 +134,10 @@ func validateConfig(config *ClientConfig) error {
 	}
 	if config.MetricsProvider == nil {
 		return errors.New("a metrics provider is required")
+	}
+
+	if config.PullInterval == 0 {
+		config.PullInterval = time.Second * 5
 	}
 
 	if config.Logger == nil {
