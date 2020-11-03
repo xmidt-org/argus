@@ -251,9 +251,9 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 
 	switch response.StatusCode {
 	case http.StatusCreated:
-		return CreatedSetResult, nil
+		return CreatedPushResult, nil
 	case http.StatusOK:
-		return UpdatedSetResult, nil
+		return UpdatedPushResult, nil
 	}
 
 	c.loggers.Error.Log("msg", "DB responded with non-successful response for request to update an item", "code", response.StatusCode)
