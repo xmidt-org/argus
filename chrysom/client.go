@@ -31,17 +31,18 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
 )
 
-// SetResult is a simple type to indicate the result type for the
-// SetItem operation.
-type SetResult string
+// PushResult is a simple type to indicate the result type for the
+// PushItem operation.
+type PushResult string
 
 // Types of set item successful results.
 const (
-	CreatedSetResult SetResult = "created"
-	UpdatedSetResult SetResult = "ok"
+	CreatedSetResult PushResult = "created"
+	UpdatedSetResult PushResult = "ok"
 )
 
 type ClientConfig struct {
@@ -50,7 +51,6 @@ type ClientConfig struct {
 	PullInterval    time.Duration
 	Address         string
 	Auth            Auth
-	DefaultTTL      int64
 	MetricsProvider provider.Provider
 	Logger          log.Logger
 	Listener        Listener
@@ -69,16 +69,15 @@ type loggerGroup struct {
 }
 
 type Client struct {
-	client              *http.Client
-	ticker              *time.Ticker
-	auth                acquire.Acquirer
-	metrics             *measures
-	listener            Listener
-	bucketName          string
-	remoteStoreAddress  string
-	defaultStoreItemTTL int64
-	loggers             loggerGroup
-	adminToken          string
+	client             *http.Client
+	ticker             *time.Ticker
+	auth               acquire.Acquirer
+	metrics            *measures
+	listener           Listener
+	bucketName         string
+	remoteStoreAddress string
+	loggers            loggerGroup
+	adminToken         string
 }
 
 func initLoggers(logger log.Logger) loggerGroup {
@@ -105,16 +104,15 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	clientStore := &Client{
-		client:              config.HTTPClient,
-		ticker:              time.NewTicker(config.PullInterval),
-		auth:                auth,
-		metrics:             initMetrics(config.MetricsProvider),
-		loggers:             initLoggers(config.Logger),
-		listener:            config.Listener,
-		remoteStoreAddress:  config.Address,
-		defaultStoreItemTTL: config.DefaultTTL,
-		bucketName:          config.Bucket,
-		adminToken:          config.AdminToken,
+		client:             config.HTTPClient,
+		ticker:             time.NewTicker(config.PullInterval),
+		auth:               auth,
+		metrics:            initMetrics(config.MetricsProvider),
+		loggers:            initLoggers(config.Logger),
+		listener:           config.Listener,
+		remoteStoreAddress: config.Address,
+		bucketName:         config.Bucket,
+		adminToken:         config.AdminToken,
 	}
 
 	if config.PullInterval > 0 {
@@ -133,9 +131,6 @@ func validateConfig(config *ClientConfig) error {
 	}
 	if config.Bucket == "" {
 		config.Bucket = "testing"
-	}
-	if config.DefaultTTL < 1 {
-		config.DefaultTTL = 300
 	}
 	if config.MetricsProvider == nil {
 		return errors.New("a metrics provider is required")
@@ -170,14 +165,14 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 		return nil, err
 	}
 	if owner != "" {
-		request.Header.Set("X-Midt-Owner", owner)
+		request.Header.Set(store.ItemOwnerHeaderKey, owner)
 	}
 
 	if adminMode {
 		if c.adminToken == "" {
 			return nil, errors.New("adminToken needed to run as admin")
 		}
-		request.Header.Set("X-Midt-Admin-Token", c.adminToken)
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
 	}
 
 	response, err := c.client.Do(request)
@@ -211,7 +206,7 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	return responseData, nil
 }
 
-func (c *Client) Set(item model.Item, owner string, adminMode bool) (SetResult, error) {
+func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
 	if item.Identifier == "" {
 		return "", errors.New("identifier can't be empty")
 	}
@@ -221,7 +216,7 @@ func (c *Client) Set(item model.Item, owner string, adminMode bool) (SetResult, 
 	}
 
 	if item.TTL != nil && *item.TTL < 1 {
-		return "", errors.New("TTL must be > 0")
+		return "", errors.New("when provided, TTL must be > 0")
 	}
 
 	data, err := json.Marshal(&item)
@@ -236,13 +231,13 @@ func (c *Client) Set(item model.Item, owner string, adminMode bool) (SetResult, 
 	if err != nil {
 		return "", err
 	}
-	request.Header.Add("X-Midt-Owner", owner)
+	request.Header.Add(store.ItemOwnerHeaderKey, owner)
 
 	if adminMode {
 		if c.adminToken == "" {
 			return "", errors.New("adminToken needed to run as admin")
 		}
-		request.Header.Set("X-Midt-Admin-Token", c.adminToken)
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
 	}
 
 	response, err := c.client.Do(request)
@@ -274,13 +269,13 @@ func (c *Client) Remove(uuid string, owner string, adminMode bool) (model.Item, 
 		return model.Item{}, err
 	}
 
-	request.Header.Add("X-Midt-Owner", owner)
+	request.Header.Add(store.ItemOwnerHeaderKey, owner)
 
 	if adminMode {
 		if c.adminToken == "" {
-			return "", errors.New("adminToken needed to run as admin")
+			return model.Item{}, errors.New("adminToken needed to run as admin")
 		}
-		request.Header.Set("X-Midt-Admin-Token", c.adminToken)
+		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
 	}
 
 	response, err := c.client.Do(request)
