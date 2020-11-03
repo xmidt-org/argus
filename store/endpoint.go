@@ -46,7 +46,7 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 			return nil, err
 		}
 
-		if itemRequest.owner != itemResponse.Owner {
+		if !authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
 			return nil, &ForbiddenRequestErr{}
 		}
 
@@ -64,6 +64,9 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 		items, err := s.GetAll(itemsRequest.bucket)
 		if err != nil {
 			return nil, err
+		}
+		if itemsRequest.adminMode {
+			return items, nil
 		}
 		return FilterOwner(items, itemsRequest.owner), nil
 	}
@@ -88,7 +91,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 			}
 		}
 
-		if setItemRequest.item.Owner != itemResponse.Owner {
+		if !authorized(setItemRequest.adminMode, itemResponse.Owner, setItemRequest.item.Owner) {
 			return nil, &ForbiddenRequestErr{Message: "resource owner mismatch"}
 		}
 
@@ -101,4 +104,8 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 			existingResource: true,
 		}, nil
 	}
+}
+
+func authorized(adminMode bool, resourceOwner, requestOwner string) bool {
+	return adminMode || resourceOwner == requestOwner
 }

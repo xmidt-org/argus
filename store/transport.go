@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -26,6 +27,7 @@ const (
 // Request and Response Headers
 const (
 	ItemOwnerHeaderKey  = "X-Midt-Owner"
+	AdminTokenHeaderKey = "X-Midt-Admin-Token"
 	XmidtErrorHeaderKey = "X-Midt-Error"
 )
 
@@ -33,19 +35,32 @@ const (
 // encoders.
 var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
+type requestConfig struct {
+	Validation struct {
+		MaxTTL time.Duration
+	}
+
+	Authorization struct {
+		Admintoken string
+	}
+}
+
 type getOrDeleteItemRequest struct {
-	key   model.Key
-	owner string
+	key       model.Key
+	owner     string
+	adminMode bool
 }
 
 type getAllItemsRequest struct {
-	bucket string
-	owner  string
+	bucket    string
+	owner     string
+	adminMode bool
 }
 
 type setItemRequest struct {
-	key  model.Key
-	item OwnableItem
+	key       model.Key
+	item      OwnableItem
+	adminMode bool
 }
 
 type setItemResponse struct {
@@ -53,19 +68,22 @@ type setItemResponse struct {
 	existingResource bool
 }
 
-func decodeGetAllItemsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	vars := mux.Vars(r)
-	bucket, ok := vars[bucketVarKey]
-	if !ok {
-		return nil, &BadRequestErr{Message: bucketVarMissingMsg}
+func getAllItemsRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		vars := mux.Vars(r)
+		bucket, ok := vars[bucketVarKey]
+		if !ok {
+			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
+		}
+		return &getAllItemsRequest{
+			bucket:    bucket,
+			owner:     r.Header.Get(ItemOwnerHeaderKey),
+			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
+		}, nil
 	}
-	return &getAllItemsRequest{
-		bucket: bucket,
-		owner:  r.Header.Get(ItemOwnerHeaderKey),
-	}, nil
 }
 
-func setItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
+func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		vars := mux.Vars(r)
 		bucket, ok := vars[bucketVarKey]
@@ -93,7 +111,11 @@ func setItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
 			return nil, &BadRequestErr{Message: "data field must be set"}
 		}
 
-		validateItemTTL(&item, itemTTLInfo)
+		validateItemTTL(&item, config.Validation.MaxTTL)
+
+		if item.UUID != uuid {
+			return nil, &BadRequestErr{Message: "UUIDs must match between URL and payload"}
+		}
 
 		return &setItemRequest{
 			item: OwnableItem{
@@ -104,16 +126,33 @@ func setItemRequestDecoder(itemTTLInfo ItemTTL) kithttp.DecodeRequestFunc {
 				Bucket: bucket,
 				UUID:   uuid,
 			},
+			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
 		}, nil
 	}
 }
 
-func validateItemTTL(item *model.Item, itemTTLInfo ItemTTL) {
-	if item.TTL != nil {
-		ttlCapSeconds := int64(itemTTLInfo.MaxTTL.Seconds())
-		if *item.TTL > ttlCapSeconds {
-			item.TTL = &ttlCapSeconds
+func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		vars := mux.Vars(r)
+		bucket, ok := vars[bucketVarKey]
+		if !ok {
+			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
 		}
+
+		uuid, ok := vars[uuidVarKey]
+
+		if !ok {
+			return nil, &BadRequestErr{Message: uuidVarMissingMsg}
+		}
+
+		return &getOrDeleteItemRequest{
+			key: model.Key{
+				Bucket: bucket,
+				UUID:   uuid,
+			},
+			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
+			owner:     r.Header.Get(ItemOwnerHeaderKey),
+		}, nil
 	}
 }
 
@@ -129,39 +168,17 @@ func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
-	payload := map[string]model.Item{}
-	for k, value := range items {
-		payload[k] = value.Item
+	var list []model.Item
+	for _, value := range items {
+		list = append(list, value.Item)
 	}
-	data, err := json.Marshal(&payload)
+	data, err := json.Marshal(&list)
 	if err != nil {
 		return err
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.Write(data)
 	return nil
-}
-
-func decodeGetOrDeleteItemRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	vars := mux.Vars(r)
-	bucket, ok := vars[bucketVarKey]
-	if !ok {
-		return nil, &BadRequestErr{Message: bucketVarMissingMsg}
-	}
-
-	uuid, ok := vars[uuidVarKey]
-
-	if !ok {
-		return nil, &BadRequestErr{Message: uuidVarMissingMsg}
-	}
-
-	return &getOrDeleteItemRequest{
-		key: model.Key{
-			Bucket: bucket,
-			UUID:   uuid,
-		},
-		owner: r.Header.Get(ItemOwnerHeaderKey),
-	}, nil
 }
 
 func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
@@ -194,4 +211,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		code = sc.StatusCode()
 	}
 	w.WriteHeader(code)
+}
+
+func validateItemTTL(item *model.Item, maxTTL time.Duration) {
+	if item.TTL != nil {
+		ttlCapSeconds := int64(maxTTL.Seconds())
+		if *item.TTL > ttlCapSeconds {
+			item.TTL = &ttlCapSeconds
+		}
+	}
 }

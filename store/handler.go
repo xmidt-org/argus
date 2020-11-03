@@ -19,7 +19,6 @@ package store
 
 import (
 	"net/http"
-	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/xmidt-org/argus/model"
@@ -33,41 +32,37 @@ type KeyItemPairRequest struct {
 	Method string
 }
 
-type ItemTTL struct {
-	MaxTTL time.Duration
-}
-
-func newGetItemHandler(s S) Handler {
+func newGetItemHandler(config *requestConfig, s S) Handler {
 	return kithttp.NewServer(
 		newGetItemEndpoint(s),
-		decodeGetOrDeleteItemRequest,
+		getOrDeleteItemRequestDecoder(config),
 		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newDeleteItemHandler(s S) Handler {
+func newDeleteItemHandler(config *requestConfig, s S) Handler {
 	return kithttp.NewServer(
 		newDeleteItemEndpoint(s),
-		decodeGetOrDeleteItemRequest,
+		getOrDeleteItemRequestDecoder(config),
 		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newGetAllItemsHandler(s S) Handler {
+func newGetAllItemsHandler(config *requestConfig, s S) Handler {
 	return kithttp.NewServer(
 		newGetAllItemsEndpoint(s),
-		decodeGetAllItemsRequest,
+		getAllItemsRequestDecoder(config),
 		encodeGetAllItemsResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newSetItemHandler(itemTTLInfo ItemTTL, s S) Handler {
+func newSetItemHandler(config *requestConfig, s S) Handler {
 	return kithttp.NewServer(
 		newSetItemEndpoint(s),
-		setItemRequestDecoder(itemTTLInfo),
+		setItemRequestDecoder(config),
 		encodeSetItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)

@@ -18,17 +18,19 @@
 package test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"testing"
-	"time"
 )
 
+var testInt int64 = 3
 var GenericTestKeyPair = store.KeyItemPairRequest{
 	Key: model.Key{
 		Bucket: "world",
-		ID:     "earth",
+		UUID:   "earth",
 	},
 	OwnableItem: store.OwnableItem{
 		Item: model.Item{
@@ -37,7 +39,7 @@ var GenericTestKeyPair = store.KeyItemPairRequest{
 				"year":  float64(1967),
 				"words": []interface{}{"What", "a", "Wonderful", "World"},
 			},
-			TTL: 3,
+			TTL: &testInt,
 		},
 		Owner: "Louis Armstrong",
 	},

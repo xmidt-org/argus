@@ -50,22 +50,20 @@ type StoreOut struct {
 
 // Provide is an uber/fx style provider for this package's components
 func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
-	itemTTL := ItemTTL{
-		MaxTTL: YearTTL,
-	}
-	unmarshaller.UnmarshalKey("itemTTL", itemTTL)
-	validateItemTTLConfig(&itemTTL)
+	cfg := new(requestConfig)
+	unmarshaller.UnmarshalKey("request", cfg)
+	validateRequestConfig(cfg)
 
 	return StoreOut{
-		SetItemHandler:     newSetItemHandler(itemTTL, in.Store),
-		GetItemHandler:     newGetItemHandler(in.Store),
-		GetAllItemsHandler: newGetAllItemsHandler(in.Store),
-		DeleteKeyHandler:   newDeleteItemHandler(in.Store),
+		SetItemHandler:     newSetItemHandler(cfg, in.Store),
+		GetItemHandler:     newGetItemHandler(cfg, in.Store),
+		GetAllItemsHandler: newGetAllItemsHandler(cfg, in.Store),
+		DeleteKeyHandler:   newDeleteItemHandler(cfg, in.Store),
 	}
 }
 
-func validateItemTTLConfig(ttl *ItemTTL) {
-	if ttl.MaxTTL <= time.Second {
-		ttl.MaxTTL = YearTTL * time.Second
+func validateRequestConfig(cfg *requestConfig) {
+	if cfg.Validation.MaxTTL <= time.Second {
+		cfg.Validation.MaxTTL = YearTTL * time.Second
 	}
 }

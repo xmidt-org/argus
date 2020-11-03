@@ -117,6 +117,18 @@ itemTTL:
 # WARNING! Be sure to remove this from your production config
 authHeader: ["dXNlcjpwYXNz"]
 
+# request is a config section related to operation authorization
+# and request validation.
+request:
+  authorization:
+    # adminToken serves as a master key which allows performing operations on any 
+    # item regardless of their ownership status.  
+    adminToken: "Hzu1WpIe7S8G" 
+
+  validation:
+    # maxTTL specifies the cap for the TTL of items when values are specified.
+    maxTTL: "24h"
+
 # jwtValidator provides Bearer auth configuration
 jwtValidator:
   keys:
@@ -124,6 +136,7 @@ jwtValidator:
       uri: "http://sample-jwt-validator-uri/{keyId}"
     purpose: 0
     updateInterval: 604800000000000
+
 # capabilityCheck provides the details needed for checking an incoming JWT's
 # capabilities.  If the type of check isn't provided, no checking is done.  The
 # type can be "monitor" or "enforce".  If it is empty or a different value, no
