@@ -81,7 +81,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 
 		if err != nil {
 			switch err.(type) {
-			case *KeyNotFoundError:
+			case KeyNotFoundError:
 				err = s.Push(setItemRequest.key, setItemRequest.item)
 				if err != nil {
 					return nil, err
