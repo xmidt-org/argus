@@ -23,6 +23,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+var accessDeniedErr = &ForbiddenRequestErr{Message: "resource owner mismatch"}
+
 func newGetItemEndpoint(s S) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		itemRequest := request.(*getOrDeleteItemRequest)
@@ -34,7 +36,7 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 			return &itemResponse, nil
 		}
 
-		return nil, &KeyNotFoundError{Key: itemRequest.key}
+		return nil, accessDeniedErr
 	}
 }
 
@@ -47,7 +49,7 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		}
 
 		if !authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
-			return nil, &ForbiddenRequestErr{}
+			return nil, accessDeniedErr
 		}
 
 		deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
@@ -79,7 +81,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 
 		if err != nil {
 			switch err.(type) {
-			case KeyNotFoundError:
+			case *KeyNotFoundError:
 				err = s.Push(setItemRequest.key, setItemRequest.item)
 				if err != nil {
 					return nil, err
@@ -92,7 +94,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 		}
 
 		if !authorized(setItemRequest.adminMode, itemResponse.Owner, setItemRequest.item.Owner) {
-			return nil, &ForbiddenRequestErr{Message: "resource owner mismatch"}
+			return nil, accessDeniedErr
 		}
 
 		err = s.Push(setItemRequest.key, setItemRequest.item)
