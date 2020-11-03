@@ -71,8 +71,10 @@ var retryableAWSCodes = map[string]bool{
 
 // Dynamo DB attribute keys
 const (
-	bucketAttributeKey = "bucket"
-	uuidAttributeKey   = "uuid"
+	bucketAttributeKey     = "bucket"
+	uuidAttributeKey       = "uuid"
+	identifierAttributeKey = "identifier"
+	expirationAttributeKey = "expires"
 )
 
 func handleClientError(err error) error {
@@ -118,9 +120,28 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 	}
 	return consumedCapacity, nil
 }
-
-func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
-	result, err := d.c.GetItem(&dynamodb.GetItemInput{
+func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.ConsumedCapacity, map[string]*dynamodb.AttributeValue, error) {
+	if delete {
+		deleteInput := &dynamodb.DeleteItemInput{
+			TableName: aws.String(d.tableName),
+			Key: map[string]*dynamodb.AttributeValue{
+				bucketAttributeKey: {
+					S: aws.String(key.Bucket),
+				},
+				uuidAttributeKey: {
+					S: aws.String(key.UUID),
+				},
+			},
+			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+			ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
+		}
+		deleteOutput, err := d.c.DeleteItem(deleteInput)
+		if err != nil {
+			return nil, nil, err
+		}
+		return deleteOutput.ConsumedCapacity, deleteOutput.Attributes, nil
+	}
+	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			bucketAttributeKey: {
@@ -131,17 +152,20 @@ func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapa
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	})
-
-	var consumedCapacity *dynamodb.ConsumedCapacity
-	if result != nil {
-		consumedCapacity = result.ConsumedCapacity
 	}
+	getOutput, err := d.c.GetItem(getInput)
+	if err != nil {
+		return nil, nil, err
+	}
+	return getOutput.ConsumedCapacity, getOutput.Item, nil
+}
+func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
 	}
 	item := new(storableItem)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	err = dynamodbattribute.UnmarshalMap(attributes, item)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
@@ -161,50 +185,15 @@ func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapa
 	item.OwnableItem.UUID = key.UUID
 
 	return item.OwnableItem, consumedCapacity, err
+
+}
+
+func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+	return d.getOrDelete(key, false)
 }
 
 func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
-	result, err := d.c.DeleteItem(&dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			uuidAttributeKey: {
-				S: aws.String(key.UUID),
-			},
-		},
-		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
-		TableName:              aws.String(d.tableName),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	})
-	var consumedCapacity *dynamodb.ConsumedCapacity
-	if result != nil {
-		consumedCapacity = result.ConsumedCapacity
-	}
-	if err != nil {
-		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
-	}
-
-	item := new(storableItem)
-	err = dynamodbattribute.UnmarshalMap(result.Attributes, item)
-	if err != nil {
-		return store.OwnableItem{}, consumedCapacity, err
-	}
-
-	if itemNotFound(item) {
-		return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
-	}
-
-	if item.Expires != nil {
-		remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
-		if remainingTTLSeconds < 1 {
-			return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
-		}
-		item.TTL = &remainingTTLSeconds
-	}
-	item.OwnableItem.UUID = key.UUID
-
-	return item.OwnableItem, consumedCapacity, nil
+	return d.getOrDelete(key, true)
 }
 
 //TODO: For data >= 1MB, we'll need to handle pagination

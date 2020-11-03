@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 const (
 	testTableName  = "table01"
 	testBucketName = "bucket01"
-	testIDName     = "ID01"
+	testUUID       = "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI"
 )
 
 var (
@@ -31,15 +32,15 @@ var (
 var (
 	item = store.OwnableItem{
 		Item: model.Item{
-			Identifier: testIDName,
+			Identifier: testUUID,
 			Data:       map[string]interface{}{"dataKey": "dataValue"},
-			TTL:        int64(time.Second * 300),
+			TTL:        aws.Int64(int64((time.Second * 300).Seconds())),
 		},
 		Owner: "xmidt",
 	}
 	key = model.Key{
 		Bucket: testBucketName,
-		ID:     testIDName,
+		UUID:   testUUID,
 	}
 )
 
@@ -114,12 +115,6 @@ func TestClientErrors(t *testing.T) {
 	suite.Run(t, new(ClientErrorTestSuite))
 }
 
-func TestGetItem(t *testing.T) {
-	initGlobalInputs()
-	t.Run("Success", testGetItem)
-	t.Run("NotFound", testGetItemNotFound)
-}
-
 func TestPushItem(t *testing.T) {
 	initGlobalInputs()
 
@@ -141,22 +136,15 @@ func TestPushItem(t *testing.T) {
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
 
-func TestDeleteItem(t *testing.T) {
-	initGlobalInputs()
-
-	t.Run("Success", testDelete)
-	t.Run("NotFound", testDeleteNotFound)
-}
-
 func TestGetAllItems(t *testing.T) {
 	initGlobalInputs()
-
-	t.Run("Success", testGetAll)
-}
-
-func testGetAll(t *testing.T) {
 	assert := assert.New(t)
 	m := new(mockClient)
+	now := time.Now().Unix()
+	secondsInHour := int64(time.Hour.Seconds())
+	pastExpiration := strconv.Itoa(int(now - secondsInHour))
+	futureExpiration := strconv.Itoa(int(now + secondsInHour))
+
 	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
 		CapacityUnits: aws.Float64(67),
 	}
@@ -167,16 +155,49 @@ func testGetAll(t *testing.T) {
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
 				},
-				idAttributeKey: {
-					S: aws.String("id01"),
+				uuidAttributeKey: {
+					S: aws.String("-mTqHoLhIG-CirKgKRfH6SrMuY47lYgaG0rVK5FLZuM"),
+				},
+				identifierAttributeKey: {
+					S: aws.String("expired"),
+				},
+				expirationAttributeKey: {
+					N: aws.String(pastExpiration),
 				},
 			},
 			{
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
 				},
-				idAttributeKey: {
-					S: aws.String("id02"),
+				uuidAttributeKey: {
+					S: aws.String("1wzI3cbHlIHD9TUi9LgOz1Vt1cZIOloD4PvlB5uFT4E"),
+				},
+				identifierAttributeKey: {
+					S: aws.String("notYetExpired"),
+				},
+				expirationAttributeKey: {
+					N: aws.String(futureExpiration),
+				},
+			},
+
+			{
+				bucketAttributeKey: {
+					S: aws.String(testBucketName),
+				},
+				uuidAttributeKey: {
+					S: aws.String("dbtIlYXQsAoAmexD6zGV8ZfVImEjsFGHcMJdhCZ-1L4"),
+				},
+				identifierAttributeKey: {
+					S: aws.String("neverExpires"),
+				},
+			},
+
+			{
+				bucketAttributeKey: {
+					S: aws.String(testBucketName),
+				},
+				identifierAttributeKey: {
+					S: aws.String("db goes cuckoo"),
 				},
 			},
 		},
@@ -191,9 +212,17 @@ func testGetAll(t *testing.T) {
 	assert.Nil(err)
 	assert.Len(ownableItems, 2)
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
+
+	for _, item := range ownableItems {
+		assert.NotEmpty(item.UUID)
+		assert.NotEmpty(item.Identifier)
+		if item.TTL != nil {
+			assert.NotZero(*item.TTL)
+		}
+	}
 }
 
-func testDelete(t *testing.T) {
+func TestDeleteItem(t *testing.T) {
 	assert := assert.New(t)
 	m := new(mockClient)
 	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
@@ -205,8 +234,8 @@ func testDelete(t *testing.T) {
 			bucketAttributeKey: {
 				S: aws.String(testBucketName),
 			},
-			idAttributeKey: {
-				S: aws.String(testIDName),
+			uuidAttributeKey: {
+				S: aws.String(testUUID),
 			},
 			"data": {
 				M: map[string]*dynamodb.AttributeValue{
@@ -240,91 +269,171 @@ func testDelete(t *testing.T) {
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
 
-func testDeleteNotFound(t *testing.T) {
-	assert := assert.New(t)
-	m := new(mockClient)
-	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
-		CapacityUnits: aws.Float64(67),
-	}
-	deleteItemOutput := &dynamodb.DeleteItemOutput{
-		ConsumedCapacity: expectedConsumedCapacity,
-	}
-	m.On("DeleteItem", deleteItemInput).Return(deleteItemOutput, error(nil))
-	service := &executor{
-		tableName: testTableName,
-		c:         m,
-	}
-	ownableItem, actualConsumedCapacity, err := service.Delete(key)
-	assert.NotNil(ownableItem)
-	assert.Equal(store.KeyNotFoundError{Key: key}, err)
-	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
-}
+func TestGetItem(t *testing.T) {
+	initGlobalInputs()
+	now := time.Now().Unix()
+	secondsInHour := int64(time.Hour.Seconds())
+	pastExpiration := strconv.Itoa(int(now - secondsInHour))
+	futureExpiration := strconv.Itoa(int(now + secondsInHour))
 
-func testGetItemNotFound(t *testing.T) {
-	assert := assert.New(t)
-	m := new(mockClient)
-	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
-		CapacityUnits: aws.Float64(67),
-	}
-	getItemOutput := &dynamodb.GetItemOutput{
-		ConsumedCapacity: expectedConsumedCapacity,
-	}
-	m.On("GetItem", getItemInput).Return(getItemOutput, error(nil))
-	service := &executor{
-		tableName: testTableName,
-		c:         m,
-	}
-	ownableItem, actualConsumedCapacity, err := service.Get(key)
-	assert.NotNil(ownableItem)
-	assert.Equal(store.KeyNotFoundError{Key: key}, err)
-	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
-}
+	testCases := []struct {
+		Name                string
+		GetItemOutput       *dynamodb.GetItemOutput
+		GetItemOutputErr    error
+		ItemExpires         bool
+		ExpectedResponse    store.OwnableItem
+		ExpectedResponseErr error
+	}{
+		{
+			Name: "Item does not expire",
+			GetItemOutput: &dynamodb.GetItemOutput{
+				Item: map[string]*dynamodb.AttributeValue{
+					bucketAttributeKey: {
+						S: aws.String(testBucketName),
+					},
+					uuidAttributeKey: {
+						S: aws.String(testUUID),
+					},
+					"data": {
+						M: map[string]*dynamodb.AttributeValue{
+							"key": {
+								S: aws.String("stringVal"),
+							},
+						},
+					},
+					"owner": {
+						S: aws.String("xmidt"),
+					},
 
-func testGetItem(t *testing.T) {
-	assert := assert.New(t)
-	m := new(mockClient)
-	expectedConsumedCapacity := &dynamodb.ConsumedCapacity{
-		CapacityUnits: aws.Float64(67),
-	}
-	getItemOutput := &dynamodb.GetItemOutput{
-		ConsumedCapacity: expectedConsumedCapacity,
-		Item: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(testBucketName),
-			},
-			idAttributeKey: {
-				S: aws.String(testIDName),
-			},
-			"data": {
-				M: map[string]*dynamodb.AttributeValue{
-					"key": {
-						S: aws.String("stringVal"),
+					"identifier": {
+						S: aws.String("id01"),
 					},
 				},
 			},
-			"owner": {
-				S: aws.String("xmidt"),
-			},
-
-			"identifier": {
-				S: aws.String("id01"),
+			ExpectedResponse: store.OwnableItem{
+				Owner: "xmidt",
+				Item: model.Item{
+					UUID:       testUUID,
+					Identifier: "id01",
+					Data: map[string]interface{}{
+						"key": "stringVal",
+					},
+				},
 			},
 		},
+
+		{
+			Name:        "Expired item",
+			ItemExpires: true,
+			GetItemOutput: &dynamodb.GetItemOutput{
+				Item: map[string]*dynamodb.AttributeValue{
+					"expires": {
+						N: aws.String(pastExpiration),
+					},
+					bucketAttributeKey: {
+						S: aws.String(testBucketName),
+					},
+					uuidAttributeKey: {
+						S: aws.String(testUUID),
+					},
+					"data": {
+						M: map[string]*dynamodb.AttributeValue{
+							"key": {
+								S: aws.String("stringVal"),
+							},
+						},
+					},
+					"owner": {
+						S: aws.String("xmidt"),
+					},
+
+					"identifier": {
+						S: aws.String("id01"),
+					},
+				},
+			},
+			ExpectedResponseErr: store.KeyNotFoundError{Key: model.Key{
+				UUID:   testUUID,
+				Bucket: testBucketName,
+			}},
+		},
+
+		{
+			Name:        "Item not yet expired",
+			ItemExpires: true,
+			GetItemOutput: &dynamodb.GetItemOutput{
+				Item: map[string]*dynamodb.AttributeValue{
+					"expires": {
+						N: aws.String(futureExpiration),
+					},
+					bucketAttributeKey: {
+						S: aws.String(testBucketName),
+					},
+					uuidAttributeKey: {
+						S: aws.String(testUUID),
+					},
+					"data": {
+						M: map[string]*dynamodb.AttributeValue{
+							"key": {
+								S: aws.String("stringVal"),
+							},
+						},
+					},
+					"owner": {
+						S: aws.String("xmidt"),
+					},
+
+					"identifier": {
+						S: aws.String("id01"),
+					},
+				},
+			},
+			ExpectedResponse: store.OwnableItem{
+				Owner: "xmidt",
+				Item: model.Item{
+					UUID:       testUUID,
+					Identifier: "id01",
+					Data: map[string]interface{}{
+						"key": "stringVal",
+					},
+				},
+			},
+		},
+
+		{
+			Name: "Item not found",
+			GetItemOutput: &dynamodb.GetItemOutput{
+				Item: map[string]*dynamodb.AttributeValue{},
+			},
+			ExpectedResponseErr: store.KeyNotFoundError{Key: key},
+		},
 	}
-	expectedData := map[string]interface{}{
-		"key": "stringVal",
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(mockClient)
+			m.On("GetItem", getItemInput).Return(testCase.GetItemOutput, error(nil))
+			service := &executor{
+				tableName: testTableName,
+				c:         m,
+			}
+			ownableItem, actualConsumedCapacity, err := service.Get(key)
+			if testCase.ExpectedResponseErr == nil {
+				assert.Nil(err)
+				assert.Equal(testCase.GetItemOutput.ConsumedCapacity, actualConsumedCapacity)
+				assert.Equal(testCase.ExpectedResponse.Owner, ownableItem.Owner)
+				assert.Equal(testCase.ExpectedResponse.Data, ownableItem.Data)
+				assert.Equal(testCase.ExpectedResponse.Identifier, ownableItem.Identifier)
+				assert.Equal(testCase.ExpectedResponse.UUID, ownableItem.UUID)
+
+				if testCase.ItemExpires {
+					assert.NotZero(*ownableItem.TTL)
+				}
+			} else {
+				assert.Equal(testCase.ExpectedResponseErr, err)
+			}
+		})
 	}
-	m.On("GetItem", getItemInput).Return(getItemOutput, error(nil))
-	service := &executor{
-		tableName: testTableName,
-		c:         m,
-	}
-	ownableItem, actualConsumedCapacity, err := service.Get(key)
-	assert.Nil(err)
-	assert.Equal("xmidt", ownableItem.Owner)
-	assert.Equal("id01", ownableItem.Identifier)
-	assert.Equal(expectedData, ownableItem.Data)
-	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
 
 func initGlobalInputs() {
@@ -334,8 +443,8 @@ func initGlobalInputs() {
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
+			uuidAttributeKey: {
+				S: aws.String(key.UUID),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
@@ -346,8 +455,8 @@ func initGlobalInputs() {
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
+			uuidAttributeKey: {
+				S: aws.String(key.UUID),
 			},
 		},
 		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
@@ -355,9 +464,9 @@ func initGlobalInputs() {
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	expirableItem := element{
+	expirableItem := storableItem{
 		OwnableItem: item,
-		Expires:     time.Now().Unix() + item.TTL,
+		Expires:     aws.Int64(time.Now().Unix() + *item.TTL),
 		Key:         key,
 	}
 	encodedItem, err := dynamodbattribute.MarshalMap(expirableItem)

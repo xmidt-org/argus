@@ -226,7 +226,7 @@ func TestsetItemRequestDecoder(t *testing.T) {
 			Name:        "Bad JSON data",
 			URLVars:     map[string]string{bucketVarKey: "bucketVal", uuidVarKey: "rWPSg7pI0jj8mMG9tmscdQMOGKeRAquySfkObTasRBc"},
 			RequestBody: `{"validJSON": false,}`,
-			ExpectedErr: &BadRequestErr{
+			ExpectedErr: BadRequestErr{
 				Message: "failed to unmarshal json",
 			},
 		},
@@ -234,7 +234,7 @@ func TestsetItemRequestDecoder(t *testing.T) {
 			Name:        "Missing data item field",
 			URLVars:     map[string]string{bucketVarKey: "letters", uuidVarKey: "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"},
 			RequestBody: `{"uuid": "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs","identifier": "a"}`,
-			ExpectedErr: &BadRequestErr{
+			ExpectedErr: BadRequestErr{
 				Message: "data field must be set",
 			},
 		},
