@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/model"
 )
 
-func TestDecodeGetOrDeleteItemRequest(t *testing.T) {
+func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
@@ -22,48 +23,37 @@ func TestDecodeGetOrDeleteItemRequest(t *testing.T) {
 		ExpectedErr            error
 	}{
 		{
-			Name: "Missing id",
+			Name: "Happy path - No owner - Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
-			},
-			ExpectedErr: &BadRequestErr{Message: idVarMissingMsg},
-		},
-		{
-			Name: "Missing bucket",
-			URLVars: map[string]string{
-				"id": "san francisco",
-			},
-			ExpectedErr: &BadRequestErr{Message: bucketVarMissingMsg},
-		},
-		{
-			Name: "Happy path - No owner",
-			URLVars: map[string]string{
-				"bucket": "california",
-				"id":     "san francisco",
+				"uuid":   "san francisco",
 			},
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
-					ID:     "san francisco",
+					UUID:   "san francisco",
 				},
 			},
 		},
 		{
-			Name: "Happy path",
+			Name: "Happy path - Owner - Admin mode",
 			URLVars: map[string]string{
 				"bucket": "california",
-				"id":     "san francisco",
+				"uuid":   "san francisco",
+			},
+
+			Headers: map[string][]string{
+				ItemOwnerHeaderKey:  []string{"SF Giants"},
+				AdminTokenHeaderKey: []string{"secretAdminToken"},
 			},
 
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
-					ID:     "san francisco",
+					UUID:   "san francisco",
 				},
-				owner: "SF Giants",
-			},
-			Headers: map[string][]string{
-				ItemOwnerHeaderKey: []string{"SF Giants"},
+				owner:     "SF Giants",
+				adminMode: true,
 			},
 		},
 	}
@@ -75,7 +65,13 @@ func TestDecodeGetOrDeleteItemRequest(t *testing.T) {
 			transferHeaders(testCase.Headers, r)
 
 			r = mux.SetURLVars(r, testCase.URLVars)
-			decodedRequest, err := decodeGetOrDeleteItemRequest(context.Background(), r)
+			config := &requestConfig{
+				Authorization: authorizationConfig{
+					AdminToken: "secretAdminToken",
+				},
+			}
+			decoder := getOrDeleteItemRequestDecoder(config)
+			decodedRequest, err := decoder(context.Background(), r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
 			assert.Equal(testCase.ExpectedErr, err)
@@ -93,37 +89,19 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 		ExpectedErr     error
 	}{
 		{
-			Name:            "Unexpected casting error",
-			ItemResponse:    nil,
-			ExpectedHeaders: make(http.Header),
-			ExpectedErr:     ErrCasting,
-			// used due to limitations in httptest. In reality, any non-nil error promises nothing
-			// would be written to the response writer
-			ExpectedCode: 200,
-		},
-		{
-			Name: "Expired item",
-			ItemResponse: &OwnableItem{
-				Item: model.Item{
-					TTL: 0,
-				},
-			},
-			ExpectedCode:    http.StatusNotFound,
-			ExpectedHeaders: make(http.Header),
-		},
-		{
 			Name: "Happy path",
 			ItemResponse: &OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					TTL:        20,
+					UUID:       "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI",
+					TTL:        aws.Int64(20),
 					Identifier: "id01",
 					Data: map[string]interface{}{
 						"key": 10,
 					},
 				},
 			},
-			ExpectedBody: `{"identifier":"id01","data":{"key":10},"ttl":20}`,
+			ExpectedBody: `{"uuid":"NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI","identifier":"id01","data":{"key":10},"ttl":20}`,
 			ExpectedCode: 200,
 			ExpectedHeaders: http.Header{
 				"Content-Type": []string{"application/json"},
@@ -144,62 +122,84 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 	}
 }
 
-func TestDecodeGetAllItemsRequest(t *testing.T) {
-	t.Run("Bucket Missing", testDecodeGetAllItemsRequestBucketMissing)
-	t.Run("Success", testDecodeGetAllItemsRequestSuccessful)
-}
+func TestgetAllItemsRequestDecoder(t *testing.T) {
+	testCases := []struct {
+		Name                   string
+		URLVars                map[string]string
+		Headers                map[string][]string
+		ExpectedDecodedRequest interface{}
+		ExpectedErr            error
+	}{
+		{
+			Name: "Happy path - No owner - Normal mode",
+			URLVars: map[string]string{
+				"bucket": "california",
+			},
+			ExpectedDecodedRequest: &getAllItemsRequest{
+				bucket: "california",
+			},
+		},
+		{
+			Name: "Happy path - Owner - Admin mode",
+			URLVars: map[string]string{
+				"bucket": "california",
+				"uuid":   "san francisco",
+			},
 
-func testDecodeGetAllItemsRequestBucketMissing(t *testing.T) {
-	assert := assert.New(t)
-	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
+			Headers: map[string][]string{
+				ItemOwnerHeaderKey:  []string{"SF Giants"},
+				AdminTokenHeaderKey: []string{"secretAdminToken"},
+			},
 
-	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
-	assert.Nil(decodedRequest)
-	assert.Equal(&BadRequestErr{Message: bucketVarMissingMsg}, err)
-}
-
-func testDecodeGetAllItemsRequestSuccessful(t *testing.T) {
-	assert := assert.New(t)
-	r := httptest.NewRequest(http.MethodGet, "http://localhost:9030", nil)
-	r.Header.Set(ItemOwnerHeaderKey, "bob-ross")
-	r = mux.SetURLVars(r, map[string]string{bucketVarKey: "happy-little-accidents"})
-	expectedDecodedRequest := &getAllItemsRequest{
-		bucket: "happy-little-accidents",
-		owner:  "bob-ross",
+			ExpectedDecodedRequest: &getAllItemsRequest{
+				owner:     "SF Giants",
+				adminMode: true,
+			},
+		},
 	}
 
-	decodedRequest, err := decodeGetAllItemsRequest(context.Background(), r)
-	assert.Nil(err)
-	assert.Equal(expectedDecodedRequest, decodedRequest)
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			r := httptest.NewRequest(http.MethodGet, "http://localhost/test", nil)
+			transferHeaders(testCase.Headers, r)
+
+			r = mux.SetURLVars(r, testCase.URLVars)
+			config := &requestConfig{
+				Authorization: authorizationConfig{
+					AdminToken: "secretAdminToken",
+				},
+			}
+			decoder := getAllItemsRequestDecoder(config)
+			decodedRequest, err := decoder(context.Background(), r)
+
+			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
+			assert.Equal(testCase.ExpectedErr, err)
+		})
+	}
 }
 
 func TestEncodeGetAllItemsResponse(t *testing.T) {
 	assert := assert.New(t)
 	response := map[string]OwnableItem{
-		"fix-you": OwnableItem{
+		"E-VG": OwnableItem{
 			Item: model.Item{
-				Identifier: "coldplay-04",
-				TTL:        1,
+				UUID:       "E-VG",
+				Identifier: "fix-you",
 				Data:       map[string]interface{}{},
+				TTL:        aws.Int64(1),
 			},
 		},
-		"bohemian-rhapsody": OwnableItem{
+		"Y9G": OwnableItem{
 			Item: model.Item{
-				Identifier: "queen-03",
-				TTL:        0,
-				Data:       map[string]interface{}{},
-			},
-		},
-		"don't-stop-me-know": OwnableItem{
-			Item: model.Item{
-				Identifier: "queen-02",
-				TTL:        0,
+				UUID:       "Y9G",
+				Identifier: "this-is-it",
 				Data:       map[string]interface{}{},
 			},
 		},
 	}
 	recorder := httptest.NewRecorder()
-	expectedResponseBody := `{"fix-you":{"identifier":"coldplay-04","data":{},"ttl":1}}`
+	expectedResponseBody := `[{"uuid":"E-VG","identifier":"fix-you","data":{},"ttl":1},{"uuid":"Y9G","identifier":"this-is-it","data":{}}]`
 	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
 	assert.Nil(err)
 	assert.Equal(expectedResponseBody, recorder.Body.String())
@@ -213,35 +213,27 @@ func transferHeaders(headers map[string][]string, r *http.Request) {
 	}
 }
 
-func TestPushItemRequestDecoder(t *testing.T) {
+func TestsetItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name            string
-		Bucket          string
-		Owner           string
-		ID              string
+		URLVars         map[string]string
+		Headers         map[string][]string
 		RequestBody     string
 		ExpectedErr     error
-		UpdateRequest   bool
-		ExpectedRequest *pushItemRequest
+		ExpectedRequest *setItemRequest
 	}{
 		{
-			Name: "Missing bucket",
-			ExpectedErr: &BadRequestErr{
-				Message: bucketVarMissingMsg,
-			},
-		},
-		{
 			Name:        "Bad JSON data",
+			URLVars:     map[string]string{bucketVarKey: "bucketVal", uuidVarKey: "rWPSg7pI0jj8mMG9tmscdQMOGKeRAquySfkObTasRBc"},
 			RequestBody: `{"validJSON": false,}`,
-			Bucket:      "invalid",
 			ExpectedErr: &BadRequestErr{
 				Message: "failed to unmarshal json",
 			},
 		},
 		{
 			Name:        "Missing data item field",
-			RequestBody: `{"identifier": "xyz"}`,
-			Bucket:      "no-data",
+			URLVars:     map[string]string{bucketVarKey: "letters", uuidVarKey: "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"},
+			RequestBody: `{"uuid": "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs","identifier": "a"}`,
 			ExpectedErr: &BadRequestErr{
 				Message: "data field must be set",
 			},
@@ -249,10 +241,35 @@ func TestPushItemRequestDecoder(t *testing.T) {
 
 		{
 			Name:        "Capped TTL",
-			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
-			Bucket:      "variables",
-			Owner:       "math",
-			ExpectedRequest: &pushItemRequest{
+			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
+			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}},
+			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			ExpectedRequest: &setItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						UUID:       "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+						Identifier: "xyz",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: aws.Int64(int64((time.Minute * 5).Seconds())),
+					},
+					Owner: "math",
+				},
+				key: model.Key{
+					Bucket: "variables",
+					UUID:   "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+				},
+			},
+		},
+
+		{
+			Name:        "UUID mismatch TTL",
+			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
+			RequestBody: `{"uuid":"iBCtWB5Z8rw5KLJhcHpxMI9-E56wSCA2bcTVwY2YAiU", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
 						Identifier: "xyz",
@@ -261,9 +278,8 @@ func TestPushItemRequestDecoder(t *testing.T) {
 							"y": float64(1),
 							"z": float64(2),
 						},
-						TTL: int64(time.Hour.Seconds()),
+						TTL: aws.Int64(60),
 					},
-					Owner: "math",
 				},
 				key: model.Key{
 					Bucket: "variables",
@@ -272,85 +288,30 @@ func TestPushItemRequestDecoder(t *testing.T) {
 		},
 
 		{
-			Name:        "Defaulted TTL",
-			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}}`,
-			Bucket:      "variables",
-			Owner:       "math",
-			ExpectedRequest: &pushItemRequest{
+			Name:        "Happy Path - Admin mode",
+			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
+			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}, AdminTokenHeaderKey: []string{"secretAdminPassKey"}},
+			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
+			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
+						UUID:       "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
 						Identifier: "xyz",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
 							"z": float64(2),
 						},
-						TTL: 60,
+						TTL: aws.Int64(39),
 					},
 					Owner: "math",
 				},
 				key: model.Key{
 					Bucket: "variables",
+					UUID:   "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
 				},
+				adminMode: true,
 			},
-		},
-
-		{
-			Name:        "Happy path",
-			RequestBody: `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
-			Bucket:      "variables",
-			Owner:       "math",
-			ExpectedRequest: &pushItemRequest{
-				item: OwnableItem{
-					Item: model.Item{
-						Identifier: "xyz",
-						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
-						},
-						TTL: 120,
-					},
-					Owner: "math",
-				},
-				key: model.Key{
-					Bucket: "variables",
-				},
-			},
-		},
-		{
-			Name:          "Update Request",
-			RequestBody:   `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
-			Bucket:        "variables",
-			Owner:         "math",
-			ID:            "id-that-should-stay-the-same",
-			UpdateRequest: true,
-			ExpectedRequest: &pushItemRequest{
-				item: OwnableItem{
-					Item: model.Item{
-						Identifier: "xyz",
-						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
-						},
-						TTL: 120,
-					},
-					Owner: "math",
-				},
-				key: model.Key{
-					Bucket: "variables",
-					ID:     "id-that-should-stay-the-same",
-				},
-			},
-		},
-		{
-			Name:          "Update Request-No ID",
-			RequestBody:   `{"identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 120}`,
-			Bucket:        "variables",
-			Owner:         "math",
-			UpdateRequest: true,
-			ExpectedErr:   &BadRequestErr{Message: idVarMissingMsg},
 		},
 	}
 
@@ -358,40 +319,23 @@ func TestPushItemRequestDecoder(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			r := httptest.NewRequest(http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
-			if len(testCase.Bucket) > 0 || len(testCase.ID) > 0 {
 
-				pathVars := make(map[string]string)
+			r = mux.SetURLVars(r, testCase.URLVars)
+			transferHeaders(testCase.Headers, r)
 
-				if len(testCase.Bucket) > 0 {
-					pathVars[bucketVarKey] = testCase.Bucket
-				}
-
-				if len(testCase.ID) > 0 {
-					pathVars[idVarKey] = testCase.ID
-				}
-
-				r = mux.SetURLVars(r, pathVars)
+			config := &requestConfig{
+				Authorization: authorizationConfig{
+					AdminToken: "secretAdminPassKey",
+				},
+				Validation: validationConfig{
+					MaxTTL: time.Minute * 5,
+				},
 			}
-
-			if len(testCase.Owner) > 0 {
-				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
-			}
-			decoder := pushItemRequestDecoder(ItemTTL{
-				DefaultTTL: time.Minute,
-				MaxTTL:     time.Hour,
-			}, testCase.UpdateRequest)
+			decoder := setItemRequestDecoder(config)
 			decodedRequest, err := decoder(context.Background(), r)
 			if testCase.ExpectedRequest == nil {
 				assert.Nil(decodedRequest)
 			} else {
-				decodedRequestCast, ok := decodedRequest.(*pushItemRequest)
-				assert.True(ok)
-
-				// id should only be generated if it is not an update request
-				if !testCase.UpdateRequest {
-					testCase.ExpectedRequest.key.ID = decodedRequestCast.key.ID
-				}
-
 				assert.Equal(testCase.ExpectedRequest, decodedRequest)
 			}
 			assert.Equal(testCase.ExpectedErr, err)
@@ -399,13 +343,19 @@ func TestPushItemRequestDecoder(t *testing.T) {
 	}
 }
 
-func TestEncodePushItemResponse(t *testing.T) {
+func TestEncodeSetItemResponse(t *testing.T) {
 	assert := assert.New(t)
-	recorder := httptest.NewRecorder()
-	err := encodePushItemResponse(context.Background(), recorder, &model.Key{
-		Bucket: "north-america",
-		ID:     "usa",
+	createdRecorder := httptest.NewRecorder()
+	err := encodeSetItemResponse(context.Background(), createdRecorder, &setItemResponse{
+		existingResource: false,
 	})
 	assert.Nil(err)
-	assert.Equal(`{"bucket":"north-america","id":"usa"}`, recorder.Body.String())
+	assert.Equal(http.StatusCreated, createdRecorder.Code)
+
+	updatedRecorder := httptest.NewRecorder()
+	err = encodeSetItemResponse(context.Background(), updatedRecorder, &setItemResponse{
+		existingResource: true,
+	})
+	assert.Nil(err)
+	assert.Equal(http.StatusOK, updatedRecorder.Code)
 }

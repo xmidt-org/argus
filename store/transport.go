@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -36,13 +37,16 @@ const (
 var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
 type requestConfig struct {
-	Validation struct {
-		MaxTTL time.Duration
-	}
+	Validation    validationConfig
+	Authorization authorizationConfig
+}
 
-	Authorization struct {
-		Admintoken string
-	}
+type validationConfig struct {
+	MaxTTL time.Duration
+}
+
+type authorizationConfig struct {
+	AdminToken string
 }
 
 type getOrDeleteItemRequest struct {
@@ -70,31 +74,19 @@ type setItemResponse struct {
 
 func getAllItemsRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		vars := mux.Vars(r)
-		bucket, ok := vars[bucketVarKey]
-		if !ok {
-			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
-		}
 		return &getAllItemsRequest{
-			bucket:    bucket,
+			bucket:    mux.Vars(r)[bucketVarKey],
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
-			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 		}, nil
 	}
 }
 
 func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		vars := mux.Vars(r)
-		bucket, ok := vars[bucketVarKey]
-		if !ok {
-			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
-		}
-
-		uuid, ok := vars[uuidVarKey]
-		if !ok {
-			return nil, &BadRequestErr{Message: uuidVarMissingMsg}
-		}
+		URLVars := mux.Vars(r)
+		bucket := URLVars[bucketVarKey]
+		uuid := URLVars[uuidVarKey]
 
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -126,31 +118,21 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 				Bucket: bucket,
 				UUID:   uuid,
 			},
-			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 		}, nil
 	}
 }
 
 func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		vars := mux.Vars(r)
-		bucket, ok := vars[bucketVarKey]
-		if !ok {
-			return nil, &BadRequestErr{Message: bucketVarMissingMsg}
-		}
-
-		uuid, ok := vars[uuidVarKey]
-
-		if !ok {
-			return nil, &BadRequestErr{Message: uuidVarMissingMsg}
-		}
+		URLVars := mux.Vars(r)
 
 		return &getOrDeleteItemRequest{
 			key: model.Key{
-				Bucket: bucket,
-				UUID:   uuid,
+				Bucket: URLVars[bucketVarKey],
+				UUID:   URLVars[uuidVarKey],
 			},
-			adminMode: config.Authorization.Admintoken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
 		}, nil
 	}
@@ -166,9 +148,12 @@ func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 	return nil
 }
 
+// TODO: I noticed order of result elements get shuffled around on multiple fetches
+// This is because of dynamodb. To make tests easier, results are sorted by lexicographical non-decreasing
+// order of the UUIDs.
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
-	var list []model.Item
+	list := []model.Item{}
 	for _, value := range items {
 		list = append(list, value.Item)
 	}
@@ -176,16 +161,17 @@ func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, resp
 	if err != nil {
 		return err
 	}
+
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].UUID < list[j].UUID
+	})
 	rw.Header().Add("Content-Type", "application/json")
 	rw.Write(data)
 	return nil
 }
 
 func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
-	item, ok := response.(*OwnableItem)
-	if !ok {
-		return ErrCasting
-	}
+	item := response.(*OwnableItem)
 
 	data, err := json.Marshal(&item.Item)
 	if err != nil {
