@@ -31,14 +31,14 @@ func TestGetItemEndpoint(t *testing.T) {
 			ItemRequest: &getOrDeleteItemRequest{
 				owner: "Kirby",
 				key: model.Key{
-					ID: "hammer",
+					UUID: "hammer",
 				},
 			},
 			DAOResponse: OwnableItem{
 				Owner: "Yoshi",
 			},
 			ExpectedErr: &KeyNotFoundError{Key: model.Key{
-				ID: "hammer",
+				UUID: "hammer",
 			}},
 		},
 		{
@@ -165,7 +165,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 func TestUpdateItemEndpoint(t *testing.T) {
 	testCases := []struct {
 		Name                 string
-		ItemRequest          *pushItemRequest
+		ItemRequest          *setItemRequest
 		UpdateDAOResponse    OwnableItem
 		UpdateDAOResponseErr error
 		GetDAOResponse       OwnableItem
@@ -175,10 +175,10 @@ func TestUpdateItemEndpoint(t *testing.T) {
 	}{
 		{
 			Name: "Update DAO failure",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "random-UUID",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -195,10 +195,10 @@ func TestUpdateItemEndpoint(t *testing.T) {
 		},
 		{
 			Name: "Get DAO failure",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "random-UUID",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -212,10 +212,10 @@ func TestUpdateItemEndpoint(t *testing.T) {
 		},
 		{
 			Name: "Wrong owner",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "random-UUID",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -228,16 +228,16 @@ func TestUpdateItemEndpoint(t *testing.T) {
 			ExpectedErr: &KeyNotFoundError{
 				Key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "random-UUID",
 				},
 			},
 		},
 		{
 			Name: "Successful Update",
-			ItemRequest: &pushItemRequest{
+			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:     "random-UUID",
+					UUID:   "random-UUID",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -253,7 +253,7 @@ func TestUpdateItemEndpoint(t *testing.T) {
 			},
 			ExpectedResponse: &model.Key{
 				Bucket: "fruits",
-				ID:     "random-UUID",
+				UUID:   "random-UUID",
 			},
 		},
 	}
@@ -271,7 +271,7 @@ func TestUpdateItemEndpoint(t *testing.T) {
 
 			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
 
-			endpoint := newUpdateItemEndpoint(m)
+			endpoint := newSetItemEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
 
 			if testCase.ExpectedErr == nil {
@@ -359,7 +359,7 @@ func testPushItemEndpointHappyPath(t *testing.T) {
 	m := new(MockDAO)
 	key := model.Key{
 		Bucket: "fruits",
-		ID:     "strawberry",
+		UUID:   "strawberry",
 	}
 
 	item := OwnableItem{
@@ -370,8 +370,8 @@ func testPushItemEndpointHappyPath(t *testing.T) {
 	}
 
 	m.On("Push", key, item).Return(nil).Once()
-	endpoint := newPushItemEndpoint(m)
-	resp, err := endpoint(context.Background(), &pushItemRequest{
+	endpoint := newSetItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &setItemRequest{
 		key:  key,
 		item: item,
 	})
@@ -384,8 +384,8 @@ func testPushItemEndpointDAOFails(t *testing.T) {
 	assert := assert.New(t)
 	m := new(MockDAO)
 	m.On("Push", model.Key{}, OwnableItem{}).Return(errors.New("DB failed")).Once()
-	endpoint := newPushItemEndpoint(m)
-	resp, err := endpoint(context.Background(), &pushItemRequest{})
+	endpoint := newSetItemEndpoint(m)
+	resp, err := endpoint(context.Background(), &setItemRequest{})
 	assert.Nil(resp)
 	assert.Equal(errors.New("DB failed"), err)
 	m.AssertExpectations(t)

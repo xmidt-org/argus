@@ -30,7 +30,7 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if itemRequest.owner == itemResponse.Owner {
+		if authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
 			return &itemResponse, nil
 		}
 
