@@ -168,9 +168,8 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	if owner != "" {
-		request.Header.Set(store.ItemOwnerHeaderKey, owner)
-	}
+
+	request.Header.Set(store.ItemOwnerHeaderKey, owner)
 
 	if adminMode {
 		if c.adminToken == "" {
@@ -183,31 +182,19 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	if response.StatusCode == 404 {
-		return []model.Item{}, nil
-	}
+
 	if response.StatusCode != 200 {
 		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to get items", "code", response.StatusCode)
 		return nil, errors.New("failed to get items, non 200 statuscode")
 	}
-	data, err := ioutil.ReadAll(response.Body)
+
+	items := []model.Item{}
+	err = json.NewDecoder(response.Body).Decode(&items)
 	if err != nil {
 		return nil, err
 	}
 
-	body := map[string]model.Item{}
-	err = json.Unmarshal(data, &body)
-	if err != nil {
-		return nil, err
-	}
-
-	responseData := make([]model.Item, len(body))
-	index := 0
-	for _, value := range body {
-		responseData[index] = value
-		index++
-	}
-	return responseData, nil
+	return items, nil
 }
 
 func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
@@ -315,7 +302,7 @@ func (c *Client) Start(ctx context.Context) error {
 			if err == nil {
 				c.listener.Update(items)
 			} else {
-				outcome = FailureOutcomme
+				outcome = FailureOutcome
 				c.loggers.Error.Log("msg", "failed to get items", level.ErrorValue(), err)
 			}
 			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
