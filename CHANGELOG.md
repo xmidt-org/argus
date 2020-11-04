@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+
+## [v0.3.9]
+- Small bug fix to the client. [#72](https://github.com/xmidt-org/argus/pull/72)
+
 ## [v0.3.8]
 - Update code to abide by latest API spec in the main repo readme. [#71](https://github.com/xmidt-org/argus/pull/71)
 
@@ -85,7 +89,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.8...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.9...HEAD
+[v0.3.9]: https://github.com/xmidt-org/argus/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/xmidt-org/argus/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/xmidt-org/argus/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/xmidt-org/argus/compare/v0.3.5...v0.3.6
