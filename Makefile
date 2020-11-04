@@ -69,8 +69,7 @@ style: vendor
 
 .PHONY: test
 test: vendor
-	$(GO) test -v -race  -coverprofile=coverage.txt ./...
-	$(GO) test -v -race -json ./... > report.json
+	$(GO) test -v -race  -coverprofile=coverage.txt -json ./... > report.json
 
 .PHONY: test-cover
 test-cover: test
@@ -86,4 +85,4 @@ it:
 
 .PHONY: clean
 clean:
-	rm -rf ./$(APP) ./.ignore ./coverage.txt ./vendor
+	rm -rf ./$(APP) ./.ignore ./coverage.txt ./report.json ./vendor
