@@ -47,7 +47,9 @@ The body must be in JSON format with the following attributes:
 * _owner_ - Optional.  Free form string to identify the owner of this object.
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to 0 if omitted, which means this object will not auto expire.
 
-An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
+An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records. 
+
+For cases when an existing item needs to be updated on behalf of another unknown owner, `X-Midt-Admin-Token` allows passing a secret key to allow such operation. Note that when updating such item, `X-Midt-Owner` is ignored and the owner of the updated item is unchanged. 
 
 An example PUT request
 ```
@@ -80,7 +82,7 @@ The above response would indicate an existing object has been updated (existing 
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
-An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list.
+An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. If items from all owners are desired, use the `X-Midt-Admin-Token`. 
 
 An example response:
 ```json
@@ -104,7 +106,7 @@ An example response:
 
 
 ### Individual Item - `store/{bucket}/{uuid}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error. For cases where the item's owner is not known, the operation can proceed by using the `X-Midt-Admin-Token`.
 
 An example response:
 ```json
