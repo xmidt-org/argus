@@ -157,6 +157,10 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 	var capabilityCheck CapabilityConfig
 	in.Viper.UnmarshalKey("capabilityCheck", &capabilityCheck)
 	if capabilityCheck.Type == "enforce" || capabilityCheck.Type == "monitor" {
+		c, err := basculechecks.NewEndpointRegexCheck(capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod)
+		if err != nil {
+			return AuthChainOut{Chain: &alice.Chain{}}, emperror.With(err, "failed to create capability check")
+		}
 		var endpoints []*regexp.Regexp
 		for _, e := range capabilityCheck.EndpointBuckets {
 			r, err := regexp.Compile(e)
@@ -166,11 +170,12 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 			}
 			endpoints = append(endpoints, r)
 		}
-		checker, err := basculechecks.NewCapabilityChecker(&in.CheckMeasures, capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod, endpoints)
-		if err != nil {
-			return AuthChainOut{Chain: nil}, emperror.With(err, "failed to create capability check")
+		m := basculechecks.MetricValidator{
+			C:         basculechecks.CapabilitiesValidator{Checker: c},
+			Measures:  &in.CheckMeasures,
+			Endpoints: endpoints,
 		}
-		bearerRules = append(bearerRules, checker.CreateBasculeCheck(capabilityCheck.Type == "enforce"))
+		bearerRules = append(bearerRules, m.CreateValidator(capabilityCheck.Type == "enforce"))
 	}
 
 	authEnforcer := basculehttp.NewEnforcer(

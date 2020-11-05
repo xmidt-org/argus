@@ -202,7 +202,7 @@ func TestEncodeGetAllItemsResponse(t *testing.T) {
 	expectedResponseBody := `[{"uuid":"E-VG","identifier":"fix-you","data":{},"ttl":1},{"uuid":"Y9G","identifier":"this-is-it","data":{}}]`
 	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
 	assert.Nil(err)
-	assert.Equal(expectedResponseBody, recorder.Body.String())
+	assert.JSONEq(expectedResponseBody, recorder.Body.String())
 }
 
 func transferHeaders(headers map[string][]string, r *http.Request) {
