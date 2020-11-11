@@ -93,15 +93,14 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 			ItemResponse: &OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					UUID:       "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI",
-					TTL:        aws.Int64(20),
-					Identifier: "id01",
+					UUID: "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI",
+					TTL:  aws.Int64(20),
 					Data: map[string]interface{}{
 						"key": 10,
 					},
 				},
 			},
-			ExpectedBody: `{"uuid":"NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI","identifier":"id01","data":{"key":10},"ttl":20}`,
+			ExpectedBody: `{"uuid":"NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI","data":{"key":10},"ttl":20}`,
 			ExpectedCode: 200,
 			ExpectedHeaders: http.Header{
 				"Content-Type": []string{"application/json"},
@@ -184,22 +183,20 @@ func TestEncodeGetAllItemsResponse(t *testing.T) {
 	response := map[string]OwnableItem{
 		"E-VG": OwnableItem{
 			Item: model.Item{
-				UUID:       "E-VG",
-				Identifier: "fix-you",
-				Data:       map[string]interface{}{},
-				TTL:        aws.Int64(1),
+				UUID: "E-VG",
+				Data: map[string]interface{}{},
+				TTL:  aws.Int64(1),
 			},
 		},
 		"Y9G": OwnableItem{
 			Item: model.Item{
-				UUID:       "Y9G",
-				Identifier: "this-is-it",
-				Data:       map[string]interface{}{},
+				UUID: "Y9G",
+				Data: map[string]interface{}{},
 			},
 		},
 	}
 	recorder := httptest.NewRecorder()
-	expectedResponseBody := `[{"uuid":"E-VG","identifier":"fix-you","data":{},"ttl":1},{"uuid":"Y9G","identifier":"this-is-it","data":{}}]`
+	expectedResponseBody := `[{"uuid":"E-VG","data":{},"ttl":1},{"uuid":"Y9G","data":{}}]`
 	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
 	assert.Nil(err)
 	assert.JSONEq(expectedResponseBody, recorder.Body.String())
@@ -233,7 +230,7 @@ func TestsetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "Missing data item field",
 			URLVars:     map[string]string{bucketVarKey: "letters", uuidVarKey: "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"},
-			RequestBody: `{"uuid": "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs","identifier": "a"}`,
+			RequestBody: `{"uuid": "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"}`,
 			ExpectedErr: BadRequestErr{
 				Message: "data field must be set",
 			},
@@ -243,12 +240,11 @@ func TestsetItemRequestDecoder(t *testing.T) {
 			Name:        "Capped TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
 			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}},
-			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						UUID:       "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
-						Identifier: "xyz",
+						UUID: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -268,11 +264,10 @@ func TestsetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "UUID mismatch TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
-			RequestBody: `{"uuid":"iBCtWB5Z8rw5KLJhcHpxMI9-E56wSCA2bcTVwY2YAiU", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			RequestBody: `{"uuid":"iBCtWB5Z8rw5KLJhcHpxMI9-E56wSCA2bcTVwY2YAiU", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "xyz",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -291,12 +286,11 @@ func TestsetItemRequestDecoder(t *testing.T) {
 			Name:        "Happy Path - Admin mode",
 			URLVars:     map[string]string{bucketVarKey: "variables", uuidVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
 			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}, AdminTokenHeaderKey: []string{"secretAdminPassKey"}},
-			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "identifier": "xyz", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
+			RequestBody: `{"uuid":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						UUID:       "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
-						Identifier: "xyz",
+						UUID: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),

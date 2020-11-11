@@ -218,7 +218,7 @@ func TestSetItemEndpoint(t *testing.T) {
 				},
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "strawberry",
+						UUID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 					},
 					Owner: "Bob",
 				},
@@ -238,7 +238,7 @@ func TestSetItemEndpoint(t *testing.T) {
 				},
 				item: OwnableItem{
 					Item: model.Item{
-						Identifier: "strawberry",
+						UUID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 					},
 					Owner: "Bob",
 				},
