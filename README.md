@@ -48,7 +48,7 @@ The body must be in JSON format with the following attributes:
 
 An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
 
-The exception to the above would be an authenticated request.  The authentication method is not specified and is up to the implementation to decide.  Authenticated requests shall be allowed to update all attributes except the `X-Midt-Owner` meta attribute.
+The exception to the above would be an authorized request.  The authorization method is not specified and is up to the implementation to decide.  Authorized requests shall be allowed to update all attributes except the `X-Midt-Owner` meta attribute.
 
 An example PUT request
 ```
@@ -80,7 +80,7 @@ The above response would indicate an existing object has been updated (existing 
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
-An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authenticated requests can retrieve items from all owners.
+An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authorized requests can retrieve items from all owners.
 
 An example response:
 ```json
@@ -103,7 +103,7 @@ An example response:
 
 
 ### Individual Item - `store/{bucket}/{id}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.  An authenticated request may override this requirement, providing an administrative override.  The method of authentication is not specified.
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.  An authorized request may override this requirement, providing an administrative override.  The method of authorization is not specified.
 
 An example response:
 ```json
