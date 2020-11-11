@@ -80,7 +80,7 @@ The above response would indicate an existing object has been updated (existing 
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
-An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authorized requests can retrieve items from all owners.
+An example response will look like the below where "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7" is the id of the only item in this collection. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authorized requests can retrieve items from all owners.
 
 An example response:
 ```json
