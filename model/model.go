@@ -33,10 +33,6 @@ type Item struct {
 	// (e.g. SHA256(<identifier>)). This will be used by argus to determine uniqueness of objects being stored or updated.
 	UUID string `json:"uuid"`
 
-	// Identifier is the common name of the provided resource. There is no enforcement of uniqueness
-	// across resource of this type.
-	Identifier string `json:"identifier"`
-
 	// Data is the JSON object to be stored. Opaque to argus.
 	Data map[string]interface{} `json:"data"`
 

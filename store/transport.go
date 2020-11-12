@@ -157,14 +157,16 @@ func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, resp
 	for _, value := range items {
 		list = append(list, value.Item)
 	}
+
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].UUID < list[j].UUID
+	})
+
 	data, err := json.Marshal(&list)
 	if err != nil {
 		return err
 	}
 
-	sort.SliceStable(list, func(i, j int) bool {
-		return list[i].UUID < list[j].UUID
-	})
 	rw.Header().Add("Content-Type", "application/json")
 	rw.Write(data)
 	return nil

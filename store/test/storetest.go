@@ -34,7 +34,6 @@ var GenericTestKeyPair = store.KeyItemPairRequest{
 	},
 	OwnableItem: store.OwnableItem{
 		Item: model.Item{
-			Identifier: "earth",
 			Data: map[string]interface{}{
 				"year":  float64(1967),
 				"words": []interface{}{"What", "a", "Wonderful", "World"},
