@@ -5,7 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
 - Bumped webpa-common to v1.11.2 and updated setup for capability check accordingly. [#74](https://github.com/xmidt-org/argus/pull/74)
+- Removed identifier as a field from the API. [#85](https://github.com/xmidt-org/argus/pull/85)
 
 ## [v0.3.9]
 - Small bug fix to the client. [#72](https://github.com/xmidt-org/argus/pull/72)
