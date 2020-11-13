@@ -35,7 +35,7 @@ type Pusher interface {
 	Push(item model.Item, owner string, adminMode bool) (PushResult, error)
 
 	// Remove will remove the item from the store
-	Remove(uuid string, owner string, adminMode bool) (model.Item, error)
+	Remove(id string, owner string, adminMode bool) (model.Item, error)
 }
 
 type Listener interface {

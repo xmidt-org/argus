@@ -17,12 +17,12 @@ import (
 // request URL path keys
 const (
 	bucketVarKey = "bucket"
-	uuidVarKey   = "uuid"
+	idVarKey     = "id"
 )
 
 const (
 	bucketVarMissingMsg = "{bucket} URL path parameter missing"
-	uuidVarMissingMsg   = "{uuid} URL path parameter missing"
+	idVarMissingMsg     = "{id} URL path parameter missing"
 )
 
 // Request and Response Headers
@@ -86,7 +86,7 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		URLVars := mux.Vars(r)
 		bucket := URLVars[bucketVarKey]
-		uuid := URLVars[uuidVarKey]
+		id := URLVars[idVarKey]
 
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -105,8 +105,8 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 
 		validateItemTTL(&item, config.Validation.MaxTTL)
 
-		if item.UUID != uuid {
-			return nil, &BadRequestErr{Message: "UUIDs must match between URL and payload"}
+		if item.ID != id {
+			return nil, &BadRequestErr{Message: "ids must match between URL and payload"}
 		}
 
 		return &setItemRequest{
@@ -116,7 +116,7 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 			},
 			key: model.Key{
 				Bucket: bucket,
-				UUID:   uuid,
+				ID:     id,
 			},
 			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 		}, nil
@@ -130,7 +130,7 @@ func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestF
 		return &getOrDeleteItemRequest{
 			key: model.Key{
 				Bucket: URLVars[bucketVarKey],
-				UUID:   URLVars[uuidVarKey],
+				ID:     URLVars[idVarKey],
 			},
 			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
@@ -150,7 +150,7 @@ func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 
 // TODO: I noticed order of result elements get shuffled around on multiple fetches
 // This is because of dynamodb. To make tests easier, results are sorted by lexicographical non-decreasing
-// order of the UUIDs.
+// order of the ids.
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
 	list := []model.Item{}
@@ -159,7 +159,7 @@ func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, resp
 	}
 
 	sort.SliceStable(list, func(i, j int) bool {
-		return list[i].UUID < list[j].UUID
+		return list[i].ID < list[j].ID
 	})
 
 	data, err := json.Marshal(&list)

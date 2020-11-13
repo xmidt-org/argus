@@ -31,7 +31,7 @@ func TestGetItemEndpoint(t *testing.T) {
 			ItemRequest: &getOrDeleteItemRequest{
 				owner: "Kirby",
 				key: model.Key{
-					UUID: "hammer",
+					ID: "hammer",
 				},
 			},
 			DAOResponse: OwnableItem{
@@ -45,7 +45,7 @@ func TestGetItemEndpoint(t *testing.T) {
 			ItemRequest: &getOrDeleteItemRequest{
 				owner: "Kirby",
 				key: model.Key{
-					UUID: "hammer",
+					ID: "hammer",
 				},
 				adminMode: true,
 			},
@@ -214,11 +214,11 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
-						UUID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+						ID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 					},
 					Owner: "Bob",
 				},
@@ -234,11 +234,11 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
-						UUID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+						ID: "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 					},
 					Owner: "Bob",
 				},
@@ -251,7 +251,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -268,7 +268,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -293,7 +293,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					UUID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},

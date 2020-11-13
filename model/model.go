@@ -22,16 +22,16 @@ type Key struct {
 	// Bucket is a collection of items.
 	Bucket string `json:"bucket"`
 
-	// UUID is the unique ID for an item in a bucket.
-	UUID string `json:"uuid"`
+	// ID is the unique ID for an item in a bucket.
+	ID string `json:"id"`
 }
 
 // Item defines the abstract item to be stored.
 type Item struct {
-	// UUID is the unique ID identifying this item. It is recommended this value is the resulting
+	// ID is the unique ID identifying this item. It is recommended this value is the resulting
 	// value of a SHA256 calculation, using the unique attributes of the object being represented
-	// (e.g. SHA256(<identifier>)). This will be used by argus to determine uniqueness of objects being stored or updated.
-	UUID string `json:"uuid"`
+	// (e.g. SHA256(<common_name>)). This will be used by argus to determine uniqueness of objects being stored or updated.
+	ID string `json:"id"`
 
 	// Data is the JSON object to be stored. Opaque to argus.
 	Data map[string]interface{} `json:"data"`

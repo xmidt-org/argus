@@ -39,10 +39,10 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
 		i.data[key.Bucket] = map[string]store.OwnableItem{
-			key.UUID: item,
+			key.ID: item,
 		}
 	} else {
-		i.data[key.Bucket][key.UUID] = item
+		i.data[key.Bucket][key.ID] = item
 	}
 	i.lock.Unlock()
 	return nil
@@ -57,7 +57,7 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 	if _, ok := i.data[key.Bucket]; !ok {
 		err = store.KeyNotFoundError{Key: key}
 	} else {
-		if value, ok := i.data[key.Bucket][key.UUID]; !ok {
+		if value, ok := i.data[key.Bucket][key.ID]; !ok {
 			err = store.KeyNotFoundError{Key: key}
 		} else {
 			item = value
@@ -79,7 +79,7 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	} else {
 		err = store.KeyNotFoundError{Key: model.Key{
 			Bucket: bucket,
-			UUID:   "",
+			ID:   "",
 		}}
 	}
 	i.lock.RUnlock()
@@ -95,11 +95,11 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	if _, ok := i.data[key.Bucket]; !ok {
 		err = store.KeyNotFoundError{Key: key}
 	} else {
-		if value, ok := i.data[key.Bucket][key.UUID]; !ok {
+		if value, ok := i.data[key.Bucket][key.ID]; !ok {
 			err = store.KeyNotFoundError{Key: key}
 		} else {
 			item = value
-			delete(i.data[key.Bucket], key.UUID)
+			delete(i.data[key.Bucket], key.ID)
 		}
 	}
 	i.lock.Unlock()
