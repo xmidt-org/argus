@@ -32,24 +32,23 @@ By participating, you agree to this Code.
 argus has one function: interact with a database whether it is internal or external.
 To enable this, argus has two endpoints: 1) individual items, and 2) buckets containing items.
 
-### Create Individual Item - `store/{bucket}/{uuid}` endpoint
+### Create Individual Item - `store/{bucket}/{id}` endpoint
 This endpoint allows for clients to `PUT` an object into argus.  The placeholder variables in the path must contain:
 
 * _bucket_ - The name used to indicate the resource type of which the stored data represents.  A plural form of a noun word should be used for stylistic reasons.
-* _uuid_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<identifier>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.
+* _id_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<common_name>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.  argus will not accept any values for this attribute that is not a 64 character hex string.
 
 
 The body must be in JSON format with the following attributes:
 
-* _uuid_ - Required.  See above.
-* _identifier_ - Required.  Common name of the provided resource.  There is no enforcement of uniqueness across resource of this type.
+* _id_ - Required.  See above.
 * _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
 * _owner_ - Optional.  Free form string to identify the owner of this object.
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to 0 if omitted, which means this object will not auto expire.
 
-An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records. 
+An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
 
-For cases when an existing item needs to be updated on behalf of another unknown owner, `X-Midt-Admin-Token` allows passing a secret key to allow such operation. Note that when updating such item, `X-Midt-Owner` is ignored and the owner of the updated item is unchanged. 
+The exception to the above would be an authorized request.  The authorization method is not specified and is up to the implementation to decide.  Authorized requests shall be allowed to update all attributes except the `X-Midt-Owner` meta attribute.
 
 An example PUT request
 ```
@@ -57,8 +56,7 @@ PUT /store/planets/7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b377
 ```
 ```json
 {
-  "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-  "identifier" : "earth",
+  "id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
   "data": {
     "year":  1967,
      "words": ["What", "a", "Wonderful", "World"]
@@ -71,25 +69,24 @@ Example responses:
 ```
 HTTP/1.1 201 Created
 ```
-The above response would indicate a new object has been created (no existing object with the given UUID was found).
+The above response would indicate a new object has been created (no existing object with the given ID was found).
 
 ```
 HTTP/1.1 200 OK
 ```
-The above response would indicate an existing object has been updated (existing object with the given UUID was found).  Note that a PUT operation on an existing record may also result in "403 Forbidden" error.
+The above response would indicate an existing object has been updated (existing object with the given ID was found).  Note that a PUT operation on an existing record may also result in "403 Forbidden" error.
 
 
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
-An example response will look like where "earth" is the id of the item. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. If items from all owners are desired, use the `X-Midt-Admin-Token` header. 
+An example response will look like the below where "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7" is the id of the only item in this collection. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authorized requests can retrieve items from all owners.
 
 An example response:
 ```json
 [
   {
-    "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-    "identifier": "earth",
+    "id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
     "data": {
       "words": [
         "What",
@@ -105,14 +102,13 @@ An example response:
 ```
 
 
-### Individual Item - `store/{bucket}/{uuid}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error. For cases where the item's owner is not known, the operation can proceed by using the `X-Midt-Admin-Token`.
+### Individual Item - `store/{bucket}/{id}` endpoint
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.  An authorized request may override this requirement, providing an administrative override.  The method of authorization is not specified.
 
 An example response:
 ```json
 {
-  "uuid": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-  "identifier": "earth",
+  "id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
   "data": {
     "words": [
       "What",
