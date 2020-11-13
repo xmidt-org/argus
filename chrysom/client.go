@@ -198,10 +198,6 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 }
 
 func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
-	if item.Identifier == "" {
-		return "", errors.New("identifier can't be empty")
-	}
-
 	if item.UUID == "" {
 		return "", errors.New("uuid can't be empty")
 	}

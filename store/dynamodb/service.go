@@ -73,7 +73,6 @@ var retryableAWSCodes = map[string]bool{
 const (
 	bucketAttributeKey     = "bucket"
 	uuidAttributeKey       = "uuid"
-	identifierAttributeKey = "identifier"
 	expirationAttributeKey = "expires"
 )
 

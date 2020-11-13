@@ -32,9 +32,9 @@ var (
 var (
 	item = store.OwnableItem{
 		Item: model.Item{
-			Identifier: testUUID,
-			Data:       map[string]interface{}{"dataKey": "dataValue"},
-			TTL:        aws.Int64(int64((time.Second * 300).Seconds())),
+			UUID: testUUID,
+			Data: map[string]interface{}{"dataKey": "dataValue"},
+			TTL:  aws.Int64(int64((time.Second * 300).Seconds())),
 		},
 		Owner: "xmidt",
 	}
@@ -158,9 +158,6 @@ func TestGetAllItems(t *testing.T) {
 				uuidAttributeKey: {
 					S: aws.String("-mTqHoLhIG-CirKgKRfH6SrMuY47lYgaG0rVK5FLZuM"),
 				},
-				identifierAttributeKey: {
-					S: aws.String("expired"),
-				},
 				expirationAttributeKey: {
 					N: aws.String(pastExpiration),
 				},
@@ -171,9 +168,6 @@ func TestGetAllItems(t *testing.T) {
 				},
 				uuidAttributeKey: {
 					S: aws.String("1wzI3cbHlIHD9TUi9LgOz1Vt1cZIOloD4PvlB5uFT4E"),
-				},
-				identifierAttributeKey: {
-					S: aws.String("notYetExpired"),
 				},
 				expirationAttributeKey: {
 					N: aws.String(futureExpiration),
@@ -187,17 +181,11 @@ func TestGetAllItems(t *testing.T) {
 				uuidAttributeKey: {
 					S: aws.String("dbtIlYXQsAoAmexD6zGV8ZfVImEjsFGHcMJdhCZ-1L4"),
 				},
-				identifierAttributeKey: {
-					S: aws.String("neverExpires"),
-				},
 			},
 
 			{
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
-				},
-				identifierAttributeKey: {
-					S: aws.String("db goes cuckoo"),
 				},
 			},
 		},
@@ -215,7 +203,6 @@ func TestGetAllItems(t *testing.T) {
 
 	for _, item := range ownableItems {
 		assert.NotEmpty(item.UUID)
-		assert.NotEmpty(item.Identifier)
 		if item.TTL != nil {
 			assert.NotZero(*item.TTL)
 		}
@@ -247,10 +234,6 @@ func TestDeleteItem(t *testing.T) {
 			"owner": {
 				S: aws.String("xmidt"),
 			},
-
-			"identifier": {
-				S: aws.String("id01"),
-			},
 		},
 	}
 	expectedData := map[string]interface{}{
@@ -264,7 +247,6 @@ func TestDeleteItem(t *testing.T) {
 	ownableItem, actualConsumedCapacity, err := service.Delete(key)
 	assert.Nil(err)
 	assert.Equal("xmidt", ownableItem.Owner)
-	assert.Equal("id01", ownableItem.Identifier)
 	assert.Equal(expectedData, ownableItem.Data)
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
@@ -304,17 +286,12 @@ func TestGetItem(t *testing.T) {
 					"owner": {
 						S: aws.String("xmidt"),
 					},
-
-					"identifier": {
-						S: aws.String("id01"),
-					},
 				},
 			},
 			ExpectedResponse: store.OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					UUID:       testUUID,
-					Identifier: "id01",
+					UUID: testUUID,
 					Data: map[string]interface{}{
 						"key": "stringVal",
 					},
@@ -345,10 +322,6 @@ func TestGetItem(t *testing.T) {
 					},
 					"owner": {
 						S: aws.String("xmidt"),
-					},
-
-					"identifier": {
-						S: aws.String("id01"),
 					},
 				},
 			},
@@ -382,17 +355,12 @@ func TestGetItem(t *testing.T) {
 					"owner": {
 						S: aws.String("xmidt"),
 					},
-
-					"identifier": {
-						S: aws.String("id01"),
-					},
 				},
 			},
 			ExpectedResponse: store.OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					UUID:       testUUID,
-					Identifier: "id01",
+					UUID: testUUID,
 					Data: map[string]interface{}{
 						"key": "stringVal",
 					},
@@ -423,7 +391,6 @@ func TestGetItem(t *testing.T) {
 				assert.Equal(testCase.GetItemOutput.ConsumedCapacity, actualConsumedCapacity)
 				assert.Equal(testCase.ExpectedResponse.Owner, ownableItem.Owner)
 				assert.Equal(testCase.ExpectedResponse.Data, ownableItem.Data)
-				assert.Equal(testCase.ExpectedResponse.Identifier, ownableItem.Identifier)
 				assert.Equal(testCase.ExpectedResponse.UUID, ownableItem.UUID)
 
 				if testCase.ItemExpires {
