@@ -79,7 +79,7 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	} else {
 		err = store.KeyNotFoundError{Key: model.Key{
 			Bucket: bucket,
-			ID:   "",
+			ID:     "",
 		}}
 	}
 	i.lock.RUnlock()

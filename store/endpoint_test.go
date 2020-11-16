@@ -214,7 +214,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:     "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -234,7 +234,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:     "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item: model.Item{
@@ -251,7 +251,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:     "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -268,7 +268,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:     "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
@@ -293,7 +293,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			ItemRequest: &setItemRequest{
 				key: model.Key{
 					Bucket: "fruits",
-					ID:   "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
+					ID:     "XnN_iR2xF1RCo5_ec-UdeBpUVQbXHJVHem3rWYi9f5o",
 				},
 				item: OwnableItem{
 					Item:  model.Item{},

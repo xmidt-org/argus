@@ -18,8 +18,9 @@
 package inmem
 
 import (
-	"github.com/xmidt-org/argus/store/test"
 	"testing"
+
+	"github.com/xmidt-org/argus/store/test"
 )
 
 func TestInMemStore(t *testing.T) {
