@@ -30,7 +30,7 @@ var testInt int64 = 3
 var GenericTestKeyPair = store.KeyItemPairRequest{
 	Key: model.Key{
 		Bucket: "world",
-		UUID:   "earth",
+		ID:     "earth",
 	},
 	OwnableItem: store.OwnableItem{
 		Item: model.Item{

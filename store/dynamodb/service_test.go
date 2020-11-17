@@ -19,7 +19,7 @@ import (
 const (
 	testTableName  = "table01"
 	testBucketName = "bucket01"
-	testUUID       = "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI"
+	testID         = "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI"
 )
 
 var (
@@ -32,7 +32,7 @@ var (
 var (
 	item = store.OwnableItem{
 		Item: model.Item{
-			UUID: testUUID,
+			ID:   testID,
 			Data: map[string]interface{}{"dataKey": "dataValue"},
 			TTL:  aws.Int64(int64((time.Second * 300).Seconds())),
 		},
@@ -40,7 +40,7 @@ var (
 	}
 	key = model.Key{
 		Bucket: testBucketName,
-		UUID:   testUUID,
+		ID:     testID,
 	}
 )
 
@@ -155,7 +155,7 @@ func TestGetAllItems(t *testing.T) {
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
 				},
-				uuidAttributeKey: {
+				idAttributeKey: {
 					S: aws.String("-mTqHoLhIG-CirKgKRfH6SrMuY47lYgaG0rVK5FLZuM"),
 				},
 				expirationAttributeKey: {
@@ -166,7 +166,7 @@ func TestGetAllItems(t *testing.T) {
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
 				},
-				uuidAttributeKey: {
+				idAttributeKey: {
 					S: aws.String("1wzI3cbHlIHD9TUi9LgOz1Vt1cZIOloD4PvlB5uFT4E"),
 				},
 				expirationAttributeKey: {
@@ -178,7 +178,7 @@ func TestGetAllItems(t *testing.T) {
 				bucketAttributeKey: {
 					S: aws.String(testBucketName),
 				},
-				uuidAttributeKey: {
+				idAttributeKey: {
 					S: aws.String("dbtIlYXQsAoAmexD6zGV8ZfVImEjsFGHcMJdhCZ-1L4"),
 				},
 			},
@@ -202,7 +202,7 @@ func TestGetAllItems(t *testing.T) {
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 
 	for _, item := range ownableItems {
-		assert.NotEmpty(item.UUID)
+		assert.NotEmpty(item.ID)
 		if item.TTL != nil {
 			assert.NotZero(*item.TTL)
 		}
@@ -221,8 +221,8 @@ func TestDeleteItem(t *testing.T) {
 			bucketAttributeKey: {
 				S: aws.String(testBucketName),
 			},
-			uuidAttributeKey: {
-				S: aws.String(testUUID),
+			idAttributeKey: {
+				S: aws.String(testID),
 			},
 			"data": {
 				M: map[string]*dynamodb.AttributeValue{
@@ -273,8 +273,8 @@ func TestGetItem(t *testing.T) {
 					bucketAttributeKey: {
 						S: aws.String(testBucketName),
 					},
-					uuidAttributeKey: {
-						S: aws.String(testUUID),
+					idAttributeKey: {
+						S: aws.String(testID),
 					},
 					"data": {
 						M: map[string]*dynamodb.AttributeValue{
@@ -291,7 +291,7 @@ func TestGetItem(t *testing.T) {
 			ExpectedResponse: store.OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					UUID: testUUID,
+					ID: testID,
 					Data: map[string]interface{}{
 						"key": "stringVal",
 					},
@@ -310,8 +310,8 @@ func TestGetItem(t *testing.T) {
 					bucketAttributeKey: {
 						S: aws.String(testBucketName),
 					},
-					uuidAttributeKey: {
-						S: aws.String(testUUID),
+					idAttributeKey: {
+						S: aws.String(testID),
 					},
 					"data": {
 						M: map[string]*dynamodb.AttributeValue{
@@ -326,7 +326,7 @@ func TestGetItem(t *testing.T) {
 				},
 			},
 			ExpectedResponseErr: store.KeyNotFoundError{Key: model.Key{
-				UUID:   testUUID,
+				ID:     testID,
 				Bucket: testBucketName,
 			}},
 		},
@@ -342,8 +342,8 @@ func TestGetItem(t *testing.T) {
 					bucketAttributeKey: {
 						S: aws.String(testBucketName),
 					},
-					uuidAttributeKey: {
-						S: aws.String(testUUID),
+					idAttributeKey: {
+						S: aws.String(testID),
 					},
 					"data": {
 						M: map[string]*dynamodb.AttributeValue{
@@ -360,7 +360,7 @@ func TestGetItem(t *testing.T) {
 			ExpectedResponse: store.OwnableItem{
 				Owner: "xmidt",
 				Item: model.Item{
-					UUID: testUUID,
+					ID: testID,
 					Data: map[string]interface{}{
 						"key": "stringVal",
 					},
@@ -391,7 +391,7 @@ func TestGetItem(t *testing.T) {
 				assert.Equal(testCase.GetItemOutput.ConsumedCapacity, actualConsumedCapacity)
 				assert.Equal(testCase.ExpectedResponse.Owner, ownableItem.Owner)
 				assert.Equal(testCase.ExpectedResponse.Data, ownableItem.Data)
-				assert.Equal(testCase.ExpectedResponse.UUID, ownableItem.UUID)
+				assert.Equal(testCase.ExpectedResponse.ID, ownableItem.ID)
 
 				if testCase.ItemExpires {
 					assert.NotZero(*ownableItem.TTL)
@@ -410,8 +410,8 @@ func initGlobalInputs() {
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			uuidAttributeKey: {
-				S: aws.String(key.UUID),
+			idAttributeKey: {
+				S: aws.String(key.ID),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
@@ -422,8 +422,8 @@ func initGlobalInputs() {
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			uuidAttributeKey: {
-				S: aws.String(key.UUID),
+			idAttributeKey: {
+				S: aws.String(key.ID),
 			},
 		},
 		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),

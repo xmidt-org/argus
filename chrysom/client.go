@@ -198,8 +198,8 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 }
 
 func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
-	if item.UUID == "" {
-		return "", errors.New("uuid can't be empty")
+	if item.ID == "" {
+		return "", errors.New("id can't be empty")
 	}
 
 	if item.TTL != nil && *item.TTL < 1 {
@@ -210,7 +210,7 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, item.UUID), bytes.NewReader(data))
+	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -243,11 +243,11 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	return "", errors.New("Failed to set item as DB responded with non-success statuscode")
 }
 
-func (c *Client) Remove(uuid string, owner string, adminMode bool) (model.Item, error) {
-	if uuid == "" {
-		return model.Item{}, errors.New("uuid can't be empty")
+func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, error) {
+	if id == "" {
+		return model.Item{}, errors.New("id can't be empty")
 	}
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, uuid), nil)
+	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}

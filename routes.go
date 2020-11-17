@@ -100,17 +100,19 @@ type PrimaryRoutes struct {
 
 func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {
 	router.Router.Use(router.AuthChain.Then)
+	itemPathFormat := "/%s/store/{bucket}/{id}"
+
 	if routes.Set != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{uuid}", apiBase), routes.Set).Methods(http.MethodPut)
+		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Set).Methods(http.MethodPut)
 	}
 	if routes.Get != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{uuid}", apiBase), routes.Get).Methods(http.MethodGet)
+		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Get).Methods(http.MethodGet)
 	}
 	if routes.GetAll != nil {
 		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.GetAll).Methods(http.MethodGet)
 	}
 	if routes.Delete != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}/{uuid}", apiBase), routes.Delete).Methods(http.MethodDelete)
+		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Delete).Methods(http.MethodDelete)
 	}
 }
 

@@ -72,7 +72,7 @@ var retryableAWSCodes = map[string]bool{
 // Dynamo DB attribute keys
 const (
 	bucketAttributeKey     = "bucket"
-	uuidAttributeKey       = "uuid"
+	idAttributeKey         = "id"
 	expirationAttributeKey = "expires"
 )
 
@@ -127,8 +127,8 @@ func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.Con
 				bucketAttributeKey: {
 					S: aws.String(key.Bucket),
 				},
-				uuidAttributeKey: {
-					S: aws.String(key.UUID),
+				idAttributeKey: {
+					S: aws.String(key.ID),
 				},
 			},
 			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
@@ -146,8 +146,8 @@ func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.Con
 			bucketAttributeKey: {
 				S: aws.String(key.Bucket),
 			},
-			uuidAttributeKey: {
-				S: aws.String(key.UUID),
+			idAttributeKey: {
+				S: aws.String(key.ID),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
@@ -181,7 +181,7 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 		item.TTL = &remainingTTLSeconds
 	}
 
-	item.OwnableItem.UUID = key.UUID
+	item.OwnableItem.ID = key.ID
 
 	return item.OwnableItem, consumedCapacity, err
 
@@ -239,15 +239,15 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 			}
 			item.TTL = &remainingTTLSeconds
 		}
-		item.OwnableItem.UUID = item.Key.UUID
+		item.OwnableItem.ID = item.Key.ID
 
-		result[item.Key.UUID] = item.OwnableItem
+		result[item.Key.ID] = item.OwnableItem
 	}
 	return result, consumedCapacity, nil
 }
 
 func itemNotFound(item *storableItem) bool {
-	return item.Key.Bucket == "" || item.Key.UUID == ""
+	return item.Key.Bucket == "" || item.Key.ID == ""
 }
 
 func newService(config aws.Config, awsProfile string, tableName string, logger log.Logger) (service, error) {

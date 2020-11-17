@@ -36,13 +36,13 @@ type KeyNotFoundError struct {
 }
 
 func (knfe KeyNotFoundError) Error() string {
-	if knfe.Key.UUID == "" && knfe.Key.Bucket == "" {
+	if knfe.Key.ID == "" && knfe.Key.Bucket == "" {
 		return fmt.Sprint("parameters for key not set")
-	} else if knfe.Key.UUID == "" && knfe.Key.Bucket != "" {
+	} else if knfe.Key.ID == "" && knfe.Key.Bucket != "" {
 		return fmt.Sprintf("no value exists for bucket %s", knfe.Key.Bucket)
 
 	}
-	return fmt.Sprintf("no value exists with bucket: %s, uuid: %s", knfe.Key.Bucket, knfe.Key.UUID)
+	return fmt.Sprintf("no value exists with bucket: %s, id: %s", knfe.Key.Bucket, knfe.Key.ID)
 }
 
 func (knfe KeyNotFoundError) StatusCode() int {
