@@ -120,10 +120,27 @@ authHeader: ["dXNlcjpwYXNz"]
 # request is a config section related to operation authorization
 # and request validation.
 request:
+  # authorization contains config around authorizing requests to perform privileged operations.
   authorization:
-    # adminToken serves as a master key which allows performing operations on any 
-    # item regardless of their ownership status.  
-    adminToken: "Hzu1WpIe7S8G" 
+    # accessLevel defines config around the injection of an access level attribute to bascule tokens
+    # which application code can use to decide which operations a certain request is allowed to make.
+    accessLevel:
+      # # attributeKey is the key that will be used as the attribute name for the access level value generated 
+      # # for a given bascule token.
+      # # (Optional) defaults to access-level
+      # attributeKey: "access-level"
+
+    # superUser relates to config around the use case Argus gives to idea of access levels for a request.
+    superUser:
+      # # capabilityListClaimPath is the list of keys that will be used to find the claim containing
+      # # the list of capabilities in incoming JWT claims.
+      # # (Optional) default: ["capabilities"]
+      # capabilityListClaimPath: ["capabilities"]
+
+      # # superUserCapability allows Argus to verify whether an incoming request is allowed to operate in 
+      # # super user mode. 
+      # # (Optional). If not provided, the super user feature is disabled.
+      # superUserCapability:  "argus:super-user:capability"
 
   validation:
     # maxTTL specifies the cap for the TTL of items when values are specified.

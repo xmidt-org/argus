@@ -137,12 +137,25 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 			return AuthChainOut{Chain: &alice.Chain{}}, emperror.With(err, "failed to create resolver")
 		}
 
-		options = append(options, basculehttp.WithTokenFactory("Bearer", basculehttp.BearerTokenFactory{
-			DefaultKeyId: DefaultKeyID,
-			Resolver:     resolver,
-			Parser:       bascule.DefaultJWTParser,
-			Leeway:       jwtVal.Leeway,
-		}))
+		var (
+			superUserConfig   superUserAccessLevelConfig
+			accessLevelConfig AccessLevelConfig
+		)
+		in.Viper.UnmarshalKey("request.authorization.superUser", &superUserConfig)
+
+		if superUserConfig.SuperUserCapability == "" {
+			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "super user capability not provided so super user feature will not be enabled")
+		} else {
+			in.Viper.UnmarshalKey("request.authorization.accessLevel", &accessLevelConfig)
+			accessLevelConfig.Resolver = superUserAccessLevelResolver(superUserConfig)
+		}
+
+		options = append(options, basculehttp.WithTokenFactory("Bearer",
+			AccessLevelBearerTokenFactory{
+				Resolver: resolver,
+				Parser:   bascule.DefaultJWTParser,
+				Leeway:   jwtVal.Leeway,
+			}))
 	}
 
 	authConstructor := basculehttp.NewConstructor(options...)
