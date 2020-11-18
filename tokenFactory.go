@@ -78,9 +78,6 @@ func (a AccessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 
 	jwtClaims := bascule.NewAttributes(claimsMap)
 
-	accessLevelResolver := a.AccessLevelConfig.GetResolver()
-	claimsMap[a.AccessLevelConfig.GetAttributeKey()] = accessLevelResolver(jwtClaims)
-
 	principalVal, ok := jwtClaims.Get(jwtPrincipalKey)
 	if !ok {
 		return nil, emperror.WrapWith(basculehttp.ErrorInvalidPrincipal, "principal value not found", "principal key", jwtPrincipalKey, "jwtClaims", claimsMap)
@@ -89,8 +86,15 @@ func (a AccessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 	if !ok {
 		return nil, emperror.WrapWith(basculehttp.ErrorInvalidPrincipal, "principal value not a string", "principal", principalVal)
 	}
+	jwtClaims = a.injectAccessLevelAttribute(claimsMap, jwtClaims)
 
 	return bascule.NewToken("jwt", principal, jwtClaims), nil
+}
+
+func (a AccessLevelBearerTokenFactory) injectAccessLevelAttribute(claimsMap map[string]interface{}, attributes bascule.Attributes) bascule.Attributes {
+	accessLevelResolver := a.AccessLevelConfig.GetResolver()
+	claimsMap[a.AccessLevelConfig.GetAttributeKey()] = accessLevelResolver(attributes)
+	return bascule.NewAttributes(claimsMap)
 }
 
 // TODO: maybe we should have bascule export something like this
