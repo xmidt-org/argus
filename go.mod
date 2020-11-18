@@ -6,6 +6,7 @@ require (
 	emperror.dev/emperror v0.30.0
 	github.com/InVisionApp/go-health v2.1.0+incompatible
 	github.com/aws/aws-sdk-go v1.31.6
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-kit/kit v0.9.0
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e

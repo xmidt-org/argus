@@ -12,7 +12,12 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/bascule"
 )
+
+// SuperUserAccessLevel is the bascule attribute value to check that a request
+// should be allowed admin permissions.
+const SuperUserAccessLevel = 1
 
 // request URL path keys
 const (
@@ -77,7 +82,7 @@ func getAllItemsRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc 
 		return &getAllItemsRequest{
 			bucket:    mux.Vars(r)[bucketVarKey],
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: isSuperUser(ctx),
 		}, nil
 	}
 }
@@ -118,7 +123,7 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 				Bucket: bucket,
 				ID:     id,
 			},
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: isSuperUser(ctx),
 		}, nil
 	}
 }
@@ -132,7 +137,7 @@ func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestF
 				Bucket: URLVars[bucketVarKey],
 				ID:     URLVars[idVarKey],
 			},
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: isSuperUser(ctx),
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
 		}, nil
 	}
@@ -208,4 +213,22 @@ func validateItemTTL(item *model.Item, maxTTL time.Duration) {
 			item.TTL = &ttlCapSeconds
 		}
 	}
+}
+
+func isSuperUser(ctx context.Context) bool {
+	auth, ok := bascule.FromContext(ctx)
+	if !ok {
+		return false
+	}
+	attributes := auth.Token.Attributes()
+	attribute, ok := attributes.Get("access-level")
+	if !ok {
+		return false
+	}
+	accessLevel, ok := attribute.(int)
+	if !ok {
+		return false
+	}
+
+	return accessLevel == SuperUserAccessLevel
 }

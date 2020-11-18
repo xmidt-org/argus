@@ -1,17 +1,14 @@
 package main
 
-import "github.com/xmidt-org/bascule"
+import (
+	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/bascule"
+)
 
 // Access level default values.
 const (
 	DefaultAccessLevelAttributeKey   = "access-level"
 	DefaultAccessLevelAttributeValue = 0
-)
-
-// Argus specific access level values
-const (
-	RegularUserAccessLevel int = iota
-	SuperUserAccessLevel
 )
 
 type AccessLevelConfig struct {
@@ -55,21 +52,17 @@ func superUserAccessLevelResolver(cfg superUserAccessLevelConfig) AccessLevelRes
 	return func(attributes bascule.Attributes) int {
 		capabilitiesClaim, ok := bascule.GetNestedAttribute(attributes, cfg.GetCapabilityListClaimPath()...)
 		if !ok {
-			return RegularUserAccessLevel
+			return DefaultAccessLevelAttributeValue
 		}
 		capabilities, ok := capabilitiesClaim.([]string)
 		if !ok {
-			return RegularUserAccessLevel
+			return DefaultAccessLevelAttributeValue
 		}
-
 		for _, capability := range capabilities {
 			if capability == cfg.SuperUserCapability {
-				return SuperUserAccessLevel
-
+				return store.SuperUserAccessLevel
 			}
 		}
-
-		return RegularUserAccessLevel
+		return DefaultAccessLevelAttributeValue
 	}
-
 }
