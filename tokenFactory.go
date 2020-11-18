@@ -43,13 +43,6 @@ type AccessLevelBearerTokenFactory struct {
 	AccessLevelConfig AccessLevelConfig
 }
 
-func (a AccessLevelBearerTokenFactory) GetDefaultKeyID() string {
-	if a.DefaultKeyID != "" {
-		return a.DefaultKeyID
-	}
-	return "current"
-}
-
 // ParseAndValidate expects the given value to be a JWT with a kid header.  The
 // kid should be resolvable by the Resolver and the JWT should be Parseable and
 // pass any basic validation checks done by the Parser.  If everything goes
@@ -64,7 +57,7 @@ func (a AccessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 		Leeway:    a.Leeway,
 	}
 
-	jwsToken, err := a.Parser.ParseJWT(value, &leewayclaims, defaultKeyfunc(ctx, a.GetDefaultKeyID(), a.Resolver))
+	jwsToken, err := a.Parser.ParseJWT(value, &leewayclaims, defaultKeyfunc(ctx, a.DefaultKeyID, a.Resolver))
 	if err != nil {
 		return nil, emperror.Wrap(err, "failed to parse JWS")
 	}

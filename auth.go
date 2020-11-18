@@ -152,9 +152,11 @@ func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
 
 		options = append(options, basculehttp.WithTokenFactory("Bearer",
 			AccessLevelBearerTokenFactory{
-				Resolver: resolver,
-				Parser:   bascule.DefaultJWTParser,
-				Leeway:   jwtVal.Leeway,
+				DefaultKeyID:      DefaultKeyID,
+				Resolver:          resolver,
+				Parser:            bascule.DefaultJWTParser,
+				Leeway:            jwtVal.Leeway,
+				AccessLevelConfig: accessLevelConfig,
 			}))
 	}
 
