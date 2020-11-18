@@ -48,7 +48,7 @@ func (s superUserAccessLevelConfig) GetCapabilityListClaimPath() []string {
 	return []string{"capabilities"}
 }
 
-// AccessLevelResolver is the function left to the user of the tokenBearer
+// AccessLevelResolver is the function signature to be implemented by users of the access level token factory.
 type AccessLevelResolver func(bascule.Attributes) int
 
 func superUserAccessLevelResolver(cfg superUserAccessLevelConfig) AccessLevelResolver {
