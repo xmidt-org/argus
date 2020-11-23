@@ -1,18 +1,3 @@
-prometheus:
-  defaultNamespace: xmidt
-  defaultSubsystem: argus
-  constLabels:
-    development: "true"
-
-log:
-  file: stdout
-  level: DEBUG
-
-health:
-  disableLogging: false
-  custom:
-    server: development
-
 servers:
   primary:
     address: :6600
@@ -22,6 +7,7 @@ servers:
         - argus
       X-Midt-Version:
         - development
+
   metrics:
     address: :6601
     disableHTTPKeepAlives: true
@@ -39,6 +25,21 @@ servers:
         - argus
       X-Midt-Version:
         - development
+
+prometheus:
+  defaultNamespace: xmidt
+  defaultSubsystem: argus
+  constLabels:
+    development: "true"
+
+log:
+  file: stdout
+  level: DEBUG
+
+health:
+  disableLogging: false
+  custom:
+    server: development
 
 #yugabyte:
 #  # hosts is and array of address and port used to connect to the cluster.
@@ -80,7 +81,7 @@ servers:
 #  # (Optional) defaults to false
 #  #enableHostVerification: false
 
-# dyanmo is the configuration block to communicate with dynamoDB.
+# dynamo is the configuration block to communicate with dynamoDB.
 dynamo:
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
@@ -96,12 +97,6 @@ dynamo:
   # (Optional) default: 3
   maxRetries: 3
 
-  # accessKey is the AWS accessKey to access dynamodb.
-  accessKey: "accessKey"
-
-  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
-  secretKey: "secretKey"
-
 # itemTTL configures the default time based ttls for each item.
 itemTTL:
   # maxTTL is limit the maxTTL provided via the api.
@@ -110,79 +105,79 @@ itemTTL:
   maxTTL: "1d"
 
 ##############################################################################
-# Authorization Credentials
+# Authentication  
 ##############################################################################
+authentication:
+  inbound:
+    # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
+    # WARNING! Be sure to remove this from your production config.
+    basic: ["dXNlcjpwYXNz"]
 
-# authHeader is a list of Basic Auth credentials intended to be used for local testing purposes
-# WARNING! Be sure to remove this from your production config
-authHeader: ["dXNlcjpwYXNz"]
+    # bearer contains all the configuration needed for a JWT validator.
+    bearer: 
+      keys:
+        Factory:
+            uri: "http://localhost:6500/keys/local"
+        purpose: 0
+        updateInterval: 24h
 
-# request is a config section related to operation authorization
-# and request validation.
-request:
-  # authorization contains config around authorizing requests to perform privileged operations.
-  authorization:
     # accessLevel defines config around the injection of an access level attribute to bascule tokens
-    # which application code can use to decide which operations a certain request is allowed to make.
+    # which application code can leverage to decide if a given request is allowed to execute some operation.
     accessLevel:
-      # # attributeKey is the key that will be used as the attribute name for the access level value generated 
-      # # for a given bascule token.
-      # # (Optional) defaults to access-level
-      # attributeKey: "access-level"
+      # attributeKey is the key that will be used as the attribute name for the access level value generated 
+      # for a given bascule token.
+      # (Optional) defaults to access-level
+      attributeKey: access-level
 
-    # superUser relates to config around the use case Argus gives to idea of access levels for a request.
-    superUser:
-      # # capabilityListClaimPath is the list of keys that will be used to find the claim containing
-      # # the list of capabilities in incoming JWT claims.
-      # # (Optional) default: ["capabilities"]
-      # capabilityListClaimPath: ["capabilities"]
+      # superUser relates to config around the use case Argus gives to idea of access levels for a request.
+      superUser: 
+        # capabilityListClaimPath is the list of keys that will be used to find the claim containing
+        # the list of capabilities in incoming JWT claims.
+        # (Optional) default: ["capabilities"]
+        capabilityListClaimPath: ["capabilities"]
 
-      # # superUserCapability allows Argus to verify whether an incoming request is allowed to operate in 
-      # # super user mode. 
-      # # (Optional). If not provided, the super user feature is disabled.
-      # superUserCapability:  "argus:super-user:capability"
+        # capability allows Argus to verify whether an incoming request is allowed to operate in 
+        # super user mode. 
+        # (Optional). If not provided, the super user feature is disabled.
+        capability:  "xmidt:argus:admin"
+    
+    # # capabilityCheck provides the details needed for checking an incoming JWT's
+    # # capabilities.  If the type of check isn't provided, no checking is done.  The
+    # # type can be "monitor" or "enforce".  If it is empty or a different value, no
+    # # checking is done.  If "monitor" is provided, the capabilities are checked but
+    # # the request isn't rejected when there isn't a valid capability for the
+    # # request. Instead, a message is logged.  When "enforce" is provided, a request
+    # # that doesn't have the needed capability is rejected.
+    
+    # # The capability is expected to have the format:
+    
+    # # {prefix}{endpoint}:{method}
+    
+    # # The prefix can be a regular expression.  If it's empty, no capability check
+    # # is done.  The endpoint is a regular expression that should match the endpoint
+    # # the request was sent to. The method is usually the method of the request, such as
+    # # GET.  The accept all method is a catchall string that indicates the capability
+    # # is approved for all methods.
+    # # (Optional)
+    # capabilityCheck:
+    #   # type provides the mode for capability checking.
+    #   type: "monitor"
+    #   # prefix provides the regex to match the capability before the endpoint.
+    #   prefix: "xmidt"
+    #   # acceptAllMethod provides a way to have a capability that allows all
+    #   # methods for a specific endpoint.
+    #   acceptAllMethod: "all"
+    #   # endpointBuckets provides regular expressions to use against the request
+    #   # endpoint in order to group requests for a metric label.
+    #   endpointBuckets:
+    #     - "store\\b"
+    #     - "store/.*\\b"
 
-  validation:
-    # maxTTL specifies the cap for the TTL of items when values are specified.
-    maxTTL: "24h"
+  outbound:
+    dynamodb:
+      # accessKey is the AWS accessKey to access dynamodb.
+      accessKey: "accessKey"
 
-# jwtValidator provides Bearer auth configuration
-jwtValidator:
-  keys:
-    factory:
-      uri: "http://sample-jwt-validator-uri/{keyId}"
-    purpose: 0
-    updateInterval: 604800000000000
-
-# capabilityCheck provides the details needed for checking an incoming JWT's
-# capabilities.  If the type of check isn't provided, no checking is done.  The
-# type can be "monitor" or "enforce".  If it is empty or a different value, no
-# checking is done.  If "monitor" is provided, the capabilities are checked but
-# the request isn't rejected when there isn't a valid capability for the
-# request. Instead, a message is logged.  When "enforce" is provided, a request
-# that doesn't have the needed capability is rejected.
-#
-# The capability is expected to have the format:
-#
-# {prefix}{endpoint}:{method}
-#
-# The prefix can be a regular expression.  If it's empty, no capability check
-# is done.  The endpoint is a regular expression that should match the endpoint
-# the request was sent to. The method is usually the method of the request, such as
-# GET.  The accept all method is a catchall string that indicates the capability
-# is approved for all methods.
-# (Optional)
-#capabilityCheck:
-# # type provides the mode for capability checking.
-# type: "monitor"
-# # prefix provides the regex to match the capability before the endpoint.
-# prefix: "xmidt"
-# # acceptAllMethod provides a way to have a capability that allows all
-# # methods for a specific endpoint.
-# acceptAllMethod: "all"
-# # endpointBuckets provides regular expressions to use against the request
-# # endpoint in order to group requests for a metric label.
-# endpointBuckets:
-#   - "store\\b"
-#   - "store/.*\\b"
-
+      # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
+      secretKey: "secretKey"
+    
