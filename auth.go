@@ -18,9 +18,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -86,7 +85,9 @@ type CapabilityConfig struct {
 
 type AuthChainOut struct {
 	fx.Out
-	Chain *alice.Chain `name:"auth_chain"`
+	Primary alice.Chain `name:"servers.primary.auth"`
+	Metrics alice.Chain `name:"servers.metrics.auth"`
+	Health  alice.Chain `name:"servers.health.auth"`
 }
 
 type AuthChainIn struct {
@@ -99,111 +100,160 @@ type AuthChainIn struct {
 	CheckMeasures      basculechecks.AuthCapabilityCheckMeasures
 }
 
+type authSetupHelper struct {
+	in AuthChainIn
+}
+
+func (a *authSetupHelper) createBasicAuthFactory(encodedBasicAuthKeys []string, profile string) (basculehttp.BasicTokenFactory, error) {
+	a.in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "Attempting to create basic auth factory", "encodedBasicAuthKeys", encodedBasicAuthKeys)
+	basicAuthFactory, err := basculehttp.NewBasicTokenFactoryFromList(encodedBasicAuthKeys)
+	if err != nil {
+		return nil, err
+	}
+	return basicAuthFactory, nil
+}
+
+func (a *authSetupHelper) createBearerAuthFactory(p Profile) (basculehttp.TokenFactory, error) {
+	resolver, err := p.Bearer.Keys.NewResolver()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resolver: %w", err)
+	}
+
+	return &AccessLevelBearerTokenFactory{
+		DefaultKeyID:      DefaultKeyID,
+		Resolver:          resolver,
+		Parser:            bascule.DefaultJWTParser,
+		Leeway:            p.Bearer.Leeway,
+		AccessLevelConfig: p.AccessLevel,
+	}, nil
+}
+
+func (a *authSetupHelper) createCapabilityCheckValidator(profileName string) (bascule.Validator, error) {
+	var capabilityCheck CapabilityConfig
+	c, err := basculechecks.NewEndpointRegexCheck(capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod)
+	if err != nil {
+		return nil, emperror.With(err, "failed to create capability check")
+	}
+	var endpoints []*regexp.Regexp
+	for _, e := range capabilityCheck.EndpointBuckets {
+		r, err := regexp.Compile(e)
+		if err != nil {
+			a.in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, "profile", profileName, xlog.ErrorKey(), err.Error())
+			continue
+		}
+		endpoints = append(endpoints, r)
+	}
+	m := basculechecks.MetricValidator{
+		C:         basculechecks.CapabilitiesValidator{Checker: c},
+		Measures:  &a.in.CheckMeasures,
+		Endpoints: endpoints,
+	}
+	return m.CreateValidator(capabilityCheck.Type == "enforce"), nil
+}
+
+type Profile struct {
+	Name        string
+	Basic       []string
+	Bearer      JWTValidator
+	AccessLevel AccessLevelConfig
+}
+
+type superUserProfile struct {
+	Profile
+	SuperUser superUserAccessLevelConfig
+}
+
 // authenticationHandler configures the authorization requirements for requests to reach the main handler
 func ProvideAuthChain(in AuthChainIn) (AuthChainOut, error) {
+	// TODO: alternatively, 'profiles' could be called 'target_servers' in the config file indicating a certain auth chain
+	// should be applied to handlers under a given server
+	supportedProfiles := map[string]bool{"primary": true, "metrics": true, "health": true}
+	out := AuthChainOut{}
 
-	listener := basculemetrics.NewMetricListener(&in.ValidationMeasures)
-
-	basicAllowed := make(map[string]string)
-	basicAuth := in.Viper.GetStringSlice("authHeader")
-	for _, a := range basicAuth {
-		decoded, err := base64.StdEncoding.DecodeString(a)
-		if err != nil {
-			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "failed to decode auth header", "authHeader", a, xlog.ErrorKey(), err.Error())
-		}
-
-		i := bytes.IndexByte(decoded, ':')
-		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "decoded string", "string", decoded, "i", i)
-		if i > 0 {
-			basicAllowed[string(decoded[:i])] = string(decoded[i+1:])
-		}
-	}
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "Created list of allowed basic auths", "allowed", basicAllowed, "config", basicAuth)
-
-	options := []basculehttp.COption{
-		basculehttp.WithCLogger(GetLogger),
-		basculehttp.WithCErrorResponseFunc(listener.OnErrorResponse),
-		basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc)),
-	}
-	if len(basicAllowed) > 0 {
-		options = append(options, basculehttp.WithTokenFactory("Basic", basculehttp.BasicTokenFactory(basicAllowed)))
-	}
-	var jwtVal JWTValidator
-
-	in.Viper.UnmarshalKey("jwtValidator", &jwtVal)
-	if jwtVal.Keys.URI != "" {
-		resolver, err := jwtVal.Keys.NewResolver()
-		if err != nil {
-			return AuthChainOut{Chain: &alice.Chain{}}, emperror.With(err, "failed to create resolver")
-		}
-
-		var (
-			superUserConfig   superUserAccessLevelConfig
-			accessLevelConfig AccessLevelConfig
-		)
-		in.Viper.UnmarshalKey("request.authorization.superUser", &superUserConfig)
-
-		if superUserConfig.SuperUserCapability == "" {
-			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "super user capability not provided so super user feature will not be enabled")
-		} else {
-			in.Viper.UnmarshalKey("request.authorization.accessLevel", &accessLevelConfig)
-			accessLevelConfig.Resolver = superUserAccessLevelResolver(superUserConfig)
-		}
-
-		options = append(options, basculehttp.WithTokenFactory("Bearer",
-			AccessLevelBearerTokenFactory{
-				DefaultKeyID:      DefaultKeyID,
-				Resolver:          resolver,
-				Parser:            bascule.DefaultJWTParser,
-				Leeway:            jwtVal.Leeway,
-				AccessLevelConfig: accessLevelConfig,
-			}))
+	var profiles []superUserProfile
+	err := in.Viper.UnmarshalKey("bascule.inbound.profiles", &profiles)
+	if err != nil {
+		return out, err
 	}
 
-	authConstructor := basculehttp.NewConstructor(options...)
+	authHelper := authSetupHelper{in: in}
 
-	bearerRules := bascule.Validators{
-		bascule.CreateNonEmptyPrincipalCheck(),
-		bascule.CreateNonEmptyTypeCheck(),
-		bascule.CreateValidTypeCheck([]string{"jwt"}),
-	}
-
-	// only add capability check if the configuration is set
-	var capabilityCheck CapabilityConfig
-	in.Viper.UnmarshalKey("capabilityCheck", &capabilityCheck)
-	if capabilityCheck.Type == "enforce" || capabilityCheck.Type == "monitor" {
-		c, err := basculechecks.NewEndpointRegexCheck(capabilityCheck.Prefix, capabilityCheck.AcceptAllMethod)
-		if err != nil {
-			return AuthChainOut{Chain: &alice.Chain{}}, emperror.With(err, "failed to create capability check")
+	for _, profile := range profiles {
+		supported := supportedProfiles[profile.Name]
+		if !supported {
+			return out, fmt.Errorf("profile '%s' is not supported", profile.Name)
 		}
-		var endpoints []*regexp.Regexp
-		for _, e := range capabilityCheck.EndpointBuckets {
-			r, err := regexp.Compile(e)
+
+		//TODO: We'll need to update bascule so it's aware of the notion of profiles (maybe as an additional label?)
+		listener := basculemetrics.NewMetricListener(&in.ValidationMeasures)
+
+		options := []basculehttp.COption{
+			basculehttp.WithCLogger(GetLogger),
+			basculehttp.WithCErrorResponseFunc(listener.OnErrorResponse),
+			basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc)),
+		}
+
+		if len(profile.Basic) > 0 {
+			basicAuthFactory, err := authHelper.createBasicAuthFactory(profile.Basic, profile.Name)
 			if err != nil {
-				in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error())
-				continue
+				in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Failed to create basic auth factory", "profile", profile.Name, "err", err)
+				return out, err
 			}
-			endpoints = append(endpoints, r)
+
+			options = append(options, basculehttp.WithTokenFactory("basic", basicAuthFactory))
+			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Enabling basic auth", "profile", profile.Name)
 		}
-		m := basculechecks.MetricValidator{
-			C:         basculechecks.CapabilitiesValidator{Checker: c},
-			Measures:  &in.CheckMeasures,
-			Endpoints: endpoints,
+
+		if profile.Bearer.Keys.URI != "" {
+			if profile.SuperUser.SuperUserCapability != "" {
+				profile.AccessLevel.Resolver = superUserAccessLevelResolver(profile.SuperUser)
+			}
+
+			bearerAuthFactory, err := authHelper.createBearerAuthFactory(profile.Profile)
+			if err != nil {
+				in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Failed to create bearer auth factory", "profile", profile.Name, "err", err)
+				return out, err
+			}
+
+			options = append(options, basculehttp.WithTokenFactory("bearer", bearerAuthFactory))
+			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Enabling bearer auth", "profile", profile.Name, "superUserEnabled", profile.SuperUser.SuperUserCapability != "")
 		}
-		bearerRules = append(bearerRules, m.CreateValidator(capabilityCheck.Type == "enforce"))
+
+		authConstructor := basculehttp.NewConstructor(options...)
+
+		tokenValidators := bascule.Validators{
+			bascule.CreateNonEmptyPrincipalCheck(),
+			bascule.CreateNonEmptyTypeCheck(),
+			bascule.CreateValidTypeCheck([]string{"jwt"}),
+		}
+
+		capabilityCheckValidator, err := authHelper.createCapabilityCheckValidator(profile.Name)
+		if err != nil {
+			in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Failed to create capability check validator", "profile", profile.Name, "err", err)
+			return out, err
+		}
+
+		tokenValidators = append(tokenValidators, capabilityCheckValidator)
+
+		authEnforcer := basculehttp.NewEnforcer(
+			basculehttp.WithELogger(GetLogger),
+			basculehttp.WithRules("Basic", bascule.Validators{
+				bascule.CreateAllowAllCheck(),
+			}),
+			basculehttp.WithRules("Bearer", tokenValidators),
+			basculehttp.WithEErrorResponseFunc(listener.OnErrorResponse),
+		)
+
+		constructors := []alice.Constructor{SetLogger(in.Logger), authConstructor, authEnforcer, basculehttp.NewListenerDecorator(listener)}
+		chain := alice.New(constructors...)
+		switch profile.Name {
+		case "primary":
+			out.Primary = chain
+		case "metrics":
+			out.Metrics = chain
+		case "health":
+			out.Health = chain
+		}
 	}
-
-	authEnforcer := basculehttp.NewEnforcer(
-		basculehttp.WithELogger(GetLogger),
-		basculehttp.WithRules("Basic", bascule.Validators{
-			bascule.CreateAllowAllCheck(),
-		}),
-		basculehttp.WithRules("Bearer", bearerRules),
-		basculehttp.WithEErrorResponseFunc(listener.OnErrorResponse),
-	)
-
-	constructors := []alice.Constructor{SetLogger(in.Logger), authConstructor, authEnforcer, basculehttp.NewListenerDecorator(listener)}
-
-	chain := alice.New(constructors...)
-	return AuthChainOut{Chain: &chain}, nil
+	return out, nil
 }
