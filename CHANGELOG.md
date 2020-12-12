@@ -6,8 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Changed
-- simplified Makefile.
-- prep for github actions.
+- Migrate to github actions, normalize analysis tools, Dockerfiles and Makefiles. [#96](https://github.com/xmidt-org/argus/pull/96)
 - Bumped webpa-common to v1.11.2 and updated setup for capability check accordingly. [#74](https://github.com/xmidt-org/argus/pull/74)
 - Removed identifier as a field from the API. [#85](https://github.com/xmidt-org/argus/pull/85)
 - UUID field is now ID. [#88](https://github.com/xmidt-org/argus/pull/88)
