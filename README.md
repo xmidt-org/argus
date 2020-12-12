@@ -1,7 +1,6 @@
 # argus
 (pronounced "ar-gus")
 
-[![Build Status](https://travis-ci.com/xmidt-org/argus.svg?branch=main)](https://travis-ci.com/xmidt-org/argus)
 [![Build Status](https://github.com/xmidt-org/argus/workflows/CI/badge.svg)](https://github.com/xmidt-org/argus/actions)
 [![codecov.io](http://codecov.io/github/xmidt-org/argus/coverage.svg?branch=main)](http://codecov.io/github/xmidt-org/argus?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xmidt-org/argus)](https://goreportcard.com/report/github.com/xmidt-org/argus)
