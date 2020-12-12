@@ -8,4 +8,4 @@ ignore:
   - "vendor"
 
 fixes:
-  - "github.com/xmidt-org/scytale/::"
+  - "github.com/xmidt-org/argus/::"
