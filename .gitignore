@@ -1,5 +1,7 @@
 # Ignore build product.
 argus
+.ignore
+errors.txt
 
 bin/
 pkg/
