@@ -1,10 +1,8 @@
 # argus
 (pronounced "ar-gus")
 
-[![Build Status](https://travis-ci.com/xmidt-org/argus.svg?branch=main)](https://travis-ci.com/xmidt-org/argus)
+[![Build Status](https://github.com/xmidt-org/argus/workflows/CI/badge.svg)](https://github.com/xmidt-org/argus/actions)
 [![codecov.io](http://codecov.io/github/xmidt-org/argus/coverage.svg?branch=main)](http://codecov.io/github/xmidt-org/argus?branch=main)
-[![Code Climate](https://codeclimate.com/github/xmidt-org/argus/badges/gpa.svg)](https://codeclimate.com/github/xmidt-org/argus)
-[![Issue Count](https://codeclimate.com/github/xmidt-org/argus/badges/issue_count.svg)](https://codeclimate.com/github/xmidt-org/argus)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xmidt-org/argus)](https://goreportcard.com/report/github.com/xmidt-org/argus)
 [![Apache V2 License](http://img.shields.io/badge/license-Apache%20V2-blue.svg)](https://github.com/xmidt-org/argus/blob/main/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/xmidt-org/argus.svg)](CHANGELOG.md)
