@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"github.com/xmidt-org/webpa-common/basculechecks"
 
 	gokitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/justinas/alice"
@@ -84,7 +85,7 @@ func providePrimaryTokenFactory() fx.Option {
 	)
 }
 
-type BasculeMetricsProviderIn struct {
+type basculeMetricsProviderIn struct {
 	fx.In
 
 	//TODO: We can update webpa-common/basculemetrics to provide these vectors
@@ -93,26 +94,27 @@ type BasculeMetricsProviderIn struct {
 	ValidationOutcome prometheus.CounterVec   `name:"auth_validation"`
 }
 
+type basculeCapabilityMetricsProviderIn struct {
+	fx.In
+
+	//TODO: We can update webpa-common/basculechecks to provide these vectors
+	CapabilityCheckOutcome prometheus.CounterVec `name:"auth_capability_check"`
+}
+
 type basculeMetricsListenerProvider struct {
 	ServerName string
 }
 
-func (b basculeMetricsListenerProvider) provide(in BasculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
-	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{
-		"server": b.ServerName,
-	})
+func (b basculeMetricsListenerProvider) provide(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
+	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err
 	}
-	expHistogramVec, err := in.ExpHistogram.CurryWith(prometheus.Labels{
-		"server": b.ServerName,
-	})
+	expHistogramVec, err := in.ExpHistogram.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err
 	}
-	validationOutcomeCounterVec, err := in.ValidationOutcome.CurryWith(prometheus.Labels{
-		"server": b.ServerName,
-	})
+	validationOutcomeCounterVec, err := in.ValidationOutcome.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +131,27 @@ func (b basculeMetricsListenerProvider) provide(in BasculeMetricsProviderIn) (*b
 func (b basculeMetricsListenerProvider) annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_bascule_metric_listener", b.ServerName),
+		Target: b.provide,
+	}
+}
+
+type basculeCapabilityMetricProvider struct {
+	ServerName string
+}
+
+func (b basculeCapabilityMetricProvider) provide(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.ServerName})
+	if err != nil {
+		return nil, err
+	}
+	return &basculechecks.AuthCapabilityCheckMeasures{
+		CapabilityCheckOutcome: gokitprometheus.NewCounter(capabilityCheckOutcomeCounterVec),
+	}, nil
+}
+
+func (b basculeCapabilityMetricProvider) annotated() fx.Annotated {
+	return fx.Annotated{
+		Name:   b.ServerName,
 		Target: b.provide,
 	}
 }

@@ -49,9 +49,10 @@ type profilesOut struct {
 
 // profile is the struct to help read on bascule profle information from config.
 type profile struct {
-	TargetServers []string
-	Basic         []string
-	Bearer        jwtValidator
+	TargetServers   []string
+	Basic           []string
+	Bearer          jwtValidator
+	CapabilityCheck capabilityValidatorConfig
 }
 
 // jwtValidator provides a convenient way to define jwt validator through config files.
@@ -121,5 +122,4 @@ func (p profileProvider) annotated() fx.Annotated {
 		Name:   fmt.Sprintf("%s_profile", p.ServerName),
 		Target: p.provide,
 	}
-
 }

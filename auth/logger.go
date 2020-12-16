@@ -73,24 +73,20 @@ func (l logOptionsProvider) provide() fx.Option {
 	return fx.Options(
 		fx.Supply(GetLogger),
 		fx.Provide(
-
-			// set up middleware to add request-specific logger to context
 			fx.Annotated{
 				Name:   fmt.Sprintf("%s_set_logger", l.ServerName),
 				Target: l.SetLogger,
 			},
 
-			// add logger constructor option
 			fx.Annotated{
-				Group: fmt.Sprintf("%s_primary_constructor_options", l.ServerName),
+				Group: fmt.Sprintf("%s_bascule_constructor_options", l.ServerName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.COption {
 					return basculehttp.WithCLogger(getBasculeLogger(getLogger))
 				},
 			},
 
-			// add logger enforcer option
 			fx.Annotated{
-				Group: fmt.Sprintf("%s_constructor_options", l.ServerName),
+				Group: fmt.Sprintf("%s_bascule_constructor_options", l.ServerName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.EOption {
 					return basculehttp.WithELogger(getBasculeLogger(getLogger))
 				},

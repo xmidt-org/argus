@@ -13,8 +13,8 @@ type PrimaryChainIn struct {
 	Listener    alice.Constructor `name:"primary_bascule_listener"`
 }
 
-// ProvideServerAuthChains builds the server auth chains.
-func ProvidePrimaryServerAuthChain(profiles map[string]*profile) fx.Option {
+// ProvidePrimaryServerAuthChain builds the server auth chains.
+func ProvidePrimaryChain(profiles map[string]*profile) fx.Option {
 	primaryProfile := profiles["primary"]
 	if primaryProfile == nil {
 		return fx.Options(
@@ -31,11 +31,11 @@ func ProvidePrimaryServerAuthChain(profiles map[string]*profile) fx.Option {
 
 	return fx.Options(
 		fx.Provide(
-			logOptionsProvider{ServerName: "primary"}.provide,
 			providePrimaryBasculeConstructor,
-			profileProvider{ServerName: "primary"}.annotated(),
-			//TODO: providePrimaryBasculeEnforcer
+			providePrimaryBasculeEnforcer,
 			providePrimaryTokenFactory,
+			logOptionsProvider{ServerName: "primary"}.provide,
+			profileProvider{ServerName: "primary"}.annotated(),
 			basculeMetricsListenerProvider{ServerName: "primary"}.annotated(),
 			unmarshalProfiles("bascule.inbound.profiles"),
 			fx.Annotated{
