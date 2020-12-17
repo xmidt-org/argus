@@ -37,14 +37,14 @@ func GetLogger(ctx context.Context) log.Logger {
 	return logger
 }
 
-type logOptionsProvider struct {
+type LogOptionsProvider struct {
 	ServerName string
 }
 
 // SetLogger creates an alice constructor that sets up a logger that can be
 // used for all logging related to the current request.  The logger is added to
 // the request's context.
-func (l logOptionsProvider) SetLogger(logger log.Logger) alice.Constructor {
+func (l LogOptionsProvider) SetLogger(logger log.Logger) alice.Constructor {
 	return func(delegate http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (l logOptionsProvider) SetLogger(logger log.Logger) alice.Constructor {
 	}
 }
 
-// getBasculeLogger simply convers a go-kit logger to a bascule logger.  They
+// getBasculeLogger simply converts a go-kit logger to a bascule logger.  They
 // are the same.
 func getBasculeLogger(f func(context.Context) log.Logger) func(context.Context) bascule.Logger {
 	return func(ctx context.Context) bascule.Logger {
@@ -69,12 +69,12 @@ func getBasculeLogger(f func(context.Context) log.Logger) func(context.Context) 
 }
 
 // TODO: if we see the need, we could split this for each server...
-func (l logOptionsProvider) provide() fx.Option {
+func (l LogOptionsProvider) Provide() fx.Option {
 	return fx.Options(
 		fx.Supply(GetLogger),
 		fx.Provide(
 			fx.Annotated{
-				Name:   fmt.Sprintf("%s_set_logger", l.ServerName),
+				Name:   fmt.Sprintf("%s_alice_set_logger", l.ServerName),
 				Target: l.SetLogger,
 			},
 
@@ -86,7 +86,7 @@ func (l logOptionsProvider) provide() fx.Option {
 			},
 
 			fx.Annotated{
-				Group: fmt.Sprintf("%s_bascule_constructor_options", l.ServerName),
+				Group: fmt.Sprintf("%s_bascule_enforcer_options", l.ServerName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.EOption {
 					return basculehttp.WithELogger(getBasculeLogger(getLogger))
 				},

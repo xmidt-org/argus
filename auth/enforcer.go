@@ -22,11 +22,13 @@ type PrimaryEOptionsIn struct {
 	Options []basculehttp.EOption `group:"primary_bascule_enforcer_options"`
 }
 
-func providePrimaryBasculeEnforcer() fx.Option {
+func ProvidePrimaryBasculeEnforcer() fx.Option {
 	return fx.Provide(
 		fx.Annotated{
-			Name:   "primary_bearer_validator_principal",
-			Target: bascule.CreateNonEmptyPrincipalCheck,
+			Name: "primary_bearer_validator_principal",
+			Target: func() bascule.Validator {
+				return bascule.CreateNonEmptyPrincipalCheck()
+			},
 		},
 
 		fx.Annotated{
@@ -35,8 +37,8 @@ func providePrimaryBasculeEnforcer() fx.Option {
 				return bascule.CreateValidTypeCheck([]string{"jwt"})
 			},
 		},
-		primaryCapabilityValidatorAnnotated(),
-		basculeCapabilityMetricProvider{ServerName: "primary"}.annotated(),
+		PrimaryCapabilityValidatorAnnotated(),
+		BasculeCapabilityMetricProvider{ServerName: "primary"}.Annotated(),
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in PrimaryBearerValidatorsIn) basculehttp.EOption {
@@ -46,13 +48,13 @@ func providePrimaryBasculeEnforcer() fx.Option {
 		},
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
-			Target: func(in PrimaryBasculeErrorResponseIn) basculehttp.EOption {
-				return basculehttp.WithEErrorResponseFunc(in.BasculeMetricListener.OnErrorResponse)
+			Target: func(in PrimaryBasculeMetricListenerIn) basculehttp.EOption {
+				return basculehttp.WithEErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
 
 		fx.Annotated{
-			Name: "primary_bascule_enforcer",
+			Name: "primary_alice_enforcer",
 			Target: func(in PrimaryEOptionsIn) alice.Constructor {
 				return basculehttp.NewEnforcer(in.Options...)
 			},

@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -19,21 +19,27 @@ type capabilityValidatorConfig struct {
 	EndpointBuckets []string
 }
 
-type primaryCapabilityValidatorIn struct {
-	Profile  *profile                                  `name:"primary_profile"`
-	Measures basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
+type PrimaryCapabilityValidatorIn struct {
+	fx.In
+	Profile  *Profile                                   `name:"primary_profile"`
+	Measures *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 	Logger   log.Logger
 }
 
-func providePrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
+func dummy(ctx context.Context, token bascule.Token) error {
+	return nil
+}
+func ProvidePrimaryCapabilityValidator(in PrimaryCapabilityValidatorIn) (bascule.Validator, error) {
+	fmt.Printf("Creating capability validator. Profile: %v\n Measures: %v\n", in.Profile, in.Measures)
+
 	config := in.Profile.CapabilityCheck
 	if config.Type != "enforce" && config.Type != "monitor" {
-		return nil, errors.New("error providing primary capability validator as the type is not recognized")
+		return bascule.ValidatorFunc(dummy), nil
 	}
 
 	c, err := basculechecks.NewEndpointRegexCheck(config.Prefix, config.AcceptAllMethod)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing endpointRegexCheck: %w", err)
+		return bascule.ValidatorFunc(dummy), fmt.Errorf("error initializing endpointRegexCheck: %w", err)
 	}
 
 	var endpoints []*regexp.Regexp
@@ -48,16 +54,16 @@ func providePrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule
 
 	m := basculechecks.MetricValidator{
 		C:         basculechecks.CapabilitiesValidator{Checker: c},
-		Measures:  &in.Measures,
+		Measures:  in.Measures,
 		Endpoints: endpoints,
 	}
 
 	return m.CreateValidator(config.Type == "enforce"), nil
 }
 
-func primaryCapabilityValidatorAnnotated() fx.Annotated {
+func PrimaryCapabilityValidatorAnnotated() fx.Annotated {
 	return fx.Annotated{
-		Name:   "primary_bearer_validator_capabilities",
-		Target: providePrimaryCapabilityValidator,
+		Name:   "primary_bearer_validator_capability",
+		Target: ProvidePrimaryCapabilityValidator,
 	}
 }

@@ -19,5 +19,8 @@ require (
 	github.com/xmidt-org/bascule v0.9.0
 	github.com/xmidt-org/themis v0.4.4
 	github.com/xmidt-org/webpa-common v1.11.4
-	go.uber.org/fx v1.13.0
+	go.uber.org/fx v1.13.1
 )
+
+
+replace github.com/xmidt-org/webpa-common v1.11.4 => ../webpa-common

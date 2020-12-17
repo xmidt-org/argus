@@ -130,7 +130,7 @@ bascule:
     profiles:
       -
         # targetServers is the list of servers this bascule profile should be applied to.
-        targetServers: [servers.primary]
+        targetServers: [primary]
 
         # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
         # WARNING! Be sure to remove this from your production config.

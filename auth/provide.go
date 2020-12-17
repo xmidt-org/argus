@@ -2,48 +2,57 @@ package auth
 
 import (
 	"github.com/justinas/alice"
+	"github.com/xmidt-org/bascule/basculehttp"
 	"go.uber.org/fx"
 )
 
 type PrimaryChainIn struct {
 	fx.In
-	SetLogger   alice.Constructor `name:"primary_bascule_set_logger"`
-	Constructor alice.Constructor `name:"primary_bascule_constructor"`
-	Enforcer    alice.Constructor `name:"primary_bascule_enforcer"`
-	Listener    alice.Constructor `name:"primary_bascule_listener"`
+	SetLogger   alice.Constructor `name:"primary_alice_set_logger"`
+	Constructor alice.Constructor `name:"primary_alice_constructor"`
+	Enforcer    alice.Constructor `name:"primary_alice_enforcer"`
+	Listener    alice.Constructor `name:"primary_alice_listener"`
 }
 
 // ProvidePrimaryServerAuthChain builds the server auth chains.
-func ProvidePrimaryChain(profiles map[string]*profile) fx.Option {
-	primaryProfile := profiles["primary"]
-	if primaryProfile == nil {
-		return fx.Options(
-			fx.Provide(
-				fx.Annotated{
-					Name: "primary_auth_chain",
-					Target: func() alice.Chain {
-						return alice.New()
-					},
-				},
-			),
-		)
-	}
-
+func ProvidePrimaryChain() fx.Option {
+	//primaryProfile := profiles["primary"]
+	//fmt.Printf("This is the primary profile: %v", primaryProfile)
+	//if primaryProfile == nil {
+	//	return fx.Options(
+	//		fx.Provide(
+	//			fx.Annotated{
+	//				Name: "primary_auth_chain",
+	//				Target: func() alice.Chain {
+	//					return alice.New()
+	//				},
+	//			},
+	//		),
+	//	)
+	//}
+	//
 	return fx.Options(
+		LogOptionsProvider{ServerName: "primary"}.Provide(),
+		ProvidePrimaryBasculeConstructor(),
+		ProvidePrimaryBasculeEnforcer(),
+		ProvidePrimaryTokenFactory(),
 		fx.Provide(
-			providePrimaryBasculeConstructor,
-			providePrimaryBasculeEnforcer,
-			providePrimaryTokenFactory,
-			logOptionsProvider{ServerName: "primary"}.provide,
-			profileProvider{ServerName: "primary"}.annotated(),
-			basculeMetricsListenerProvider{ServerName: "primary"}.annotated(),
-			unmarshalProfiles("bascule.inbound.profiles"),
+			UnmarshalProfiles("bascule.inbound.profiles"),
+			ProfileProvider{ServerName: "primary"}.Annotated(),
+			BasculeMetricsListenerProvider{ServerName: "primary"}.Annotated(),
+			BasculeCapabilityMetricProvider{ServerName: "primary"}.Annotated(),
+
+			fx.Annotated{
+				Name: "primary_alice_listener",
+				Target: func(in PrimaryBasculeMetricListenerIn) alice.Constructor {
+					return basculehttp.NewListenerDecorator(in.Listener)
+				},
+			},
 			fx.Annotated{
 				Name: "primary_auth_chain",
 				Target: func(in PrimaryChainIn) alice.Chain {
 					return alice.New(in.SetLogger, in.Constructor, in.Enforcer, in.Listener)
 				},
 			},
-		),
-	)
+		))
 }

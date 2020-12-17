@@ -32,10 +32,6 @@ type profilesIn struct {
 
 	// Unmarshaller is the required configuration unmarshaller strategy.
 	Unmarshaller config.Unmarshaller
-
-	// Servers is a set of all http servers that could qualify as targets for
-	// bascule profiles
-	Servers map[string]bool
 }
 
 // profilesOut is the result parameter containing bascule profiles.
@@ -44,11 +40,11 @@ type profilesOut struct {
 
 	// Profiles is a mapping from a target server name (i.e. 'servers.primary') to the profile that
 	// should be used to generate its auth chain
-	Profiles map[string]*profile
+	Profiles map[string]*Profile `name:"server_profiles"`
 }
 
 // profile is the struct to help read on bascule profle information from config.
-type profile struct {
+type Profile struct {
 	TargetServers   []string
 	Basic           []string
 	Bearer          jwtValidator
@@ -65,35 +61,34 @@ type jwtValidator struct {
 	Leeway bascule.Leeway
 }
 
-// unmarshalProfiles returns an uber/fx provider that reads configuration from a Viper
+// UnmarshalProfiles returns an uber/fx provider that reads configuration from a Viper
 // instance and initializes bascule profiles.
-func unmarshalProfiles(configKey string) func(profilesIn) (profilesOut, error) {
-	return func(in profilesIn) (profilesOut, error) {
-		var (
-			sourceProfiles []profile
-			out            = profilesOut{}
-		)
+func UnmarshalProfiles(configKey string) func(profilesIn) (map[string]*Profile, error) {
+	return func(in profilesIn) (map[string]*Profile, error) {
+		var sourceProfiles []Profile
+		servers := map[string]bool{"primary": true}
+		fmt.Println("unmarshalling lol")
 
 		if err := in.Unmarshaller.UnmarshalKey(configKey, &sourceProfiles); err != nil {
-			return out, fmt.Errorf("Failed to unmarshal bascule profile config: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal bascule profile config: %w", err)
 		}
 
 		if len(sourceProfiles) < 1 {
 			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "No bascule profiles configured")
-			return out, ErrMissingTargetServer
+			return nil, ErrMissingTargetServer
 		}
 
-		profiles := make(map[string]*profile)
+		profiles := make(map[string]*Profile)
 
 		for _, sourceProfile := range sourceProfiles {
 			if len(sourceProfile.TargetServers) < 1 {
-				return out, ErrUnusedProfile
+				return nil, ErrUnusedProfile
 			}
 
 			for _, targetServer := range sourceProfile.TargetServers {
-				if !in.Servers[targetServer] {
+				if !servers[targetServer] {
 					in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Bascule profile targetServer does not exist.", "targetServer", targetServer)
-					return out, ErrMissingTargetServer
+					return nil, ErrMissingTargetServer
 				}
 
 				if _, ok := profiles[targetServer]; ok {
@@ -104,22 +99,22 @@ func unmarshalProfiles(configKey string) func(profilesIn) (profilesOut, error) {
 			}
 		}
 
-		out.Profiles = profiles
-		return out, nil
+		return profiles, nil
 	}
 }
 
-type profileProvider struct {
+type ProfileProvider struct {
 	ServerName string
 }
 
-func (p profileProvider) provide(profiles map[string]*profile) *profile {
+func (p ProfileProvider) Provide(profiles map[string]*Profile) *Profile {
+	fmt.Println("Provider the Primary profile")
 	return profiles[p.ServerName]
 }
 
-func (p profileProvider) annotated() fx.Annotated {
+func (p ProfileProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
-		Name:   fmt.Sprintf("%s_profile", p.ServerName),
-		Target: p.provide,
+		Name:   "primary_profile",
+		Target: p.Provide,
 	}
 }

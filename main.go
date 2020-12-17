@@ -19,9 +19,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/xmidt-org/bascule/basculehttp"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/justinas/alice"
+	"github.com/xmidt-org/argus/auth"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmidt-org/argus/store"
@@ -105,22 +109,46 @@ func main() {
 		config.CommandLine{Name: applicationName}.Provide(setupFlagSet),
 		provideMetrics(),
 		metric.ProvideMetrics(),
-		basculechecks.ProvideMetrics(),
-		basculemetrics.ProvideMetrics(),
+		basculechecks.ProvideMetricsVec(),
+		basculemetrics.ProvideMetricsVec(),
+
+		auth.LogOptionsProvider{ServerName: "primary"}.Provide(),
+		auth.ProvidePrimaryBasculeConstructor(),
+		auth.ProvidePrimaryBasculeEnforcer(),
+		auth.ProvidePrimaryTokenFactory(),
+
 		fx.Provide(
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
+			//auth.ProvidePrimaryChain,
 			db.Provide,
 			store.Provide,
 			xhealth.Unmarshal("health"),
-			ProvideAuthChain,
 			provideServerChainFactory,
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),
 			xhttpserver.Unmarshal{Key: "servers.primary", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.metrics", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.health", Optional: true}.Annotated(),
+
+			auth.UnmarshalProfiles("bascule.inbound.profiles"),
+			auth.ProfileProvider{ServerName: "primary"}.Annotated(),
+			auth.BasculeMetricsListenerProvider{ServerName: "primary"}.Annotated(),
+
+			fx.Annotated{
+				Name: "primary_alice_listener",
+				Target: func(in auth.PrimaryBasculeMetricListenerIn) alice.Constructor {
+					return basculehttp.NewListenerDecorator(in.Listener)
+				},
+			},
+			fx.Annotated{
+				Name: "primary_auth_chain",
+				Target: func(in auth.PrimaryChainIn) alice.Chain {
+					return alice.New(in.SetLogger, in.Constructor, in.Enforcer, in.Listener)
+				},
+			},
 		),
+
 		fx.Invoke(
 			xhealth.ApplyChecks(
 				&health.Config{
@@ -133,6 +161,17 @@ func main() {
 					},
 				},
 			),
+			//getBasculeCapabilityMeasures,
+			getProfiles, // ok
+			////getPrimaryProfile,
+			//getBasculeMetrics, // ok
+			//getBasculeCapabilityMetrics, // ok
+			//getBasculeCapabilityMeasures,
+			//getPrimaryConstructorOptions,
+			//getPrimaryBasculeMetricListenerIn,
+			//getPrimaryLogger,
+			//getPrimaryValidators,
+			//getChains,
 			BuildPrimaryRoutes,
 			BuildMetricsRoutes,
 			BuildHealthRoutes,
@@ -148,4 +187,50 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+}
+
+func getProfiles(profiles map[string]*auth.Profile) {
+	for k, v := range profiles {
+		fmt.Printf("k: %s, v: %v", k, v)
+	}
+}
+
+func getPrimaryProfile(in auth.PrimaryBasculeProfileIn) {
+	fmt.Printf("This is the primary profile: %v", in.Profile)
+}
+
+func getChains(in auth.PrimaryChainIn) {
+	fmt.Printf("setLogger: %v", in)
+}
+
+type LogDebugging struct {
+	fx.In
+	SetLogger alice.Constructor `name:"primary_alice_set_logger"`
+}
+
+func getPrimaryValidators(in auth.PrimaryBearerValidatorsIn) {
+	fmt.Println(in)
+}
+
+func getPrimaryLogger(in LogDebugging) {
+	fmt.Print(in)
+}
+
+func getPrimaryConstructorOptions(in auth.PrimaryCOptionsIn) {
+	fmt.Printf("This is the primary coptions %v", in)
+}
+func getPrimaryBasculeMetricListenerIn(in auth.PrimaryBasculeMetricListenerIn) {
+	fmt.Printf("bascule metric listener in: %v", in)
+}
+
+func getBasculeMetrics(in auth.BasculeMetricsProviderIn) {
+	fmt.Printf("this is bascule metrics provider: %v", in)
+}
+
+func getBasculeCapabilityMeasures(in auth.PrimaryCapabilityValidatorIn) {
+	fmt.Printf("This is the bascule capability measures: %v", in.Measures)
+}
+
+func getBasculeCapabilityMetrics(in auth.BasculeCapabilityMetricsProviderIn) {
+	fmt.Printf("this is basculeCapability metrics: %v", in)
 }

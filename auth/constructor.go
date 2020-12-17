@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+
 	"github.com/xmidt-org/webpa-common/basculechecks"
 
 	gokitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -20,26 +21,28 @@ type PrimaryCOptionsIn struct {
 }
 
 type PrimaryBasculeProfileIn struct {
-	Profile *profile `name:"primary_profile"`
+	fx.In
+	Profile *Profile `name:"primary_profile"`
 }
 
 type PrimaryTokenFactoryIn struct {
-	fx.Out
+	fx.In
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
 	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
 }
 
-type PrimaryBasculeErrorResponseIn struct {
-	BasculeMetricListener *basculemetrics.MetricListener `name:"primary_bascule_metric_listener"`
+type PrimaryBasculeMetricListenerIn struct {
+	fx.In
+	Listener *basculemetrics.MetricListener `name:"primary_bascule_metric_listener"`
 }
 
-func providePrimaryBasculeConstructor() fx.Option {
+func ProvidePrimaryBasculeConstructor() fx.Option {
 	return fx.Provide(
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
-			Target: func(in PrimaryBasculeErrorResponseIn) basculehttp.COption {
-				return basculehttp.WithCErrorResponseFunc(in.BasculeMetricListener.OnErrorResponse)
+			Target: func(in PrimaryBasculeMetricListenerIn) basculehttp.COption {
+				return basculehttp.WithCErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
 		fx.Annotated{
@@ -62,10 +65,10 @@ func providePrimaryBasculeConstructor() fx.Option {
 	)
 }
 
-func providePrimaryTokenFactory() fx.Option {
+func ProvidePrimaryTokenFactory() fx.Option {
 	return fx.Provide(
 		fx.Annotated{
-			Name: "primary_default_bearer_kid",
+			Name: "primary_bearer_default_kid",
 			Target: func() string {
 				return "current"
 			},
@@ -85,27 +88,25 @@ func providePrimaryTokenFactory() fx.Option {
 	)
 }
 
-type basculeMetricsProviderIn struct {
+type BasculeMetricsProviderIn struct {
 	fx.In
 
-	//TODO: We can update webpa-common/basculemetrics to provide these vectors
-	NBFHistogram      prometheus.HistogramVec `name:"auth_from_nbf_seconds"`
-	ExpHistogram      prometheus.HistogramVec `name:"auth_from_exp_seconds"`
-	ValidationOutcome prometheus.CounterVec   `name:"auth_validation"`
+	NBFHistogram      *prometheus.HistogramVec `name:"auth_from_nbf_seconds"`
+	ExpHistogram      *prometheus.HistogramVec `name:"auth_from_exp_seconds"`
+	ValidationOutcome *prometheus.CounterVec   `name:"auth_validation"`
 }
 
-type basculeCapabilityMetricsProviderIn struct {
+type BasculeCapabilityMetricsProviderIn struct {
 	fx.In
 
-	//TODO: We can update webpa-common/basculechecks to provide these vectors
-	CapabilityCheckOutcome prometheus.CounterVec `name:"auth_capability_check"`
+	CapabilityCheckOutcome *prometheus.CounterVec `name:"auth_capability_check"`
 }
 
-type basculeMetricsListenerProvider struct {
+type BasculeMetricsListenerProvider struct {
 	ServerName string
 }
 
-func (b basculeMetricsListenerProvider) provide(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
+func (b BasculeMetricsListenerProvider) Provide(in BasculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
 	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err
@@ -128,18 +129,19 @@ func (b basculeMetricsListenerProvider) provide(in basculeMetricsProviderIn) (*b
 
 }
 
-func (b basculeMetricsListenerProvider) annotated() fx.Annotated {
+func (b BasculeMetricsListenerProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_bascule_metric_listener", b.ServerName),
-		Target: b.provide,
+		Target: b.Provide,
 	}
 }
 
-type basculeCapabilityMetricProvider struct {
+type BasculeCapabilityMetricProvider struct {
 	ServerName string
 }
 
-func (b basculeCapabilityMetricProvider) provide(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+func (b BasculeCapabilityMetricProvider) Provide(in BasculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+	fmt.Println("providing capability measures")
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err
@@ -149,9 +151,9 @@ func (b basculeCapabilityMetricProvider) provide(in basculeCapabilityMetricsProv
 	}, nil
 }
 
-func (b basculeCapabilityMetricProvider) annotated() fx.Annotated {
+func (b BasculeCapabilityMetricProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
-		Name:   b.ServerName,
-		Target: b.provide,
+		Name:   fmt.Sprintf("%s_capability_measures", b.ServerName),
+		Target: b.Provide,
 	}
 }
