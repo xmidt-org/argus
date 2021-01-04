@@ -26,7 +26,7 @@ FROM alpine:3.12.1
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /src/argus /src/argus.yaml /src/deploy/packaging/entrypoint.sh /go/bin/spruce /src/Dockerfile /src/NOTICE /src/LICENSE /src/CHANGELOG.md /
-COPY --from=builder /src/deploy/packaging/argus.yaml /tmp/argus.yaml
+COPY --from=builder /src/deploy/packaging/argus_spruce.yaml /tmp/argus_spruce.yaml
 
 RUN mkdir /etc/argus/ && touch /etc/argus/argus.yaml && chmod 666 /etc/argus/argus.yaml
 
