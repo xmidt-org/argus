@@ -20,21 +20,21 @@ type capabilityValidatorConfig struct {
 }
 
 type PrimaryCapabilityValidatorIn struct {
+	Logger    log.Logger
 	ProfileIn primaryProfileIn
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
-	Logger    log.Logger
 }
 
 func ProvidePrimaryCapabilityValidator(in PrimaryCapabilityValidatorIn) (bascule.Validator, error) {
 	profile := in.ProfileIn.Profile
 	if profile == nil {
-		in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
 		return nil, nil
 	}
 
 	config := profile.CapabilityCheck
 	if config.Type != "enforce" && config.Type != "monitor" {
-		in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
 		return nil, nil
 	}
 

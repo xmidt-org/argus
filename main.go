@@ -23,9 +23,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/xmidt-org/argus/auth"
-
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -111,7 +110,9 @@ func main() {
 		basculemetrics.ProvideMetricsVec(),
 		auth.ProvidePrimaryServerChain(),
 		fx.Provide(
-			auth.UnmarshalProfiles("bascule.inbound.profiles", "primary"),
+			auth.ProfilesUnmarshaler{
+				ConfigKey:        "bascule.inbound.profiles",
+				SupportedServers: []string{"primary"}}.Annotated(),
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,

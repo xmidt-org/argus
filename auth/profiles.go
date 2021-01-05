@@ -14,20 +14,19 @@ import (
 )
 
 var (
-	// ErrMissingTargetServer is returned whenever a bascule profile lists a targetServer that
-	// does not exist.
-	ErrMissingTargetServer = errors.New("invalid targetServer in bascule profile")
+	// ErrUnsupportedTargetServer is returned when a bascule profile lists a targetServer that
+	// does not exist (not supported).
+	ErrUnsupportedTargetServer = errors.New("unsupported targetServer in bascule profile")
 
-	// ErrUnusedProfile is returned when no targetServer was specified for a profile.
+	// ErrUnusedProfile means no targetServer was specified for a profile.
 	ErrUnusedProfile = errors.New("profile has no targetServers")
 )
 
-// profilesIn is the parameter struct for generating bascule profiles
-// from config.
+// profilesIn is the parameter struct for parsing bascule profiles from config.
 type profilesProviderIn struct {
 	fx.In
 
-	// Logger is the required go-kit logger that will receive health logging output.
+	// Logger is the required go-kit logger that will receive logging output.
 	Logger log.Logger
 
 	// Unmarshaller is the required configuration unmarshaller strategy.
@@ -36,6 +35,7 @@ type profilesProviderIn struct {
 
 type profilesIn struct {
 	fx.In
+	Logger log.Logger
 
 	Profiles map[string]*profile `name:"bascule_profiles" optional:"true"`
 }
@@ -44,7 +44,7 @@ type profilesIn struct {
 type profile struct {
 	TargetServers   []string
 	Basic           []string
-	Bearer          jwtValidator
+	Bearer          *jwtValidator
 	CapabilityCheck capabilityValidatorConfig
 }
 
@@ -58,11 +58,16 @@ type jwtValidator struct {
 	Leeway bascule.Leeway
 }
 
-// UnmarshalProfiles returns an uber/fx provider that reads configuration from a Viper
-// instance and initializes bascule profiles. For now, bascule profiles should be optional. The configKey is the
-// key we should unmarshal the profiles from and the supportedServers should include all servers that profiles could
-// target.
-func UnmarshalProfiles(configKey string, supportedServers ...string) func(in profilesProviderIn) (map[string]*profile, error) {
+// ProfilesUnmarshaler provides a component that reads configuration from a Viper instance and initializes
+// bascule profiles. For now, bascule profiles should be optional. The configKey is the key we should unmarshal
+// the profiles from and the supportedServers should include all servers that profiles could target.
+type ProfilesUnmarshaler struct {
+	Name             string
+	ConfigKey        string
+	SupportedServers []string
+}
+
+func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...string) func(in profilesProviderIn) (map[string]*profile, error) {
 	servers := make(map[string]bool)
 	for _, supportedServer := range supportedServers {
 		servers[supportedServer] = true
@@ -72,8 +77,6 @@ func UnmarshalProfiles(configKey string, supportedServers ...string) func(in pro
 
 		var sourceProfiles []profile
 		if err := in.Unmarshaller.UnmarshalKey(configKey, &sourceProfiles); err != nil {
-			//TODO: if this is hit when no profiles are provided, we need to fix it. For now, everything related to
-			//profiles is optional.
 			return nil, fmt.Errorf("failed to unmarshal bascule profiles from config: %w", err)
 		}
 
@@ -91,7 +94,7 @@ func UnmarshalProfiles(configKey string, supportedServers ...string) func(in pro
 			for _, targetServer := range sourceProfile.TargetServers {
 				if !servers[targetServer] {
 					in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Bascule profile targetServer does not exist.", "targetServer", targetServer)
-					return nil, ErrMissingTargetServer
+					return nil, ErrUnsupportedTargetServer
 				}
 
 				if _, ok := profiles[targetServer]; ok {
@@ -106,11 +109,19 @@ func UnmarshalProfiles(configKey string, supportedServers ...string) func(in pro
 	}
 }
 
+func (p ProfilesUnmarshaler) Annotated() fx.Annotated {
+	return fx.Annotated{
+		Name:   "bascule_profiles",
+		Target: p.Unmarshal(p.ConfigKey, p.SupportedServers...),
+	}
+}
+
 type profileProvider struct {
 	ServerName string
 }
 
 func (p profileProvider) Provide(in profilesIn) *profile {
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "Providing profile", "targetServer", p.ServerName)
 	return in.Profiles[p.ServerName]
 }
 

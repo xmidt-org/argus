@@ -13,6 +13,7 @@ import (
 // PrimaryBearerValidatorsIn provides the bascule checks to run against the jwt token.
 type PrimaryBearerValidatorsIn struct {
 	fx.In
+	Logger     log.Logger
 	Principal  bascule.Validator `name:"primary_bearer_validator_principal" optional:"true"`
 	Type       bascule.Validator `name:"primary_bearer_validator_type" optional:"true"`
 	Capability bascule.Validator `name:"primary_bearer_validator_capability" optional:"true"`
@@ -23,7 +24,7 @@ type PrimaryBearerValidatorsIn struct {
 type PrimaryEOptionsIn struct {
 	fx.In
 	Options []basculehttp.EOption `group:"primary_bascule_enforcer_options"`
-	Logger log.Logger
+	Logger  log.Logger
 }
 
 func ProvidePrimaryBasculeEnforcer() fx.Option {
@@ -46,11 +47,14 @@ func ProvidePrimaryBasculeEnforcer() fx.Option {
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in PrimaryBearerValidatorsIn) basculehttp.EOption {
-				if anyNil(in.Principal, in.Type, in.Capability) {
+				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer rules option", "server", "primary")
+
+				validators := filterNilValidators([]bascule.Validator{in.Principal, in.Type, in.Capability})
+				if len(validators) < 1 {
+					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "providing nil bearer rules option", "server", "primary")
 					return nil
 				}
-				rules := bascule.Validators{in.Principal, in.Type, in.Capability}
-				return basculehttp.WithRules("Bearer", rules)
+				return basculehttp.WithRules("Bearer", bascule.Validators(validators))
 			},
 		},
 		fx.Annotated{
@@ -63,13 +67,23 @@ func ProvidePrimaryBasculeEnforcer() fx.Option {
 		fx.Annotated{
 			Name: "primary_alice_enforcer",
 			Target: func(in PrimaryEOptionsIn) alice.Constructor {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building primary alice enforcer", "in", in)
-				//fmt.Printf("Primary Alice Enforcer options: %v", len(in.Options))
+				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice enforcer", "server", "primary")
 				if anyNil(in.Options) {
+					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "nil alice enforcer provided for primary server")
 					return nil
 				}
 				return basculehttp.NewEnforcer(in.Options...)
 			},
 		},
 	)
+}
+
+func filterNilValidators(vals []bascule.Validator) []bascule.Validator {
+	var filteredVals []bascule.Validator
+	for _, v := range vals {
+		if v != nil {
+			filteredVals = append(filteredVals, v)
+		}
+	}
+	return filteredVals
 }

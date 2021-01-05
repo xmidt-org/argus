@@ -3,6 +3,8 @@ package auth
 import (
 	"reflect"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"go.uber.org/fx"
@@ -18,6 +20,7 @@ type primaryChainIn struct {
 
 type primaryProfileIn struct {
 	fx.In
+	Logger  log.Logger
 	Profile *profile `name:"primary_profile" optional:"true"`
 }
 

@@ -80,7 +80,7 @@ servers:
 #  # (Optional) defaults to false
 #  #enableHostVerification: false
 
-# dyanmo is the configuration block to communicate with dynamoDB.
+# dynamo is the configuration block to communicate with dynamoDB.
 dynamo:
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
@@ -140,7 +140,7 @@ bascule:
         bearer: 
           keys:
             Factory:
-                uri: "http://localhost:6500/keys/local"
+                uri: "http://localhost:6500/keys/docker"
             purpose: 0
             updateInterval: 24h
 

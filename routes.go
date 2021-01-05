@@ -87,7 +87,7 @@ func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
 type PrimaryRouter struct {
 	fx.In
 	Router    *mux.Router `name:"servers.primary"`
-	AuthChain alice.Chain `name:"primary_auth_chain" optional:"true"`
+	AuthChain alice.Chain `name:"primary_auth_chain"`
 }
 
 type PrimaryRoutes struct {
