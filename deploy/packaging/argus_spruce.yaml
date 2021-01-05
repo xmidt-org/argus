@@ -124,15 +124,32 @@ dynamo:
   secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
 
 
-# itemTTL configures the default time based ttls for each item.
-itemTTL:
-  # defaultTTL is used if not ttl is provided via the api.
-  # the duration will be converted to a floor of seconds.
-  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
-  # (Optional) default: 5m
-  defaultTTL: (( grab $DEFAULT_TTL|| "5m" ))
+# request is a config section related to operation authorization
+# and request validation.
+request:
+  authorization:
+    # adminToken serves as a master key which allows performing operations on any
+    # item regardless of their ownership status.
+    adminToken: (( grab $ARGUS_ADMIN_TOKEN || "Hzu1WpIe7S8G" ))
 
-  # maxTTL is limit the maxTTL provided via the api.
-  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
-  # (Optional) default: 1y
-  maxTTL: (( grab $DEFAULT_TTL|| "1d" ))
+  validation:
+    # maxTTL specifies the cap for the TTL of items when values are specified.
+    maxTTL: (( grab $DEFAULT_TTL || "1d" ))
+
+##############################################################################
+# Authorization Credentials
+##############################################################################
+
+# authHeader provides the list of basic auth headers that caduceus will accept
+# as authorization
+# (Optional)
+authHeader:
+  - (( grab $AUTH_HEADER || "dXNlcjpwYXNz" ))
+
+# jwtValidator provides Bearer auth configuration
+jwtValidator:
+  keys:
+    factory:
+      uri: (( grab $THEMIS_ENDPOINT || "http://themis:6500/keys/docker" ))
+    purpose: 0
+    updateInterval: 24h
