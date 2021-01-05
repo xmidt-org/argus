@@ -20,16 +20,11 @@ type PrimaryCOptionsIn struct {
 	Options []basculehttp.COption `group:"primary_bascule_constructor_options"`
 }
 
-type PrimaryBasculeProfileIn struct {
-	fx.In
-	Profile *Profile `name:"primary_profile"`
-}
-
 type PrimaryTokenFactoryIn struct {
 	fx.In
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
-	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
-	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
+	Resolver     key.Resolver   `name:"primary_bearer_key_resolver" optional:"true"`
+	Leeway       bascule.Leeway `name:"primary_bearer_leeway" optional:"true"`
 }
 
 type PrimaryBasculeMetricListenerIn struct {
@@ -48,6 +43,9 @@ func ProvidePrimaryBasculeConstructor() fx.Option {
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
 			Target: func(in PrimaryTokenFactoryIn) basculehttp.COption {
+				if in.Resolver == nil {
+					return nil
+				}
 				return basculehttp.WithTokenFactory("Bearer", basculehttp.BearerTokenFactory{
 					DefaultKeyId: in.DefaultKeyID,
 					Resolver:     in.Resolver,
@@ -59,6 +57,9 @@ func ProvidePrimaryBasculeConstructor() fx.Option {
 		fx.Annotated{
 			Name: "primary_alice_constructor",
 			Target: func(in PrimaryCOptionsIn) alice.Constructor {
+				if anyNil(in.Options) {
+					return nil
+				}
 				return basculehttp.NewConstructor(in.Options...)
 			},
 		},
@@ -75,13 +76,19 @@ func ProvidePrimaryTokenFactory() fx.Option {
 		},
 		fx.Annotated{
 			Name: "primary_bearer_key_resolver",
-			Target: func(in PrimaryBasculeProfileIn) (key.Resolver, error) {
+			Target: func(in primaryProfileIn) (key.Resolver, error) {
+				if in.Profile == nil {
+					return nil, nil
+				}
 				return in.Profile.Bearer.Keys.NewResolver()
 			},
 		},
 		fx.Annotated{
 			Name: "primary_bearer_leeway",
-			Target: func(in PrimaryBasculeProfileIn) bascule.Leeway {
+			Target: func(in primaryProfileIn) bascule.Leeway {
+				if in.Profile == nil {
+					return bascule.Leeway{}
+				}
 				return in.Profile.Bearer.Leeway
 			},
 		},
@@ -141,7 +148,6 @@ type BasculeCapabilityMetricProvider struct {
 }
 
 func (b BasculeCapabilityMetricProvider) Provide(in BasculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
-	fmt.Println("providing capability measures")
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
 		return nil, err

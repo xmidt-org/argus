@@ -24,7 +24,7 @@ var (
 
 // profilesIn is the parameter struct for generating bascule profiles
 // from config.
-type profilesIn struct {
+type profilesProviderIn struct {
 	fx.In
 
 	// Logger is the required go-kit logger that will receive health logging output.
@@ -34,17 +34,14 @@ type profilesIn struct {
 	Unmarshaller config.Unmarshaller
 }
 
-// profilesOut is the result parameter containing bascule profiles.
-type profilesOut struct {
-	fx.Out
+type profilesIn struct {
+	fx.In
 
-	// Profiles is a mapping from a target server name (i.e. 'servers.primary') to the profile that
-	// should be used to generate its auth chain
-	Profiles map[string]*Profile `name:"server_profiles"`
+	Profiles map[string]*profile `name:"bascule_profiles" optional:"true"`
 }
 
 // profile is the struct to help read on bascule profle information from config.
-type Profile struct {
+type profile struct {
 	TargetServers   []string
 	Basic           []string
 	Bearer          jwtValidator
@@ -62,24 +59,30 @@ type jwtValidator struct {
 }
 
 // UnmarshalProfiles returns an uber/fx provider that reads configuration from a Viper
-// instance and initializes bascule profiles.
-func UnmarshalProfiles(configKey string) func(profilesIn) (map[string]*Profile, error) {
-	return func(in profilesIn) (map[string]*Profile, error) {
-		var sourceProfiles []Profile
-		servers := map[string]bool{"primary": true}
-		fmt.Println("unmarshalling lol")
+// instance and initializes bascule profiles. For now, bascule profiles should be optional. The configKey is the
+// key we should unmarshal the profiles from and the supportedServers should include all servers that profiles could
+// target.
+func UnmarshalProfiles(configKey string, supportedServers ...string) func(in profilesProviderIn) (map[string]*profile, error) {
+	servers := make(map[string]bool)
+	for _, supportedServer := range supportedServers {
+		servers[supportedServer] = true
+	}
+	return func(in profilesProviderIn) (map[string]*profile, error) {
+		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "UnMarshaling bascule profiles")
 
+		var sourceProfiles []profile
 		if err := in.Unmarshaller.UnmarshalKey(configKey, &sourceProfiles); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal bascule profile config: %w", err)
+			//TODO: if this is hit when no profiles are provided, we need to fix it. For now, everything related to
+			//profiles is optional.
+			return nil, fmt.Errorf("failed to unmarshal bascule profiles from config: %w", err)
 		}
 
 		if len(sourceProfiles) < 1 {
-			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "No bascule profiles configured")
-			return nil, ErrMissingTargetServer
+			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "No bascule profiles configured.")
+			return nil, nil
 		}
 
-		profiles := make(map[string]*Profile)
-
+		profiles := make(map[string]*profile)
 		for _, sourceProfile := range sourceProfiles {
 			if len(sourceProfile.TargetServers) < 1 {
 				return nil, ErrUnusedProfile
@@ -103,18 +106,17 @@ func UnmarshalProfiles(configKey string) func(profilesIn) (map[string]*Profile, 
 	}
 }
 
-type ProfileProvider struct {
+type profileProvider struct {
 	ServerName string
 }
 
-func (p ProfileProvider) Provide(profiles map[string]*Profile) *Profile {
-	fmt.Println("Provider the Primary profile")
-	return profiles[p.ServerName]
+func (p profileProvider) Provide(in profilesIn) *profile {
+	return in.Profiles[p.ServerName]
 }
 
-func (p ProfileProvider) Annotated() fx.Annotated {
+func (p profileProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
-		Name:   "primary_profile",
+		Name:   fmt.Sprintf("%s_profile", p.ServerName),
 		Target: p.Provide,
 	}
 }

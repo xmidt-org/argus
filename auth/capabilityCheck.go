@@ -1,15 +1,15 @@
 package auth
 
 import (
-	"context"
 	"fmt"
+	"regexp"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"go.uber.org/fx"
-	"regexp"
 )
 
 type capabilityValidatorConfig struct {
@@ -20,33 +20,34 @@ type capabilityValidatorConfig struct {
 }
 
 type PrimaryCapabilityValidatorIn struct {
-	fx.In
-	Profile  *Profile                                   `name:"primary_profile"`
-	Measures *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
-	Logger   log.Logger
+	ProfileIn primaryProfileIn
+	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
+	Logger    log.Logger
 }
 
-func dummy(ctx context.Context, token bascule.Token) error {
-	return nil
-}
 func ProvidePrimaryCapabilityValidator(in PrimaryCapabilityValidatorIn) (bascule.Validator, error) {
-	fmt.Printf("Creating capability validator. Profile: %v\n Measures: %v\n", in.Profile, in.Measures)
+	profile := in.ProfileIn.Profile
+	if profile == nil {
+		in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
+		return nil, nil
+	}
 
-	config := in.Profile.CapabilityCheck
+	config := profile.CapabilityCheck
 	if config.Type != "enforce" && config.Type != "monitor" {
-		return bascule.ValidatorFunc(dummy), nil
+		in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "Unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
+		return nil, nil
 	}
 
 	c, err := basculechecks.NewEndpointRegexCheck(config.Prefix, config.AcceptAllMethod)
 	if err != nil {
-		return bascule.ValidatorFunc(dummy), fmt.Errorf("error initializing endpointRegexCheck: %w", err)
+		return nil, fmt.Errorf("error initializing endpointRegexCheck: %w", err)
 	}
 
 	var endpoints []*regexp.Regexp
 	for _, e := range config.EndpointBuckets {
 		r, err := regexp.Compile(e)
 		if err != nil {
-			in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error())
+			in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error())
 			continue
 		}
 		endpoints = append(endpoints, r)
