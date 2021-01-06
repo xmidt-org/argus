@@ -18,9 +18,6 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/xmidt-org/bascule v0.9.0
 	github.com/xmidt-org/themis v0.4.4
-	github.com/xmidt-org/webpa-common v1.11.4
+	github.com/xmidt-org/webpa-common v1.11.5-0.20210105021513-83c85265bb49
 	go.uber.org/fx v1.13.1
 )
-
-
-replace github.com/xmidt-org/webpa-common v1.11.4 => ../webpa-common
