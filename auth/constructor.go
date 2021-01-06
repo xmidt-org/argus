@@ -62,6 +62,19 @@ func ProvidePrimaryBasculeConstructor() fx.Option {
 			},
 		},
 		fx.Annotated{
+			Group: "primary_bascule_constructor_options",
+			Target: func(in primaryProfileIn) (basculehttp.COption, error) {
+				if in.Profile == nil {
+					return nil, nil
+				}
+				basicTokenFactory, factoryErr := basculehttp.NewBasicTokenFactoryFromList(in.Profile.Basic)
+				if factoryErr != nil {
+					return nil, factoryErr
+				}
+				return basculehttp.WithTokenFactory("Basic", basicTokenFactory), nil
+			},
+		},
+		fx.Annotated{
 			Name: "primary_alice_constructor",
 			Target: func(in PrimaryCOptionsIn) alice.Constructor {
 				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing alice constructor from bascule constructor options", "server", "primary")

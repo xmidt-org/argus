@@ -48,13 +48,18 @@ func ProvidePrimaryBasculeEnforcer() fx.Option {
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in PrimaryBearerValidatorsIn) basculehttp.EOption {
 				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer rules option", "server", "primary")
-
 				validators := filterNilValidators([]bascule.Validator{in.Principal, in.Type, in.Capability})
 				if len(validators) < 1 {
 					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "providing nil bearer rules option", "server", "primary")
 					return nil
 				}
 				return basculehttp.WithRules("Bearer", bascule.Validators(validators))
+			},
+		},
+		fx.Annotated{
+			Group: "primary_bascule_enforcer_options",
+			Target: func() basculehttp.EOption {
+				return basculehttp.WithRules("Basic", bascule.CreateAllowAllCheck())
 			},
 		},
 		fx.Annotated{

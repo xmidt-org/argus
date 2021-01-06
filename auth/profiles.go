@@ -73,7 +73,7 @@ func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...str
 		servers[supportedServer] = true
 	}
 	return func(in profilesProviderIn) (map[string]*profile, error) {
-		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "UnMarshaling bascule profiles")
+		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "unmarshaling bascule profiles")
 
 		var sourceProfiles []profile
 		if err := in.Unmarshaller.UnmarshalKey(configKey, &sourceProfiles); err != nil {
@@ -121,7 +121,7 @@ type profileProvider struct {
 }
 
 func (p profileProvider) Provide(in profilesIn) *profile {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "Providing profile", "targetServer", p.ServerName)
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing profile", "server", p.ServerName)
 	return in.Profiles[p.ServerName]
 }
 
