@@ -26,7 +26,7 @@ type primaryCapabilityValidatorIn struct {
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 }
 
-func providePrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
+func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
 	profile := in.ProfileIn.Profile
 	if profile == nil {
 		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
@@ -66,6 +66,6 @@ func providePrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule
 func primaryCapabilityValidatorAnnotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   "primary_bearer_validator_capability",
-		Target: providePrimaryCapabilityValidator,
+		Target: newPrimaryCapabilityValidator,
 	}
 }
