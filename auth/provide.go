@@ -27,13 +27,13 @@ type primaryProfileIn struct {
 // ProvidePrimaryServerChain provides the auth alice.Chain for the primary server.
 func ProvidePrimaryServerChain(apiBase string) fx.Option {
 	return fx.Options(
-		LogOptionsProvider{ServerName: "primary"}.Provide(),
+		logOptionsProvider{serverName: "primary"}.provide(),
 		providePrimaryBasculeConstructor(apiBase),
 		providePrimaryBasculeEnforcer(),
 		providePrimaryTokenFactory(),
 		fx.Provide(
-			profileProvider{ServerName: "primary"}.Annotated(),
-			basculeMetricsListenerProvider{ServerName: "primary"}.Annotated(),
+			profileProvider{serverName: "primary"}.Annotated(),
+			basculeMetricsListenerBuilder{serverName: "primary"}.Annotated(),
 
 			fx.Annotated{
 				Name: "primary_alice_listener",

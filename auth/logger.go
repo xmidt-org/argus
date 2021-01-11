@@ -31,20 +31,20 @@ import (
 	"go.uber.org/fx"
 )
 
-// GetLogger pulls the logger from the context and adds a timestamp to it.
-func GetLogger(ctx context.Context) log.Logger {
+// getLogger pulls the logger from the context and adds a timestamp to it.
+func getLogger(ctx context.Context) log.Logger {
 	logger := log.With(xlog.GetDefault(ctx, nil), xlog.TimestampKey(), log.DefaultTimestampUTC)
 	return logger
 }
 
-type LogOptionsProvider struct {
-	ServerName string
+type logOptionsProvider struct {
+	serverName string
 }
 
-// SetLogger creates an alice constructor that sets up a logger that can be
+// setLogger creates an alice constructor that sets up a logger that can be
 // used for all logging related to the current request.  The logger is added to
 // the request's context.
-func (l LogOptionsProvider) SetLogger(logger log.Logger) alice.Constructor {
+func (l logOptionsProvider) setLogger(logger log.Logger) alice.Constructor {
 	return func(delegate http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func (l LogOptionsProvider) SetLogger(logger log.Logger) alice.Constructor {
 					logHeader.Set("Authorization-Type", strings.Split(str, " ")[0])
 				}
 				r = r.WithContext(xlog.With(r.Context(), log.With(logger, "requestHeaders", logHeader, "requestURL", r.URL.EscapedPath(),
-					"method", r.Method, "server", l.ServerName)))
+					"method", r.Method, "server", l.serverName)))
 				delegate.ServeHTTP(w, r)
 			})
 	}
@@ -69,24 +69,24 @@ func getBasculeLogger(f func(context.Context) log.Logger) func(context.Context) 
 }
 
 // TODO: if we see the need, we could split this for each server...
-func (l LogOptionsProvider) Provide() fx.Option {
+func (l logOptionsProvider) provide() fx.Option {
 	return fx.Options(
-		fx.Supply(GetLogger),
+		fx.Supply(getLogger),
 		fx.Provide(
 			fx.Annotated{
-				Name:   fmt.Sprintf("%s_alice_set_logger", l.ServerName),
-				Target: l.SetLogger,
+				Name:   fmt.Sprintf("%s_alice_set_logger", l.serverName),
+				Target: l.setLogger,
 			},
 
 			fx.Annotated{
-				Group: fmt.Sprintf("%s_bascule_constructor_options", l.ServerName),
+				Group: fmt.Sprintf("%s_bascule_constructor_options", l.serverName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.COption {
 					return basculehttp.WithCLogger(getBasculeLogger(getLogger))
 				},
 			},
 
 			fx.Annotated{
-				Group: fmt.Sprintf("%s_bascule_enforcer_options", l.ServerName),
+				Group: fmt.Sprintf("%s_bascule_enforcer_options", l.serverName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.EOption {
 					return basculehttp.WithELogger(getBasculeLogger(getLogger))
 				},

@@ -117,17 +117,17 @@ func (p ProfilesUnmarshaler) Annotated() fx.Annotated {
 }
 
 type profileProvider struct {
-	ServerName string
+	serverName string
 }
 
 func (p profileProvider) Provide(in profilesIn) *profile {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing profile", "server", p.ServerName)
-	return in.Profiles[p.ServerName]
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing profile", "server", p.serverName)
+	return in.Profiles[p.serverName]
 }
 
 func (p profileProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
-		Name:   fmt.Sprintf("%s_profile", p.ServerName),
+		Name:   fmt.Sprintf("%s_profile", p.serverName),
 		Target: p.Provide,
 	}
 }

@@ -43,7 +43,7 @@ func providePrimaryBasculeEnforcer() fx.Option {
 			},
 		},
 		primaryCapabilityValidatorAnnotated(),
-		basculeCapabilityMetricProvider{ServerName: "primary"}.Annotated(),
+		basculeCapabilityMetricBuilder{serverName: "primary"}.Annotated(),
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in primaryBearerValidatorsIn) basculehttp.EOption {
