@@ -37,7 +37,7 @@ type PrimaryBasculeMetricListenerIn struct {
 	Listener *basculemetrics.MetricListener `name:"primary_bascule_metric_listener"`
 }
 
-func ProvidePrimaryBasculeConstructor() fx.Option {
+func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 	return fx.Provide(
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
@@ -74,17 +74,31 @@ func ProvidePrimaryBasculeConstructor() fx.Option {
 				return basculehttp.WithTokenFactory("Basic", basicTokenFactory), nil
 			},
 		},
+
 		fx.Annotated{
-			Name: "primary_alice_constructor",
-			Target: func(in PrimaryCOptionsIn) alice.Constructor {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing alice constructor from bascule constructor options", "server", "primary")
-				if anyNil(in.Options) {
-					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing nil alice constructor as some options were undefined", "server", "primary")
-					return nil
-				}
-				return basculehttp.NewConstructor(in.Options...)
+			Group: "primary_bacule_constructor_options",
+			Target: func() basculehttp.COption {
+				return basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc))
 			},
 		},
+	)
+}
+
+func ProvidePrimaryBasculeConstructor(apiBase string) fx.Option {
+	return fx.Options(
+		providePrimaryBasculeConstructorOptions(apiBase),
+		fx.Provide(
+			fx.Annotated{
+				Name: "primary_alice_constructor",
+				Target: func(in PrimaryCOptionsIn) alice.Constructor {
+					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing alice constructor from bascule constructor options", "server", "primary")
+					if anyNil(in.Options) {
+						in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing nil alice constructor as some options were undefined", "server", "primary")
+						return nil
+					}
+					return basculehttp.NewConstructor(in.Options...)
+				},
+			}),
 	)
 }
 

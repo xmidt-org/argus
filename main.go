@@ -108,7 +108,7 @@ func main() {
 		metric.ProvideMetrics(),
 		basculechecks.ProvideMetricsVec(),
 		basculemetrics.ProvideMetricsVec(),
-		auth.ProvidePrimaryServerChain(),
+		auth.ProvidePrimaryServerChain(apiBase),
 		fx.Provide(
 			auth.ProfilesUnmarshaler{
 				ConfigKey:        "bascule.inbound.profiles",

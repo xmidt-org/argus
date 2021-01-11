@@ -25,10 +25,10 @@ type primaryProfileIn struct {
 }
 
 // ProvidePrimaryServerChain provides the auth alice.Chain for the primary server.
-func ProvidePrimaryServerChain() fx.Option {
+func ProvidePrimaryServerChain(apiBase string) fx.Option {
 	return fx.Options(
 		LogOptionsProvider{ServerName: "primary"}.Provide(),
-		ProvidePrimaryBasculeConstructor(),
+		ProvidePrimaryBasculeConstructor(apiBase),
 		ProvidePrimaryBasculeEnforcer(),
 		ProvidePrimaryTokenFactory(),
 		fx.Provide(
