@@ -28,16 +28,16 @@ type primaryProfileIn struct {
 func ProvidePrimaryServerChain(apiBase string) fx.Option {
 	return fx.Options(
 		LogOptionsProvider{ServerName: "primary"}.Provide(),
-		ProvidePrimaryBasculeConstructor(apiBase),
-		ProvidePrimaryBasculeEnforcer(),
-		ProvidePrimaryTokenFactory(),
+		providePrimaryBasculeConstructor(apiBase),
+		providePrimaryBasculeEnforcer(),
+		providePrimaryTokenFactory(),
 		fx.Provide(
 			profileProvider{ServerName: "primary"}.Annotated(),
-			BasculeMetricsListenerProvider{ServerName: "primary"}.Annotated(),
+			basculeMetricsListenerProvider{ServerName: "primary"}.Annotated(),
 
 			fx.Annotated{
 				Name: "primary_alice_listener",
-				Target: func(in PrimaryBasculeMetricListenerIn) alice.Constructor {
+				Target: func(in primaryBasculeMetricListenerIn) alice.Constructor {
 					return basculehttp.NewListenerDecorator(in.Listener)
 				},
 			},

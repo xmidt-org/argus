@@ -19,14 +19,14 @@ type capabilityValidatorConfig struct {
 	EndpointBuckets []string
 }
 
-type PrimaryCapabilityValidatorIn struct {
+type primaryCapabilityValidatorIn struct {
 	fx.In
 	Logger    log.Logger
 	ProfileIn primaryProfileIn
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 }
 
-func ProvidePrimaryCapabilityValidator(in PrimaryCapabilityValidatorIn) (bascule.Validator, error) {
+func providePrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
 	profile := in.ProfileIn.Profile
 	if profile == nil {
 		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
@@ -63,9 +63,9 @@ func ProvidePrimaryCapabilityValidator(in PrimaryCapabilityValidatorIn) (bascule
 	return m.CreateValidator(config.Type == "enforce"), nil
 }
 
-func PrimaryCapabilityValidatorAnnotated() fx.Annotated {
+func primaryCapabilityValidatorAnnotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   "primary_bearer_validator_capability",
-		Target: ProvidePrimaryCapabilityValidator,
+		Target: providePrimaryCapabilityValidator,
 	}
 }

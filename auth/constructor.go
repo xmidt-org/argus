@@ -18,13 +18,13 @@ import (
 	"go.uber.org/fx"
 )
 
-type PrimaryCOptionsIn struct {
+type primaryCOptionsIn struct {
 	fx.In
 	Logger  log.Logger
 	Options []basculehttp.COption `group:"primary_bascule_constructor_options"`
 }
 
-type PrimaryTokenFactoryIn struct {
+type primaryTokenFactoryIn struct {
 	fx.In
 	Logger       log.Logger
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
@@ -32,7 +32,7 @@ type PrimaryTokenFactoryIn struct {
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
 }
 
-type PrimaryBasculeMetricListenerIn struct {
+type primaryBasculeMetricListenerIn struct {
 	fx.In
 	Listener *basculemetrics.MetricListener `name:"primary_bascule_metric_listener"`
 }
@@ -41,13 +41,13 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 	return fx.Provide(
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
-			Target: func(in PrimaryBasculeMetricListenerIn) basculehttp.COption {
+			Target: func(in primaryBasculeMetricListenerIn) basculehttp.COption {
 				return basculehttp.WithCErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
-			Target: func(in PrimaryTokenFactoryIn) basculehttp.COption {
+			Target: func(in primaryTokenFactoryIn) basculehttp.COption {
 				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing token factory option", "server", "primary")
 				if in.Resolver == nil {
 					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "providing nil token factory option as resolver was not defined", "server", "primary")
@@ -84,13 +84,13 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 	)
 }
 
-func ProvidePrimaryBasculeConstructor(apiBase string) fx.Option {
+func providePrimaryBasculeConstructor(apiBase string) fx.Option {
 	return fx.Options(
 		providePrimaryBasculeConstructorOptions(apiBase),
 		fx.Provide(
 			fx.Annotated{
 				Name: "primary_alice_constructor",
-				Target: func(in PrimaryCOptionsIn) alice.Constructor {
+				Target: func(in primaryCOptionsIn) alice.Constructor {
 					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing alice constructor from bascule constructor options", "server", "primary")
 					if anyNil(in.Options) {
 						in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing nil alice constructor as some options were undefined", "server", "primary")
@@ -102,7 +102,7 @@ func ProvidePrimaryBasculeConstructor(apiBase string) fx.Option {
 	)
 }
 
-func ProvidePrimaryTokenFactory() fx.Option {
+func providePrimaryTokenFactory() fx.Option {
 	return fx.Provide(
 		fx.Annotated{
 			Name: "primary_bearer_default_kid",
@@ -133,7 +133,7 @@ func ProvidePrimaryTokenFactory() fx.Option {
 	)
 }
 
-type BasculeMetricsProviderIn struct {
+type basculeMetricsProviderIn struct {
 	fx.In
 	Logger            log.Logger
 	NBFHistogram      *prometheus.HistogramVec `name:"auth_from_nbf_seconds"`
@@ -141,17 +141,17 @@ type BasculeMetricsProviderIn struct {
 	ValidationOutcome *prometheus.CounterVec   `name:"auth_validation"`
 }
 
-type BasculeCapabilityMetricsProviderIn struct {
+type basculeCapabilityMetricsProviderIn struct {
 	fx.In
 	Logger                 log.Logger
 	CapabilityCheckOutcome *prometheus.CounterVec `name:"auth_capability_check"`
 }
 
-type BasculeMetricsListenerProvider struct {
+type basculeMetricsListenerProvider struct {
 	ServerName string
 }
 
-func (b BasculeMetricsListenerProvider) Provide(in BasculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
+func (b basculeMetricsListenerProvider) Provide(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
 	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing auth validation measures", "server", b.ServerName)
 	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
@@ -175,18 +175,18 @@ func (b BasculeMetricsListenerProvider) Provide(in BasculeMetricsProviderIn) (*b
 
 }
 
-func (b BasculeMetricsListenerProvider) Annotated() fx.Annotated {
+func (b basculeMetricsListenerProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_bascule_metric_listener", b.ServerName),
 		Target: b.Provide,
 	}
 }
 
-type BasculeCapabilityMetricProvider struct {
+type basculeCapabilityMetricProvider struct {
 	ServerName string
 }
 
-func (b BasculeCapabilityMetricProvider) Provide(in BasculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+func (b basculeCapabilityMetricProvider) Provide(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
 	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing auth capability measures", "server", b.ServerName)
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.ServerName})
 	if err != nil {
@@ -197,7 +197,7 @@ func (b BasculeCapabilityMetricProvider) Provide(in BasculeCapabilityMetricsProv
 	}, nil
 }
 
-func (b BasculeCapabilityMetricProvider) Annotated() fx.Annotated {
+func (b basculeCapabilityMetricProvider) Annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_capability_measures", b.ServerName),
 		Target: b.Provide,
