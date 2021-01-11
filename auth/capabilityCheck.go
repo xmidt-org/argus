@@ -20,6 +20,7 @@ type capabilityValidatorConfig struct {
 }
 
 type PrimaryCapabilityValidatorIn struct {
+	fx.In
 	Logger    log.Logger
 	ProfileIn primaryProfileIn
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
