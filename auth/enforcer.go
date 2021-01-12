@@ -83,13 +83,3 @@ func providePrimaryBasculeEnforcer() fx.Option {
 		providePrimaryBasculeEnforcerOptions(),
 	)
 }
-
-func filterNilValidators(vals []bascule.Validator) []bascule.Validator {
-	var filteredVals []bascule.Validator
-	for _, v := range vals {
-		if v != nil {
-			filteredVals = append(filteredVals, v)
-		}
-	}
-	return filteredVals
-}
