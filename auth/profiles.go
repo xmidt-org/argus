@@ -45,7 +45,7 @@ type profile struct {
 	TargetServers   []string
 	Basic           []string
 	Bearer          *jwtValidator
-	CapabilityCheck capabilityValidatorConfig
+	CapabilityCheck *capabilityValidatorConfig
 }
 
 // jwtValidator provides a convenient way to define jwt validator through config files.

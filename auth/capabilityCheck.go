@@ -29,13 +29,18 @@ type primaryCapabilityValidatorIn struct {
 func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
 	profile := in.ProfileIn.Profile
 	if profile == nil {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Undefined profile. CapabilityCheck disabled.")
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "undefined profile. CapabilityCheck disabled.")
 		return nil, nil
 	}
 
 	config := profile.CapabilityCheck
+	if config == nil {
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "config not provided. CapabilityCheck disabled.")
+		return nil, nil
+	}
+
 	if config.Type != "enforce" && config.Type != "monitor" {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "Unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
 		return nil, nil
 	}
 
