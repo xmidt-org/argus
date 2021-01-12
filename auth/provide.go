@@ -3,8 +3,6 @@ package auth
 import (
 	"reflect"
 
-	"github.com/go-kit/kit/log"
-
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"go.uber.org/fx"
@@ -16,12 +14,6 @@ type primaryChainIn struct {
 	Constructor alice.Constructor `name:"primary_alice_constructor"`
 	Enforcer    alice.Constructor `name:"primary_alice_enforcer"`
 	Listener    alice.Constructor `name:"primary_alice_listener"`
-}
-
-type primaryProfileIn struct {
-	fx.In
-	Logger  log.Logger
-	Profile *profile `name:"primary_profile" optional:"true"`
 }
 
 // ProvidePrimaryServerChain provides the auth alice.Chain for the primary server.

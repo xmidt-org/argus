@@ -18,6 +18,11 @@ type capabilityValidatorConfig struct {
 	AcceptAllMethod string
 	EndpointBuckets []string
 }
+type primaryProfileIn struct {
+	fx.In
+	Logger  log.Logger
+	Profile *profile `name:"primary_profile"`
+}
 
 type primaryCapabilityValidatorIn struct {
 	fx.In
