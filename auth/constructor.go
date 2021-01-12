@@ -19,12 +19,12 @@ import (
 )
 
 type primaryCOptionsIn struct {
-	loggerIn
+	LoggerIn
 	Options []basculehttp.COption `group:"primary_bascule_constructor_options"`
 }
 
 type primaryBearerTokenFactoryIn struct {
-	loggerIn
+	LoggerIn
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
 	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
@@ -137,14 +137,14 @@ func providePrimaryTokenFactory() fx.Option {
 }
 
 type basculeMetricsFactoryIn struct {
-	loggerIn
+	LoggerIn
 	NBFHistogram      *prometheus.HistogramVec `name:"auth_from_nbf_seconds"`
 	ExpHistogram      *prometheus.HistogramVec `name:"auth_from_exp_seconds"`
 	ValidationOutcome *prometheus.CounterVec   `name:"auth_validation"`
 }
 
 type basculeCapabilityMetricsFactoryIn struct {
-	loggerIn
+	LoggerIn
 	CapabilityCheckOutcome *prometheus.CounterVec `name:"auth_capability_check"`
 }
 

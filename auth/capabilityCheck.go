@@ -18,12 +18,12 @@ type capabilityValidatorConfig struct {
 	EndpointBuckets []string
 }
 type primaryProfileIn struct {
-	loggerIn
+	LoggerIn
 	Profile *profile `name:"primary_profile"`
 }
 
 type primaryCapabilityValidatorIn struct {
-	loggerIn
+	LoggerIn
 	ProfileIn primaryProfileIn
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 }

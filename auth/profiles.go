@@ -22,7 +22,7 @@ var (
 	ErrUnusedProfile = errors.New("profile has no targetServers")
 )
 
-type loggerIn struct {
+type LoggerIn struct {
 	fx.In
 
 	// Logger is the required go-kit logger that will receive logging output.
@@ -30,14 +30,14 @@ type loggerIn struct {
 }
 
 type profilesFactoryIn struct {
-	loggerIn
+	LoggerIn
 
 	// Unmarshaller is the required configuration unmarshaller strategy.
 	Unmarshaller config.Unmarshaller
 }
 
 type profilesIn struct {
-	loggerIn
+	LoggerIn
 
 	Profiles map[string]*profile `name:"bascule_profiles" optional:"true"`
 }

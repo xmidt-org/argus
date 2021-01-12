@@ -11,7 +11,7 @@ import (
 
 // primaryBearerValidatorsIn provides the bascule checks to run against the jwt token.
 type primaryBearerValidatorsIn struct {
-	loggerIn
+	LoggerIn
 	Principal  bascule.Validator `name:"primary_bearer_validator_principal"`
 	Type       bascule.Validator `name:"primary_bearer_validator_type"`
 	Capability bascule.Validator `name:"primary_bearer_validator_capability"`
@@ -20,7 +20,7 @@ type primaryBearerValidatorsIn struct {
 // primaryEOptionsIn is the uber.fx wired struct needed to group together the options
 // for the bascule enforcer middleware, which runs checks against the jwt token.
 type primaryEOptionsIn struct {
-	loggerIn
+	LoggerIn
 	Options []basculehttp.EOption `group:"primary_bascule_enforcer_options"`
 }
 
