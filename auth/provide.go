@@ -12,10 +12,10 @@ import (
 
 type primaryChainIn struct {
 	fx.In
-	SetLogger   alice.Constructor `name:"primary_alice_set_logger" optional:"true"`
-	Constructor alice.Constructor `name:"primary_alice_constructor" optional:"true"`
-	Enforcer    alice.Constructor `name:"primary_alice_enforcer" optional:"true"`
-	Listener    alice.Constructor `name:"primary_alice_listener" optional:"true"`
+	SetLogger   alice.Constructor `name:"primary_alice_set_logger"`
+	Constructor alice.Constructor `name:"primary_alice_constructor"`
+	Enforcer    alice.Constructor `name:"primary_alice_enforcer"`
+	Listener    alice.Constructor `name:"primary_alice_listener"`
 }
 
 type primaryProfileIn struct {
@@ -44,35 +44,17 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 			fx.Annotated{
 				Name: "primary_auth_chain",
 				Target: func(in primaryChainIn) alice.Chain {
-					if anyNil(in.SetLogger, in.Constructor, in.Enforcer, in.Listener) {
-						return alice.Chain{}
-					}
 					return alice.New(in.SetLogger, in.Constructor, in.Enforcer, in.Listener)
 				},
 			},
 		))
 }
 
-// anyNil returns true if any of the provided objects are nil or if any of the objects
-// are lists that contain any nil elements.
+// anyNil returns true if any of the provided objects are nil, false otherwise.
 func anyNil(objects ...interface{}) bool {
 	for _, object := range objects {
-		if object == nil {
+		if object == nil || reflect.ValueOf(object).IsNil() {
 			return true
-		}
-		val := reflect.ValueOf(object)
-		if val.IsNil() {
-			return true
-		}
-
-		switch val.Type().Kind() {
-		case reflect.Slice:
-			slice := reflect.ValueOf(object)
-			for i := 0; i < slice.Len(); i++ {
-				if slice.Index(i).IsNil() {
-					return true
-				}
-			}
 		}
 	}
 	return false
