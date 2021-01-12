@@ -22,7 +22,7 @@ var (
 	ErrUnusedProfile = errors.New("profile has no targetServers")
 )
 
-type profilesProviderIn struct {
+type profilesFactoryIn struct {
 	fx.In
 
 	// Logger is the required go-kit logger that will receive logging output.
@@ -71,12 +71,12 @@ type ProfilesUnmarshaler struct {
 	SupportedServers []string
 }
 
-func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...string) func(in profilesProviderIn) (map[string]*profile, error) {
+func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...string) func(in profilesFactoryIn) (map[string]*profile, error) {
 	servers := make(map[string]bool)
 	for _, supportedServer := range supportedServers {
 		servers[supportedServer] = true
 	}
-	return func(in profilesProviderIn) (map[string]*profile, error) {
+	return func(in profilesFactoryIn) (map[string]*profile, error) {
 		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "unmarshaling bascule profiles")
 
 		var sourceProfiles []profile

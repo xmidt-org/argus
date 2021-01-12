@@ -139,7 +139,7 @@ func providePrimaryTokenFactory() fx.Option {
 	)
 }
 
-type basculeMetricsProviderIn struct {
+type basculeMetricsFactoryIn struct {
 	fx.In
 	Logger            log.Logger
 	NBFHistogram      *prometheus.HistogramVec `name:"auth_from_nbf_seconds"`
@@ -147,7 +147,7 @@ type basculeMetricsProviderIn struct {
 	ValidationOutcome *prometheus.CounterVec   `name:"auth_validation"`
 }
 
-type basculeCapabilityMetricsProviderIn struct {
+type basculeCapabilityMetricsFactoryIn struct {
 	fx.In
 	Logger                 log.Logger
 	CapabilityCheckOutcome *prometheus.CounterVec `name:"auth_capability_check"`
@@ -157,7 +157,7 @@ type basculeMetricsListenerFactory struct {
 	serverName string
 }
 
-func (b basculeMetricsListenerFactory) new(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
+func (b basculeMetricsListenerFactory) new(in basculeMetricsFactoryIn) (*basculemetrics.MetricListener, error) {
 	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth validation measures", "server", b.serverName)
 	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
@@ -192,7 +192,7 @@ type basculeCapabilityMetricFactory struct {
 	serverName string
 }
 
-func (b basculeCapabilityMetricFactory) new(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+func (b basculeCapabilityMetricFactory) new(in basculeCapabilityMetricsFactoryIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
 		return nil, err
