@@ -121,7 +121,7 @@ type profileProvider struct {
 }
 
 func (p profileProvider) Provide(in profilesIn) *profile {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing profile", "server", p.serverName)
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "returning profile", "server", p.serverName)
 	return in.Profiles[p.serverName]
 }
 
