@@ -22,7 +22,6 @@ var (
 	ErrUnusedProfile = errors.New("profile has no targetServers")
 )
 
-// profilesIn is the parameter struct for parsing bascule profiles from config.
 type profilesProviderIn struct {
 	fx.In
 
@@ -62,8 +61,13 @@ type jwtValidator struct {
 // bascule profiles. For now, bascule profiles should be optional. The configKey is the key we should unmarshal
 // the profiles from and the supportedServers should include all servers that profiles could target.
 type ProfilesUnmarshaler struct {
-	Name             string
-	ConfigKey        string
+	// Name is the annotation of the component to be provided.
+	Name string
+
+	// ConfigKey is the path to the configuration value containining the profiles.
+	ConfigKey string
+
+	// SupportedServers is the list of servers that profiles could target.
 	SupportedServers []string
 }
 

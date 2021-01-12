@@ -68,7 +68,6 @@ func getBasculeLogger(f func(context.Context) log.Logger) func(context.Context) 
 	}
 }
 
-// TODO: if we see the need, we could split this for each server...
 func (l logOptionsProvider) provide() fx.Option {
 	return fx.Options(
 		fx.Supply(getLogger),
