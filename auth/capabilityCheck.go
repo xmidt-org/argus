@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/themis/xlog"
@@ -19,14 +18,12 @@ type capabilityValidatorConfig struct {
 	EndpointBuckets []string
 }
 type primaryProfileIn struct {
-	fx.In
-	Logger  log.Logger
+	loggerIn
 	Profile *profile `name:"primary_profile"`
 }
 
 type primaryCapabilityValidatorIn struct {
-	fx.In
-	Logger    log.Logger
+	loggerIn
 	ProfileIn primaryProfileIn
 	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 }

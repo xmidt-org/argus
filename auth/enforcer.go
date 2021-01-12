@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule"
@@ -12,8 +11,7 @@ import (
 
 // primaryBearerValidatorsIn provides the bascule checks to run against the jwt token.
 type primaryBearerValidatorsIn struct {
-	fx.In
-	Logger     log.Logger
+	loggerIn
 	Principal  bascule.Validator `name:"primary_bearer_validator_principal"`
 	Type       bascule.Validator `name:"primary_bearer_validator_type"`
 	Capability bascule.Validator `name:"primary_bearer_validator_capability"`
@@ -22,9 +20,8 @@ type primaryBearerValidatorsIn struct {
 // primaryEOptionsIn is the uber.fx wired struct needed to group together the options
 // for the bascule enforcer middleware, which runs checks against the jwt token.
 type primaryEOptionsIn struct {
-	fx.In
+	loggerIn
 	Options []basculehttp.EOption `group:"primary_bascule_enforcer_options"`
-	Logger  log.Logger
 }
 
 func providePrimaryBasculeEnforcerOptions() fx.Option {
