@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/webpa-common/basculechecks"
@@ -24,11 +25,11 @@ type primaryCOptionsIn struct {
 	Options []basculehttp.COption `group:"primary_bascule_constructor_options"`
 }
 
-type primaryTokenFactoryIn struct {
+type primaryBearerTokenFactoryIn struct {
 	fx.In
 	Logger       log.Logger
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
-	Resolver     key.Resolver   `name:"primary_bearer_key_resolver" optional:"true"`
+	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
 }
 
@@ -47,12 +48,12 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 		},
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
-			Target: func(in primaryTokenFactoryIn) basculehttp.COption {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing token factory option", "server", "primary")
+			Target: func(in primaryBearerTokenFactoryIn) basculehttp.COption {
 				if in.Resolver == nil {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "providing nil token factory option as resolver was not defined", "server", "primary")
+					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil bearer token factory option as resolver was not defined", "server", "primary")
 					return nil
 				}
+				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer token factory option", "server", "primary")
 				return basculehttp.WithTokenFactory("Bearer", basculehttp.BearerTokenFactory{
 					DefaultKeyId: in.DefaultKeyID,
 					Resolver:     in.Resolver,
@@ -64,19 +65,21 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
 			Target: func(in primaryProfileIn) (basculehttp.COption, error) {
-				if in.Profile == nil {
+				if in.Profile == nil || len(in.Profile.Basic) < 1 {
+					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil basic token factory option as config was not provided", "server", "primary")
 					return nil, nil
 				}
-				basicTokenFactory, factoryErr := basculehttp.NewBasicTokenFactoryFromList(in.Profile.Basic)
-				if factoryErr != nil {
-					return nil, factoryErr
+				basicTokenFactory, err := basculehttp.NewBasicTokenFactoryFromList(in.Profile.Basic)
+				if err != nil {
+					return nil, err
 				}
+				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building basic token factory option", "server", "primary")
 				return basculehttp.WithTokenFactory("Basic", basicTokenFactory), nil
 			},
 		},
 
 		fx.Annotated{
-			Group: "primary_bacule_constructor_options",
+			Group: "primary_bascule_constructor_options",
 			Target: func() basculehttp.COption {
 				return basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc))
 			},
@@ -91,12 +94,15 @@ func providePrimaryBasculeConstructor(apiBase string) fx.Option {
 			fx.Annotated{
 				Name: "primary_alice_constructor",
 				Target: func(in primaryCOptionsIn) alice.Constructor {
-					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing alice constructor from bascule constructor options", "server", "primary")
-					if anyNil(in.Options) {
-						in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing nil alice constructor as some options were undefined", "server", "primary")
-						return nil
+					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice constructor from bascule constructor options", "server", "primary")
+					var filteredOptions []basculehttp.COption
+					for _, option := range in.Options {
+						if option == nil || reflect.ValueOf(option).IsNil() {
+							continue
+						}
+						filteredOptions = append(filteredOptions, option)
 					}
-					return basculehttp.NewConstructor(in.Options...)
+					return basculehttp.NewConstructor(filteredOptions...)
 				},
 			}),
 	)
@@ -113,11 +119,11 @@ func providePrimaryTokenFactory() fx.Option {
 		fx.Annotated{
 			Name: "primary_bearer_key_resolver",
 			Target: func(in primaryProfileIn) (key.Resolver, error) {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing bearer key resolver option", "server", "primary")
 				if anyNil(in.Profile, in.Profile.Bearer) {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "No bearer key resolver provided", "server", "primary")
+					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil bearer key resolver as config wasn't provided", "server", "primary")
 					return nil, nil
 				}
+				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer key resolver option", "server", "primary")
 				return in.Profile.Bearer.Keys.NewResolver()
 			},
 		},
@@ -152,7 +158,7 @@ type basculeMetricsListenerBuilder struct {
 }
 
 func (b basculeMetricsListenerBuilder) new(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing auth validation measures", "server", b.serverName)
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth validation measures", "server", b.serverName)
 	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
 		return nil, err
@@ -187,11 +193,11 @@ type basculeCapabilityMetricBuilder struct {
 }
 
 func (b basculeCapabilityMetricBuilder) new(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "providing auth capability measures", "server", b.serverName)
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
 		return nil, err
 	}
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth capability measures", "server", b.serverName)
 	return &basculechecks.AuthCapabilityCheckMeasures{
 		CapabilityCheckOutcome: gokitprometheus.NewCounter(capabilityCheckOutcomeCounterVec),
 	}, nil
