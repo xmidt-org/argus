@@ -14,9 +14,9 @@ import (
 type primaryBearerValidatorsIn struct {
 	fx.In
 	Logger     log.Logger
-	Principal  bascule.Validator `name:"primary_bearer_validator_principal" optional:"true"`
-	Type       bascule.Validator `name:"primary_bearer_validator_type" optional:"true"`
-	Capability bascule.Validator `name:"primary_bearer_validator_capability" optional:"true"`
+	Principal  bascule.Validator `name:"primary_bearer_validator_principal"`
+	Type       bascule.Validator `name:"primary_bearer_validator_type"`
+	Capability bascule.Validator `name:"primary_bearer_validator_capability"`
 }
 
 // primaryEOptionsIn is the uber.fx wired struct needed to group together the options
@@ -27,31 +27,15 @@ type primaryEOptionsIn struct {
 	Logger  log.Logger
 }
 
-func providePrimaryBasculeEnforcer() fx.Option {
+func providePrimaryBasculeEnforcerOptions() fx.Option {
 	return fx.Provide(
-		fx.Annotated{
-			Name: "primary_bearer_validator_principal",
-			Target: func() bascule.Validator {
-				return bascule.CreateNonEmptyPrincipalCheck()
-			},
-		},
-
-		fx.Annotated{
-			Name: "primary_bearer_validator_type",
-			Target: func() bascule.Validator {
-				return bascule.CreateValidTypeCheck([]string{"jwt"})
-			},
-		},
-		primaryCapabilityValidatorAnnotated(),
-		basculeCapabilityMetricBuilder{serverName: "primary"}.Annotated(),
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in primaryBearerValidatorsIn) basculehttp.EOption {
 				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer rules option", "server", "primary")
-				validators := filterNilValidators([]bascule.Validator{in.Principal, in.Type, in.Capability})
-				if len(validators) < 1 {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "providing nil bearer rules option", "server", "primary")
-					return nil
+				var validators = []bascule.Validator{in.Principal, in.Type}
+				if in.Capability != nil {
+					validators = append(validators, in.Capability)
 				}
 				return basculehttp.WithRules("Bearer", bascule.Validators(validators))
 			},
@@ -68,18 +52,35 @@ func providePrimaryBasculeEnforcer() fx.Option {
 				return basculehttp.WithEErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
+	)
+}
 
-		fx.Annotated{
-			Name: "primary_alice_enforcer",
-			Target: func(in primaryEOptionsIn) alice.Constructor {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice enforcer", "server", "primary")
-				if anyNil(in.Options) {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "nil alice enforcer provided for primary server")
-					return nil
-				}
-				return basculehttp.NewEnforcer(in.Options...)
+func providePrimaryBasculeEnforcer() fx.Option {
+	return fx.Options(
+		fx.Provide(
+			fx.Annotated{
+				Name: "primary_bearer_validator_principal",
+				Target: func() bascule.Validator {
+					return bascule.CreateNonEmptyPrincipalCheck()
+				},
 			},
-		},
+			fx.Annotated{
+				Name: "primary_bearer_validator_type",
+				Target: func() bascule.Validator {
+					return bascule.CreateValidTypeCheck([]string{"jwt"})
+				},
+			},
+			primaryCapabilityValidatorAnnotated(),
+			basculeCapabilityMetricBuilder{serverName: "primary"}.Annotated(),
+			fx.Annotated{
+				Name: "primary_alice_enforcer",
+				Target: func(in primaryEOptionsIn) alice.Constructor {
+					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice enforcer", "server", "primary")
+					return basculehttp.NewEnforcer(in.Options...)
+				},
+			},
+		),
+		providePrimaryBasculeEnforcerOptions(),
 	)
 }
 
