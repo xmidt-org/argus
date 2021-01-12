@@ -29,18 +29,18 @@ type primaryCapabilityValidatorIn struct {
 func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
 	profile := in.ProfileIn.Profile
 	if profile == nil {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "undefined profile. CapabilityCheck disabled.")
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "undefined profile. CapabilityCheck disabled.", "server", "primary")
 		return nil, nil
 	}
 
 	config := profile.CapabilityCheck
 	if config == nil {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "config not provided. CapabilityCheck disabled.")
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "config not provided. CapabilityCheck disabled.", "server", "primary")
 		return nil, nil
 	}
 
 	if config.Type != "enforce" && config.Type != "monitor" {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "unsupported capability check type. CapabilityCheck disabled.", "type", config.Type)
+		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "unsupported capability check type. CapabilityCheck disabled.", "type", config.Type, "server", "primary")
 		return nil, nil
 	}
 
@@ -53,7 +53,7 @@ func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Val
 	for _, e := range config.EndpointBuckets {
 		r, err := regexp.Compile(e)
 		if err != nil {
-			in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error())
+			in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error(), "server", "primary")
 			continue
 		}
 		endpoints = append(endpoints, r)
@@ -64,6 +64,7 @@ func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Val
 		Measures:  in.Measures,
 		Endpoints: endpoints,
 	}
+	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth capability", "server", "primary", "type", config.Type)
 
 	return m.CreateValidator(config.Type == "enforce"), nil
 }
