@@ -71,7 +71,7 @@ func providePrimaryBasculeEnforcer() fx.Option {
 				},
 			},
 			primaryCapabilityValidatorAnnotated(),
-			basculeCapabilityMetricBuilder{serverName: "primary"}.Annotated(),
+			basculeCapabilityMetricFactory{serverName: "primary"}.annotated(),
 			fx.Annotated{
 				Name: "primary_alice_enforcer",
 				Target: func(in primaryEOptionsIn) alice.Constructor {

@@ -153,11 +153,11 @@ type basculeCapabilityMetricsProviderIn struct {
 	CapabilityCheckOutcome *prometheus.CounterVec `name:"auth_capability_check"`
 }
 
-type basculeMetricsListenerBuilder struct {
+type basculeMetricsListenerFactory struct {
 	serverName string
 }
 
-func (b basculeMetricsListenerBuilder) new(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
+func (b basculeMetricsListenerFactory) new(in basculeMetricsProviderIn) (*basculemetrics.MetricListener, error) {
 	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth validation measures", "server", b.serverName)
 	nbfHistogramVec, err := in.NBFHistogram.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
@@ -181,18 +181,18 @@ func (b basculeMetricsListenerBuilder) new(in basculeMetricsProviderIn) (*bascul
 
 }
 
-func (b basculeMetricsListenerBuilder) Annotated() fx.Annotated {
+func (b basculeMetricsListenerFactory) annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_bascule_metric_listener", b.serverName),
 		Target: b.new,
 	}
 }
 
-type basculeCapabilityMetricBuilder struct {
+type basculeCapabilityMetricFactory struct {
 	serverName string
 }
 
-func (b basculeCapabilityMetricBuilder) new(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
+func (b basculeCapabilityMetricFactory) new(in basculeCapabilityMetricsProviderIn) (*basculechecks.AuthCapabilityCheckMeasures, error) {
 	capabilityCheckOutcomeCounterVec, err := in.CapabilityCheckOutcome.CurryWith(prometheus.Labels{"server": b.serverName})
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (b basculeCapabilityMetricBuilder) new(in basculeCapabilityMetricsProviderI
 	}, nil
 }
 
-func (b basculeCapabilityMetricBuilder) Annotated() fx.Annotated {
+func (b basculeCapabilityMetricFactory) annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_capability_measures", b.serverName),
 		Target: b.new,

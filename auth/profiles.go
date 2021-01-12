@@ -120,18 +120,18 @@ func (p ProfilesUnmarshaler) Annotated() fx.Annotated {
 	}
 }
 
-type profileProvider struct {
+type profileFactory struct {
 	serverName string
 }
 
-func (p profileProvider) Provide(in profilesIn) *profile {
+func (p profileFactory) new(in profilesIn) *profile {
 	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "returning profile", "server", p.serverName)
 	return in.Profiles[p.serverName]
 }
 
-func (p profileProvider) Annotated() fx.Annotated {
+func (p profileFactory) annotated() fx.Annotated {
 	return fx.Annotated{
 		Name:   fmt.Sprintf("%s_profile", p.serverName),
-		Target: p.Provide,
+		Target: p.new,
 	}
 }
