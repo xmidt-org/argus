@@ -81,7 +81,6 @@ type setItemRequest struct {
 }
 
 type setItemResponse struct {
-	key              model.Key
 	existingResource bool
 }
 
