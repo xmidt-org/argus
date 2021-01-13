@@ -125,7 +125,7 @@ request:
     # maxTTL specifies the cap for the TTL of items when values are specified.
     maxTTL: "24h"
 
-bascule:
+authx:
   inbound:
     profiles:
       -

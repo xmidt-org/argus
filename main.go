@@ -111,7 +111,7 @@ func main() {
 		auth.ProvidePrimaryServerChain(apiBase),
 		fx.Provide(
 			auth.ProfilesUnmarshaler{
-				ConfigKey:        "bascule.inbound.profiles",
+				ConfigKey:        "authx.inbound.profiles",
 				SupportedServers: []string{"primary"}}.Annotated(),
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
