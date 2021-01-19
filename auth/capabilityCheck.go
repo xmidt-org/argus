@@ -17,6 +17,7 @@ type capabilityValidatorConfig struct {
 	AcceptAllMethod string
 	EndpointBuckets []string
 }
+
 type primaryProfileIn struct {
 	LoggerIn
 	Profile *profile `name:"primary_profile"`
