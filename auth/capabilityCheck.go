@@ -25,18 +25,17 @@ type primaryProfileIn struct {
 
 type primaryCapabilityValidatorIn struct {
 	LoggerIn
-	ProfileIn primaryProfileIn
-	Measures  *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
+	Profile  *profile                                   `name:"primary_profile"`
+	Measures *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
 }
 
 func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
-	profile := in.ProfileIn.Profile
-	if profile == nil {
+	if in.Profile == nil {
 		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "undefined profile. CapabilityCheck disabled.", "server", "primary")
 		return nil, nil
 	}
 
-	config := profile.CapabilityCheck
+	config := in.Profile.CapabilityCheck
 	if config == nil {
 		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "config not provided. CapabilityCheck disabled.", "server", "primary")
 		return nil, nil

@@ -22,7 +22,6 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 		logOptionsProvider{serverName: "primary"}.provide(),
 		providePrimaryBasculeConstructor(apiBase),
 		providePrimaryBasculeEnforcer(),
-		providePrimaryTokenFactory(),
 		fx.Provide(
 			profileFactory{serverName: "primary"}.annotated(),
 			basculeMetricsListenerFactory{serverName: "primary"}.annotated(),
