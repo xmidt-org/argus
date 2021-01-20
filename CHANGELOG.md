@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update buildtime format in Makefile to match RPM spec file. [#95](https://github.com/xmidt-org/argus/pull/95)
 - Update configuration structure for inbound authn/z. [#101](https://github.com/xmidt-org/argus/pull/101)
 
+### Added
+- Item ID is validated to have the format of a SHA256 message hex digest. [#106](https://github.com/xmidt-org/argus/pull/106)
+
 ### Removed
 - Removed identifier as a field from the API. [#85](https://github.com/xmidt-org/argus/pull/85)
 
