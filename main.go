@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -105,22 +106,26 @@ func main() {
 		config.CommandLine{Name: applicationName}.Provide(setupFlagSet),
 		provideMetrics(),
 		metric.ProvideMetrics(),
-		basculechecks.ProvideMetrics(),
-		basculemetrics.ProvideMetrics(),
+		basculechecks.ProvideMetricsVec(),
+		basculemetrics.ProvideMetricsVec(),
+		auth.ProvidePrimaryServerChain(apiBase),
 		fx.Provide(
+			auth.ProfilesUnmarshaler{
+				ConfigKey:        "authx.inbound.profiles",
+				SupportedServers: []string{"primary"}}.Annotated(),
 			config.ProvideViper(setupViper),
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
 			db.Provide,
 			store.Provide,
 			xhealth.Unmarshal("health"),
-			ProvideAuthChain,
 			provideServerChainFactory,
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),
 			xhttpserver.Unmarshal{Key: "servers.primary", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.metrics", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.health", Optional: true}.Annotated(),
 		),
+
 		fx.Invoke(
 			xhealth.ApplyChecks(
 				&health.Config{

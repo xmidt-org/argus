@@ -80,7 +80,7 @@ servers:
 #  # (Optional) defaults to false
 #  #enableHostVerification: false
 
-# dyanmo is the configuration block to communicate with dynamoDB.
+# dynamo is the configuration block to communicate with dynamoDB.
 dynamo:
   # endpoint is used to set a custom aws endpoint.
   # (Optional)
@@ -113,10 +113,6 @@ itemTTL:
 # Authorization Credentials
 ##############################################################################
 
-# authHeader is a list of Basic Auth credentials intended to be used for local testing purposes
-# WARNING! Be sure to remove this from your production config
-authHeader: ["dXNlcjpwYXNz"]
-
 # request is a config section related to operation authorization
 # and request validation.
 request:
@@ -129,43 +125,52 @@ request:
     # maxTTL specifies the cap for the TTL of items when values are specified.
     maxTTL: "24h"
 
-# jwtValidator provides Bearer auth configuration
-jwtValidator:
-  keys:
-    factory:
-      uri: "http://sample-jwt-validator-uri/{keyId}"
-    purpose: 0
-    updateInterval: 604800000000000
+authx:
+  inbound:
+    profiles:
+      -
+        # targetServers is the list of servers this bascule profile should be applied to.
+        targetServers: [primary]
 
-# capabilityCheck provides the details needed for checking an incoming JWT's
-# capabilities.  If the type of check isn't provided, no checking is done.  The
-# type can be "monitor" or "enforce".  If it is empty or a different value, no
-# checking is done.  If "monitor" is provided, the capabilities are checked but
-# the request isn't rejected when there isn't a valid capability for the
-# request. Instead, a message is logged.  When "enforce" is provided, a request
-# that doesn't have the needed capability is rejected.
-#
-# The capability is expected to have the format:
-#
-# {prefix}{endpoint}:{method}
-#
-# The prefix can be a regular expression.  If it's empty, no capability check
-# is done.  The endpoint is a regular expression that should match the endpoint
-# the request was sent to. The method is usually the method of the request, such as
-# GET.  The accept all method is a catchall string that indicates the capability
-# is approved for all methods.
-# (Optional)
-#capabilityCheck:
-# # type provides the mode for capability checking.
-# type: "monitor"
-# # prefix provides the regex to match the capability before the endpoint.
-# prefix: "xmidt"
-# # acceptAllMethod provides a way to have a capability that allows all
-# # methods for a specific endpoint.
-# acceptAllMethod: "all"
-# # endpointBuckets provides regular expressions to use against the request
-# # endpoint in order to group requests for a metric label.
-# endpointBuckets:
-#   - "store\\b"
-#   - "store/.*\\b"
+        # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
+        # WARNING! Be sure to remove this from your production config.
+        basic: ["dXNlcjpwYXNz"]
 
+        # bearer contains all the configuration needed for a JWT validator.
+        bearer: 
+          keys:
+            Factory:
+                uri: "http://localhost:6500/keys/docker"
+            purpose: 0
+            updateInterval: 24h
+
+        # # capabilityCheck provides the details needed for checking an incoming JWT's
+        # # capabilities.  If the type of check isn't provided, no checking is done.  The
+        # # type can be "monitor" or "enforce". If "monitor" is provided, the capabilities 
+        # # are checked but the request isn't rejected when there isn't a valid capability 
+        # # for the request. Instead, a message is logged.  When "enforce" is provided, a 
+        # # request that doesn't have the needed capability is rejected.
+        
+        # # The capability is expected to have the format:
+        
+        # # {prefix}{endpoint}:{method}
+        
+        # # The prefix can be a regular expression.  If it's empty, no capability check
+        # # is done.  The endpoint is a regular expression that should match the endpoint
+        # # the request was sent to. The method is usually the method of the request, such as
+        # # GET.  The accept all method is a catchall string that indicates the capability
+        # # is approved for all methods.
+        # # (Optional)
+        # capabilityCheck:
+        #   # type provides the mode for capability checking.
+        #   type: "monitor"
+        #   # prefix provides the regex to match the capability before the endpoint.
+        #   prefix: "xmidt"
+        #   # acceptAllMethod provides a way to have a capability that allows all
+        #   # methods for a specific endpoint.
+        #   acceptAllMethod: "all"
+        #   # endpointBuckets provides regular expressions to use against the request
+        #   # endpoint in order to group requests for a metric label.
+        #   endpointBuckets:
+        #     - "store\\b"
+        #     - "store/.*\\b"
