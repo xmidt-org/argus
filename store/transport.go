@@ -2,11 +2,15 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -14,26 +18,35 @@ import (
 	"github.com/xmidt-org/argus/model"
 )
 
-// request URL path keys
+// request URL path keys.
 const (
 	bucketVarKey = "bucket"
 	idVarKey     = "id"
 )
 
-const (
-	bucketVarMissingMsg = "{bucket} URL path parameter missing"
-	idVarMissingMsg     = "{id} URL path parameter missing"
-)
-
-// Request and Response Headers
+// Request and Response Headers.
 const (
 	ItemOwnerHeaderKey  = "X-Midt-Owner"
 	AdminTokenHeaderKey = "X-Midt-Admin-Token"
 	XmidtErrorHeaderKey = "X-Midt-Error"
 )
 
-// ErrCasting indicates there was a middleware wiring mistake with the go-kit style
-// encoders.
+var idFormatRegex *regexp.Regexp
+
+func init() {
+	idFormatRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
+}
+
+var (
+	errInvalidID               = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
+	errIDMismatch              = BadRequestErr{Message: "IDs must match between the URL and payload."}
+	errDataFieldMissing        = BadRequestErr{Message: "Data field must be set in payload."}
+	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
+	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
+)
+
+// ErrCasting indicates there was (most likely) a middleware wiring mistake with
+// the go-kit style encoders/decoders.
 var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
 type requestConfig struct {
@@ -68,7 +81,6 @@ type setItemRequest struct {
 }
 
 type setItemResponse struct {
-	key              model.Key
 	existingResource bool
 }
 
@@ -86,27 +98,33 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		URLVars := mux.Vars(r)
 		bucket := URLVars[bucketVarKey]
-		id := URLVars[idVarKey]
+		id := normalizeID(URLVars[idVarKey])
+
+		if !isIDValid(id) {
+			return nil, errInvalidID
+		}
 
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return nil, &BadRequestErr{Message: "failed to read body"}
+			return nil, errBodyReadFailure
 		}
 
 		item := model.Item{}
 		err = json.Unmarshal(data, &item)
 		if err != nil {
-			return nil, &BadRequestErr{Message: "failed to unmarshal json"}
+			return nil, errPayloadUnmarshalFailure
 		}
 
-		if len(item.Data) <= 0 {
-			return nil, &BadRequestErr{Message: "data field must be set"}
+		if len(item.Data) < 1 {
+			return nil, errDataFieldMissing
 		}
 
 		validateItemTTL(&item, config.Validation.MaxTTL)
 
+		item.ID = normalizeID(item.ID)
+
 		if item.ID != id {
-			return nil, &BadRequestErr{Message: "ids must match between URL and payload"}
+			return nil, errIDMismatch
 		}
 
 		return &setItemRequest{
@@ -126,11 +144,15 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		URLVars := mux.Vars(r)
+		id := normalizeID(URLVars[idVarKey])
+		if !isIDValid(id) {
+			return nil, errInvalidID
+		}
 
 		return &getOrDeleteItemRequest{
 			key: model.Key{
 				Bucket: URLVars[bucketVarKey],
-				ID:     URLVars[idVarKey],
+				ID:     id,
 			},
 			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
@@ -208,4 +230,20 @@ func validateItemTTL(item *model.Item, maxTTL time.Duration) {
 			item.TTL = &ttlCapSeconds
 		}
 	}
+}
+
+// normalizeID should be run on all instances of item IDs from external origin
+func normalizeID(ID string) string {
+	return strings.ToLower(strings.TrimSpace(ID))
+}
+
+// isIDValid returns true if the given ID is a hex digest string of 64 characters (i.e. 7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7)
+// per the input string name, we expect the ID to be normalized by the time we get here (remove whitespaces, all lowercase)
+func isIDValid(normalizedID string) bool {
+	return idFormatRegex.MatchString(normalizedID)
+}
+
+// Sha256HexDigest returns the SHA-256 hex digest of the given input.
+func Sha256HexDigest(message string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(message)))
 }

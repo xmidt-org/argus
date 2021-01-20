@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,7 @@ import (
 )
 
 func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
+	sfID := Sha256HexDigest("san francisco")
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
@@ -23,15 +25,23 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 		ExpectedErr            error
 	}{
 		{
+			Name: "Invalid ID",
+			URLVars: map[string]string{
+				"bucket": "california",
+				"id":     "badIDabcdef",
+			},
+			ExpectedErr: errInvalidID,
+		},
+		{
 			Name: "Happy path - No owner - Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
-				"id":     "san francisco",
+				"id":     sfID,
 			},
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
-					ID:     "san francisco",
+					ID:     sfID,
 				},
 			},
 		},
@@ -39,18 +49,18 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			Name: "Happy path - Owner - Admin mode",
 			URLVars: map[string]string{
 				"bucket": "california",
-				"id":     "san francisco",
+				"id":     sfID,
 			},
 
 			Headers: map[string][]string{
-				ItemOwnerHeaderKey:  []string{"SF Giants"},
-				AdminTokenHeaderKey: []string{"secretAdminToken"},
+				ItemOwnerHeaderKey:  {"SF Giants"},
+				AdminTokenHeaderKey: {"secretAdminToken"},
 			},
 
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
 					Bucket: "california",
-					ID:     "san francisco",
+					ID:     sfID,
 				},
 				owner:     "SF Giants",
 				adminMode: true,
@@ -121,7 +131,7 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 	}
 }
 
-func TestgetAllItemsRequestDecoder(t *testing.T) {
+func TestGetAllItemsRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
@@ -142,15 +152,16 @@ func TestgetAllItemsRequestDecoder(t *testing.T) {
 			Name: "Happy path - Owner - Admin mode",
 			URLVars: map[string]string{
 				"bucket": "california",
-				"ID":     "san francisco",
+				"ID":     Sha256HexDigest("san francisco"),
 			},
 
 			Headers: map[string][]string{
-				ItemOwnerHeaderKey:  []string{"SF Giants"},
-				AdminTokenHeaderKey: []string{"secretAdminToken"},
+				ItemOwnerHeaderKey:  {"SF Giants"},
+				AdminTokenHeaderKey: {"secretAdminToken"},
 			},
 
 			ExpectedDecodedRequest: &getAllItemsRequest{
+				bucket:    "california",
 				owner:     "SF Giants",
 				adminMode: true,
 			},
@@ -180,23 +191,25 @@ func TestgetAllItemsRequestDecoder(t *testing.T) {
 
 func TestEncodeGetAllItemsResponse(t *testing.T) {
 	assert := assert.New(t)
+	evgItemID := Sha256HexDigest("E-VG")
+	y9gItemID := Sha256HexDigest("Y9G")
 	response := map[string]OwnableItem{
-		"E-VG": OwnableItem{
+		"E-VG": {
 			Item: model.Item{
-				ID:   "E-VG",
+				ID:   evgItemID,
 				Data: map[string]interface{}{},
 				TTL:  aws.Int64(1),
 			},
 		},
-		"Y9G": OwnableItem{
+		"Y9G": {
 			Item: model.Item{
-				ID:   "Y9G",
+				ID:   y9gItemID,
 				Data: map[string]interface{}{},
 			},
 		},
 	}
 	recorder := httptest.NewRecorder()
-	expectedResponseBody := `[{"id":"E-VG","data":{},"ttl":1},{"id":"Y9G","data":{}}]`
+	expectedResponseBody := fmt.Sprintf("[{\"id\":\"%s\",\"data\":{}},{\"id\":\"%s\",\"data\":{},\"ttl\":1}]", y9gItemID, evgItemID)
 	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
 	assert.Nil(err)
 	assert.JSONEq(expectedResponseBody, recorder.Body.String())
@@ -210,7 +223,7 @@ func transferHeaders(headers map[string][]string, r *http.Request) {
 	}
 }
 
-func TestsetItemRequestDecoder(t *testing.T) {
+func TestSetItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		URLVars         map[string]string
@@ -221,30 +234,25 @@ func TestsetItemRequestDecoder(t *testing.T) {
 	}{
 		{
 			Name:        "Bad JSON data",
-			URLVars:     map[string]string{bucketVarKey: "bucketVal", idVarKey: "rWPSg7pI0jj8mMG9tmscdQMOGKeRAquySfkObTasRBc"},
+			URLVars:     map[string]string{bucketVarKey: "bucketVal", idVarKey: "7731f5f6fc9456d9ca274416ad66030777778026716e821f1de966bf54ab9e2e"},
 			RequestBody: `{"validJSON": false,}`,
-			ExpectedErr: BadRequestErr{
-				Message: "failed to unmarshal json",
-			},
+			ExpectedErr: errPayloadUnmarshalFailure,
 		},
 		{
 			Name:        "Missing data item field",
-			URLVars:     map[string]string{bucketVarKey: "letters", idVarKey: "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"},
-			RequestBody: `{"id": "ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs"}`,
-			ExpectedErr: BadRequestErr{
-				Message: "data field must be set",
-			},
+			URLVars:     map[string]string{bucketVarKey: "letters", idVarKey: "d228667158e251494aa05b9183a5d01c0620aad791860163c7d553ce64b35fcf"},
+			RequestBody: `{"id": "d228667158e251494aa05b9183a5d01c0620aad791860163c7d553ce64b35fcf"}`,
+			ExpectedErr: errDataFieldMissing,
 		},
-
 		{
 			Name:        "Capped TTL",
-			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
-			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}},
-			RequestBody: `{"id":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}},
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						ID: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -256,41 +264,31 @@ func TestsetItemRequestDecoder(t *testing.T) {
 				},
 				key: model.Key{
 					Bucket: "variables",
-					ID:     "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+					ID:     "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 				},
 			},
 		},
-
 		{
-			Name:        "ID mismatch TTL",
-			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
-			RequestBody: `{"id":"iBCtWB5Z8rw5KLJhcHpxMI9-E56wSCA2bcTVwY2YAiU", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
-			ExpectedRequest: &setItemRequest{
-				item: OwnableItem{
-					Item: model.Item{
-						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
-						},
-						TTL: aws.Int64(60),
-					},
-				},
-				key: model.Key{
-					Bucket: "variables",
-				},
-			},
+			Name:        "ID mismatch",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74oops", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			ExpectedErr: errIDMismatch,
 		},
-
+		{
+			Name:        "Invalid ID",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "badID"},
+			RequestBody: `{"id":"badID", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			ExpectedErr: errInvalidID,
+		},
 		{
 			Name:        "Happy Path - Admin mode",
-			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84"},
-			Headers:     map[string][]string{ItemOwnerHeaderKey: []string{"math"}, AdminTokenHeaderKey: []string{"secretAdminPassKey"}},
-			RequestBody: `{"id":"evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}, AdminTokenHeaderKey: {"secretAdminPassKey"}},
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						ID: "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{
 							"x": float64(0),
 							"y": float64(1),
@@ -302,9 +300,33 @@ func TestsetItemRequestDecoder(t *testing.T) {
 				},
 				key: model.Key{
 					Bucket: "variables",
-					ID:     "evCz5Hw1gg-r72nMVCOSvS0PbjfDSYUXKPDGgwE1Y84",
+					ID:     "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 				},
 				adminMode: true,
+			},
+		},
+		{
+			Name:        "Alternative ID format",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4B13653E5D6D611DE5999AB0E7C0AA67E1D83D4CBA8349A04DA0A431FB27F74B"},
+			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}},
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
+			ExpectedRequest: &setItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
+						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
+						Data: map[string]interface{}{
+							"x": float64(0),
+							"y": float64(1),
+							"z": float64(2),
+						},
+						TTL: aws.Int64(39),
+					},
+					Owner: "math",
+				},
+				key: model.Key{
+					Bucket: "variables",
+					ID:     "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
+				},
 			},
 		},
 	}
@@ -352,4 +374,48 @@ func TestEncodeSetItemResponse(t *testing.T) {
 	})
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, updatedRecorder.Code)
+}
+
+func TestNormalizeID(t *testing.T) {
+	type test struct {
+		Name     string
+		ID       string
+		Expected string
+	}
+
+	tcs := []test{
+		{Name: "Same", ID: "notchanged", Expected: "notchanged"},
+		{Name: "ClearWhiteSpace", ID: "			clean    ", Expected: "clean"},
+		{Name: "Lower case", ID: "TESTING!!	", Expected: "testing!!"},
+		{Name: "Combined", ID: "			hElLo, WoRlD!    ", Expected: "hello, world!"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			assert.Equal(tc.Expected, normalizeID(tc.ID))
+		})
+	}
+}
+
+func TestIsIDValid(t *testing.T) {
+	type test struct {
+		Name     string
+		ID       string
+		Expected bool
+	}
+
+	tcs := []test{
+		{Name: "CharacterOver", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7a", Expected: false},
+		{Name: "NonHex", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7z", Expected: false},
+		{Name: "NonLowerCase", ID: "7E8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7", Expected: false},
+		{Name: "Success", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7", Expected: true},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			assert.Equal(tc.Expected, isIDValid(tc.ID))
+		})
+	}
 }
