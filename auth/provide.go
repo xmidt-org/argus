@@ -5,6 +5,7 @@ import (
 
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule/basculehttp"
+	"github.com/xmidt-org/webpa-common/basculemetrics"
 	"go.uber.org/fx"
 )
 
@@ -24,7 +25,7 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 		providePrimaryBasculeEnforcer(),
 		fx.Provide(
 			profileFactory{serverName: "primary"}.annotated(),
-			basculeMetricsListenerFactory{serverName: "primary"}.annotated(),
+			basculemetrics.MeasuresFactory{ServerName: "primary"}.Annotated(),
 
 			fx.Annotated{
 				Name: "primary_alice_listener",

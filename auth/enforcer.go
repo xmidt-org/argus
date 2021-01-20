@@ -6,6 +6,7 @@ import (
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/webpa-common/basculechecks"
 	"go.uber.org/fx"
 )
 
@@ -68,7 +69,7 @@ func providePrimaryBasculeEnforcer() fx.Option {
 				},
 			},
 			primaryCapabilityValidatorAnnotated(),
-			basculeCapabilityMetricFactory{serverName: "primary"}.annotated(),
+			basculechecks.MeasuresFactory{ServerName: "primary"}.Annotated(),
 			fx.Annotated{
 				Name: "primary_alice_enforcer",
 				Target: func(in primaryEOptionsIn) alice.Constructor {
