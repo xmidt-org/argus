@@ -117,7 +117,7 @@ func main() {
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
 			db.Provide,
-			store.Provide,
+			store.NewHandlers,
 			xhealth.Unmarshal("health"),
 			provideServerChainFactory,
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),

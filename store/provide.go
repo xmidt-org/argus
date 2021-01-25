@@ -28,7 +28,9 @@ import (
 type StoreIn struct {
 	fx.In
 
-	Store S
+	Unmarshaler             config.Unmarshaller
+	Store                   S
+	AccessLevelAttributeKey string `name:"access_level_attribute_key"`
 }
 
 // StoreOut is the set of components emitted by this package
@@ -48,22 +50,24 @@ type StoreOut struct {
 	DeleteKeyHandler Handler `name:"deleteHandler"`
 }
 
-// Provide is an uber/fx style provider for this package's components
-func Provide(unmarshaller config.Unmarshaller, in StoreIn) StoreOut {
-	cfg := new(requestConfig)
-	unmarshaller.UnmarshalKey("request", cfg)
-	validateRequestConfig(cfg)
+// NewHandlers initializes all handlers that will be needed for the store endpoints.
+func NewHandlers(in StoreIn) StoreOut {
+	var itemMaxTTL time.Duration
+
+	in.Unmarshaler.UnmarshalKey("itemMaxTTL", &itemMaxTTL)
+	if itemMaxTTL == 0 {
+		itemMaxTTL = DefaultMaxTTLSeconds * time.Second
+	}
+
+	config := transportConfig{
+		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
+		ItemMaxTTL:              itemMaxTTL,
+	}
 
 	return StoreOut{
-		SetItemHandler:     newSetItemHandler(cfg, in.Store),
-		GetItemHandler:     newGetItemHandler(cfg, in.Store),
-		GetAllItemsHandler: newGetAllItemsHandler(cfg, in.Store),
-		DeleteKeyHandler:   newDeleteItemHandler(cfg, in.Store),
-	}
-}
-
-func validateRequestConfig(cfg *requestConfig) {
-	if cfg.Validation.MaxTTL <= time.Second {
-		cfg.Validation.MaxTTL = YearTTL * time.Second
+		SetItemHandler:     newSetItemHandler(config, in.Store),
+		GetItemHandler:     newGetItemHandler(config, in.Store),
+		GetAllItemsHandler: newGetAllItemsHandler(config, in.Store),
+		DeleteKeyHandler:   newDeleteItemHandler(config, in.Store),
 	}
 }

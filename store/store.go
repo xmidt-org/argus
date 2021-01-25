@@ -32,11 +32,7 @@ const (
 	PingType   = "ping"
 )
 
-// 5 minutes
-const DefaultTTL = 60 * 5
-
-// 1 year
-const YearTTL = 60 * 24 * 365
+const DefaultMaxTTLSeconds = 60 * 24 * 365
 
 type S interface {
 	Push(key model.Key, item OwnableItem) error

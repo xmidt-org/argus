@@ -1,0 +1,96 @@
+package auth
+
+import (
+	"github.com/spf13/cast"
+	"github.com/xmidt-org/bascule"
+)
+
+// Exported access level default values which application code may want to use.
+const (
+	DefaultAccessLevelAttributeKey   = "access-level"
+	DefaultAccessLevelAttributeValue = 0
+)
+
+const (
+	ElevatedAccessLevelAttributeValue = 1
+)
+
+// internal default values
+const (
+	defaultAccessLevelCapabilityName = "xmidt:svc:admin"
+)
+
+var defaultAccessLevelPath = []string{"capabilities"}
+
+type accessLevel struct {
+	Resolver     accessLevelResolver
+	AttributeKey string
+}
+
+// accessLevelResolver lets users of accessLevelBearerTokenFactory determine what access level value is assigned to a
+// request based on its capabilities.
+type accessLevelResolver func(bascule.Attributes) int
+
+type accessLevelCapabilitySource struct {
+	// Name is the capability we will search for inside the capability list pointed by path.
+	// If this value is found in the list, the access level assigned to the request will be 1. Otherwise, it will be 0.
+	// (Optional) defaults to 'xmidt:svc:admin'
+	Name string
+
+	// Path is the list of nested keys to get to the claim which contains the capabilities.
+	// (Optional) default: ["capabilities"]
+	Path []string
+}
+
+type accessLevelConfig struct {
+	AttributeKey     string
+	CapabilitySource accessLevelCapabilitySource
+}
+
+func defaultAccessLevel() accessLevel {
+	return accessLevel{
+		AttributeKey: DefaultAccessLevelAttributeKey,
+		Resolver: func(_ bascule.Attributes) int {
+			return DefaultAccessLevelAttributeValue
+		},
+	}
+}
+
+func validateAccessLevelConfig(config *accessLevelConfig) {
+	if len(config.AttributeKey) < 1 {
+		config.AttributeKey = DefaultAccessLevelAttributeKey
+	}
+
+	if len(config.CapabilitySource.Name) < 1 {
+		config.CapabilitySource.Name = defaultAccessLevelCapabilityName
+	}
+
+	if len(config.CapabilitySource.Path) < 1 {
+		config.CapabilitySource.Path = defaultAccessLevelPath
+	}
+}
+
+func newAccessLevel(config *accessLevelConfig) accessLevel {
+	validateAccessLevelConfig(config)
+
+	resolver := func(attributes bascule.Attributes) int {
+		capabilitiesClaim, ok := bascule.GetNestedAttribute(attributes, config.CapabilitySource.Path...)
+		if !ok {
+			return DefaultAccessLevelAttributeValue
+		}
+		capabilities := cast.ToStringSlice(capabilitiesClaim)
+
+		for _, capability := range capabilities {
+			if capability == config.CapabilitySource.Name {
+				return ElevatedAccessLevelAttributeValue
+			}
+		}
+
+		return DefaultAccessLevelAttributeValue
+	}
+
+	return accessLevel{
+		AttributeKey: config.AttributeKey,
+		Resolver:     resolver,
+	}
+}
