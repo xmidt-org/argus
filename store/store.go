@@ -32,7 +32,8 @@ const (
 	PingType   = "ping"
 )
 
-const DefaultMaxTTLSeconds = 60 * 24 * 365
+// DefaultMaxTTLSeconds is used when the configuration option is not provided. The value is a year in seconds.
+const DefaultMaxTTLSeconds = 60 * 60 * 24 * 365
 
 type S interface {
 	Push(key model.Key, item OwnableItem) error

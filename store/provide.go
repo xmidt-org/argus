@@ -56,7 +56,7 @@ func NewHandlers(in StoreIn) StoreOut {
 
 	in.Unmarshaler.UnmarshalKey("itemMaxTTL", &itemMaxTTL)
 	if itemMaxTTL == 0 {
-		itemMaxTTL = DefaultMaxTTLSeconds * time.Second
+		itemMaxTTL = time.Second * DefaultMaxTTLSeconds
 	}
 
 	config := &transportConfig{
