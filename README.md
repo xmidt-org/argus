@@ -42,7 +42,8 @@ The body must be in JSON format with the following attributes:
 * _id_ - Required.  See above.
 * _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
 * _owner_ - Optional.  Free form string to identify the owner of this object.
-* _ttl_ - Optional.  Specified in units of seconds.  Defaults to 0 if omitted, which means this object will not auto expire.
+* _ttl_ - Optional.  Specified in units of seconds.  Defaults to the value of the server configuration option `itemMaxTTL`. If a configuration value is not specified, the value would be a year (~31536000 seconds).
+)
 
 An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
 
