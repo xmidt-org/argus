@@ -59,7 +59,7 @@ func NewHandlers(in StoreIn) StoreOut {
 		itemMaxTTL = DefaultMaxTTLSeconds * time.Second
 	}
 
-	config := transportConfig{
+	config := &transportConfig{
 		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
 		ItemMaxTTL:              itemMaxTTL,
 	}
