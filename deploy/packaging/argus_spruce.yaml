@@ -124,23 +124,12 @@ dynamo:
   secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
 
 
+itemMaxTTL: (( grab $ITEM_MAX_TTL || "24h"
+
+
 ##############################################################################
 # Authorization Credentials
 ##############################################################################
-
-# request is a config section related to operation authorization
-# and request validation.
-request:
-  authorization:
-    # adminToken serves as a master key which allows performing operations on any
-    # item regardless of their ownership status.
-    adminToken: (( grab $ARGUS_ADMIN_TOKEN || "Hzu1WpIe7S8G" ))
-
-  validation:
-    # maxTTL specifies the cap for the TTL of items when values are specified.
-    maxTTL: (( grab $DEFAULT_TTL || "1d" ))
-
-
 authx:
   inbound:
     profiles:

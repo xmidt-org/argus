@@ -105,8 +105,8 @@ dynamo:
 
 # itemMaxTTL defines the limit for TTL values provided by users of the API. 
 # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
-# (Optional) default: 1y
-itemMaxTTL: "1y"
+# (Optional) default: 24h (a day)
+itemMaxTTL: "24h"
 
 ##############################################################################
 # Authorization Credentials
