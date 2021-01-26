@@ -139,7 +139,7 @@ func providePrimaryTokenFactoryInput() fx.Option {
 				if anyNil(in.Profile, in.Profile.AccessLevel) {
 					return defaultAccessLevel()
 				}
-				return newAccessLevel(in.Profile.AccessLevel)
+				return newContainsAttributeAccessLevel(in.Profile.AccessLevel)
 			},
 		},
 	)
