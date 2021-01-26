@@ -15,7 +15,7 @@ import (
 const jwtPrincipalKey = "sub"
 
 // accessLevelBearerTokenFactory extends basculehttp.BearerTokenFactory by letting the user of the factory inject an access level attribute to the jwt token. Application code
-// should handle case in which the value is not injected (i.e. basic auth tokens)
+// should handle case in which the value is not injected (i.e. basic auth tokens).
 type accessLevelBearerTokenFactory struct {
 	DefaultKeyID string
 	Resolver     key.Resolver
