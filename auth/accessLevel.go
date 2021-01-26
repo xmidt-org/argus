@@ -23,7 +23,7 @@ const (
 var defaultAccessLevelPath = []string{"capabilities"}
 
 type accessLevel struct {
-	Resolver     accessLevelResolver
+	Resolve      accessLevelResolver
 	AttributeKey string
 }
 
@@ -50,7 +50,7 @@ type accessLevelConfig struct {
 func defaultAccessLevel() accessLevel {
 	return accessLevel{
 		AttributeKey: DefaultAccessLevelAttributeKey,
-		Resolver: func(_ bascule.Attributes) int {
+		Resolve: func(_ bascule.Attributes) int {
 			return DefaultAccessLevelAttributeValue
 		},
 	}
@@ -70,10 +70,10 @@ func validateAccessLevelConfig(config *accessLevelConfig) {
 	}
 }
 
-func newAccessLevel(config *accessLevelConfig) accessLevel {
+func newContainsAttributeAccessLevel(config *accessLevelConfig) accessLevel {
 	validateAccessLevelConfig(config)
 
-	resolver := func(attributes bascule.Attributes) int {
+	resolve := func(attributes bascule.Attributes) int {
 		capabilitiesClaim, ok := bascule.GetNestedAttribute(attributes, config.CapabilitySource.Path...)
 		if !ok {
 			return DefaultAccessLevelAttributeValue
@@ -91,6 +91,6 @@ func newAccessLevel(config *accessLevelConfig) accessLevel {
 
 	return accessLevel{
 		AttributeKey: config.AttributeKey,
-		Resolver:     resolver,
+		Resolve:      resolve,
 	}
 }
