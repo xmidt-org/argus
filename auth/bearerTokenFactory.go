@@ -14,8 +14,9 @@ import (
 
 const jwtPrincipalKey = "sub"
 
-// accessLevelBearerTokenFactory extends basculehttp.BearerTokenFactory by letting the user of the factory inject an access level attribute to the jwt token. Application code
-// should handle case in which the value is not injected (i.e. basic auth tokens)
+// accessLevelBearerTokenFactory extends basculehttp.BearerTokenFactory by letting
+// the user of the factory inject an access level attribute to the jwt token.
+// Application code should handle case in which the value is not injected (i.e. basic auth tokens)
 type accessLevelBearerTokenFactory struct {
 	DefaultKeyID string
 	Resolver     key.Resolver
@@ -68,8 +69,8 @@ func (a accessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 		return nil, emperror.WrapWith(basculehttp.ErrorInvalidPrincipal, "principal value not a string", "principal", principalVal)
 	}
 
-	if a.AccessLevel.Resolver != nil {
-		claimsMap[a.AccessLevel.AttributeKey] = a.AccessLevel.Resolver(jwtClaims)
+	if a.AccessLevel.Resolve != nil {
+		claimsMap[a.AccessLevel.AttributeKey] = a.AccessLevel.Resolve(jwtClaims)
 		jwtClaims = bascule.NewAttributes(claimsMap)
 	}
 
