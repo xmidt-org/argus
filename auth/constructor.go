@@ -24,6 +24,7 @@ type primaryBearerTokenFactoryIn struct {
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
 	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
+	AccessLevel  accessLevel    `name:"primary_bearer_access_level"`
 }
 
 type primaryBasculeMetricListenerIn struct {
@@ -39,6 +40,7 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 				return basculehttp.WithCErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
+
 		fx.Annotated{
 			Group: "primary_bascule_constructor_options",
 			Target: func(in primaryBearerTokenFactoryIn) basculehttp.COption {
@@ -47,11 +49,12 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 					return nil
 				}
 				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer token factory option", "server", "primary")
-				return basculehttp.WithTokenFactory("Bearer", basculehttp.BearerTokenFactory{
-					DefaultKeyId: in.DefaultKeyID,
+				return basculehttp.WithTokenFactory("Bearer", accessLevelBearerTokenFactory{
+					DefaultKeyID: in.DefaultKeyID,
 					Resolver:     in.Resolver,
 					Parser:       bascule.DefaultJWTParser,
 					Leeway:       in.Leeway,
+					AccessLevel:  in.AccessLevel,
 				})
 			},
 		},
@@ -128,6 +131,15 @@ func providePrimaryTokenFactoryInput() fx.Option {
 					return bascule.Leeway{}
 				}
 				return in.Profile.Bearer.Leeway
+			},
+		},
+		fx.Annotated{
+			Name: "primary_bearer_access_level",
+			Target: func(in primaryProfileIn) accessLevel {
+				if anyNil(in.Profile, in.Profile.AccessLevel) {
+					return defaultAccessLevel()
+				}
+				return newContainsAttributeAccessLevel(in.Profile.AccessLevel)
 			},
 		},
 	)

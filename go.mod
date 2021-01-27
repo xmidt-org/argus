@@ -6,6 +6,7 @@ require (
 	emperror.dev/emperror v0.30.0
 	github.com/InVisionApp/go-health v2.1.0+incompatible
 	github.com/aws/aws-sdk-go v1.31.6
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-kit/kit v0.10.0
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
@@ -13,6 +14,7 @@ require (
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/justinas/alice v1.2.0
 	github.com/prometheus/client_golang v1.4.1
+	github.com/spf13/cast v1.3.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.5.1

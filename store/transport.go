@@ -15,7 +15,9 @@ import (
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/bascule"
 )
 
 // request URL path keys.
@@ -30,6 +32,10 @@ const (
 	AdminTokenHeaderKey = "X-Midt-Admin-Token"
 	XmidtErrorHeaderKey = "X-Midt-Error"
 )
+
+// ElevatedAccessLevel is the bascule attribute value found in requests that should be granted
+// priviledged access to operations.
+const ElevatedAccessLevel = 1
 
 var idFormatRegex *regexp.Regexp
 
@@ -49,19 +55,10 @@ var (
 // the go-kit style encoders/decoders.
 var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
-type requestConfig struct {
-	Validation    validationConfig
-	Authorization authorizationConfig
+type transportConfig struct {
+	AccessLevelAttributeKey string
+	ItemMaxTTL              time.Duration
 }
-
-type validationConfig struct {
-	MaxTTL time.Duration
-}
-
-type authorizationConfig struct {
-	AdminToken string
-}
-
 type getOrDeleteItemRequest struct {
 	key       model.Key
 	owner     string
@@ -84,17 +81,17 @@ type setItemResponse struct {
 	existingResource bool
 }
 
-func getAllItemsRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
+func getAllItemsRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		return &getAllItemsRequest{
 			bucket:    mux.Vars(r)[bucketVarKey],
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
 		}, nil
 	}
 }
 
-func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
+func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		URLVars := mux.Vars(r)
 		bucket := URLVars[bucketVarKey]
@@ -119,7 +116,7 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 			return nil, errDataFieldMissing
 		}
 
-		validateItemTTL(&item, config.Validation.MaxTTL)
+		validateItemTTL(&item, config.ItemMaxTTL)
 
 		item.ID = normalizeID(item.ID)
 
@@ -136,12 +133,12 @@ func setItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
 				Bucket: bucket,
 				ID:     id,
 			},
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
 		}, nil
 	}
 }
 
-func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestFunc {
+func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		URLVars := mux.Vars(r)
 		id := normalizeID(URLVars[idVarKey])
@@ -154,7 +151,7 @@ func getOrDeleteItemRequestDecoder(config *requestConfig) kithttp.DecodeRequestF
 				Bucket: URLVars[bucketVarKey],
 				ID:     id,
 			},
-			adminMode: config.Authorization.AdminToken == r.Header.Get(AdminTokenHeaderKey),
+			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
 		}, nil
 	}
@@ -224,11 +221,9 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 }
 
 func validateItemTTL(item *model.Item, maxTTL time.Duration) {
-	if item.TTL != nil {
-		ttlCapSeconds := int64(maxTTL.Seconds())
-		if *item.TTL > ttlCapSeconds {
-			item.TTL = &ttlCapSeconds
-		}
+	ttlMaxSeconds := int64(maxTTL.Seconds())
+	if item.TTL == nil || *item.TTL > ttlMaxSeconds {
+		item.TTL = &ttlMaxSeconds
 	}
 }
 
@@ -246,4 +241,22 @@ func isIDValid(normalizedID string) bool {
 // Sha256HexDigest returns the SHA-256 hex digest of the given input.
 func Sha256HexDigest(message string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(message)))
+}
+
+func hasElevatedAccess(ctx context.Context, accessLevelAttributeKey string) bool {
+	basculeAuth, ok := bascule.FromContext(ctx)
+	if !ok {
+		return false
+	}
+	attributes := basculeAuth.Token.Attributes()
+	attribute, ok := attributes.Get(accessLevelAttributeKey)
+	if !ok {
+		return false
+	}
+	accessLevel, ok := attribute.(int)
+	if !ok {
+		return false
+	}
+
+	return accessLevel == auth.ElevatedAccessLevelAttributeValue
 }

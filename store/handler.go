@@ -32,7 +32,7 @@ type KeyItemPairRequest struct {
 	Method string
 }
 
-func newGetItemHandler(config *requestConfig, s S) Handler {
+func newGetItemHandler(config *transportConfig, s S) Handler {
 	return kithttp.NewServer(
 		newGetItemEndpoint(s),
 		getOrDeleteItemRequestDecoder(config),
@@ -41,7 +41,7 @@ func newGetItemHandler(config *requestConfig, s S) Handler {
 	)
 }
 
-func newDeleteItemHandler(config *requestConfig, s S) Handler {
+func newDeleteItemHandler(config *transportConfig, s S) Handler {
 	return kithttp.NewServer(
 		newDeleteItemEndpoint(s),
 		getOrDeleteItemRequestDecoder(config),
@@ -50,7 +50,7 @@ func newDeleteItemHandler(config *requestConfig, s S) Handler {
 	)
 }
 
-func newGetAllItemsHandler(config *requestConfig, s S) Handler {
+func newGetAllItemsHandler(config *transportConfig, s S) Handler {
 	return kithttp.NewServer(
 		newGetAllItemsEndpoint(s),
 		getAllItemsRequestDecoder(config),
@@ -59,7 +59,7 @@ func newGetAllItemsHandler(config *requestConfig, s S) Handler {
 	)
 }
 
-func newSetItemHandler(config *requestConfig, s S) Handler {
+func newSetItemHandler(config *transportConfig, s S) Handler {
 	return kithttp.NewServer(
 		newSetItemEndpoint(s),
 		setItemRequestDecoder(config),

@@ -47,6 +47,7 @@ type profile struct {
 	TargetServers   []string
 	Basic           []string
 	Bearer          *jwtValidator
+	AccessLevel     *accessLevelConfig
 	CapabilityCheck *capabilityValidatorConfig
 }
 

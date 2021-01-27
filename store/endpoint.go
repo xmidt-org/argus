@@ -97,6 +97,9 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 			return nil, accessDeniedErr
 		}
 
+		// TODO: when updating an item as super user, use existing owner (don't change the owner)
+		// https://github.com/xmidt-org/argus/issues/87
+
 		err = s.Push(setItemRequest.key, setItemRequest.item)
 		if err != nil {
 			return nil, err

@@ -12,7 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/bascule"
 )
 
 func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
@@ -20,9 +22,10 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
-		Headers                map[string][]string
+		Owner                  string
 		ExpectedDecodedRequest interface{}
 		ExpectedErr            error
+		ElevatedAccess         bool
 	}{
 		{
 			Name: "Invalid ID",
@@ -33,7 +36,7 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			ExpectedErr: errInvalidID,
 		},
 		{
-			Name: "Happy path - No owner - Normal mode",
+			Name: "Happy path. No owner. Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
 				"id":     sfID,
@@ -46,16 +49,14 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			},
 		},
 		{
-			Name: "Happy path - Owner - Admin mode",
+			Name: "Happy path. Owner. Admin mode",
 			URLVars: map[string]string{
 				"bucket": "california",
 				"id":     sfID,
 			},
 
-			Headers: map[string][]string{
-				ItemOwnerHeaderKey:  {"SF Giants"},
-				AdminTokenHeaderKey: {"secretAdminToken"},
-			},
+			Owner:          "SF Giants",
+			ElevatedAccess: true,
 
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
@@ -72,16 +73,25 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			r := httptest.NewRequest(http.MethodGet, "http://localhost/test", nil)
-			transferHeaders(testCase.Headers, r)
-
 			r = mux.SetURLVars(r, testCase.URLVars)
-			config := &requestConfig{
-				Authorization: authorizationConfig{
-					AdminToken: "secretAdminToken",
-				},
+
+			if len(testCase.Owner) > 0 {
+				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
+
+			config := &transportConfig{
+				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
+				ItemMaxTTL:              time.Hour * 24,
+			}
+
+			ctx := context.Background()
+
+			if testCase.ElevatedAccess {
+				ctx = withElevatedAccess(ctx)
+			}
+
 			decoder := getOrDeleteItemRequestDecoder(config)
-			decodedRequest, err := decoder(context.Background(), r)
+			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
 			assert.Equal(testCase.ExpectedErr, err)
@@ -135,12 +145,13 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name                   string
 		URLVars                map[string]string
-		Headers                map[string][]string
+		Owner                  string
+		ElevatedAccess         bool
 		ExpectedDecodedRequest interface{}
 		ExpectedErr            error
 	}{
 		{
-			Name: "Happy path - No owner - Normal mode",
+			Name: "Happy path. No owner. Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
 			},
@@ -149,22 +160,18 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 			},
 		},
 		{
-			Name: "Happy path - Owner - Admin mode",
+			Name: "Happy path. Owner. Admin mode",
 			URLVars: map[string]string{
 				"bucket": "california",
 				"ID":     Sha256HexDigest("san francisco"),
 			},
-
-			Headers: map[string][]string{
-				ItemOwnerHeaderKey:  {"SF Giants"},
-				AdminTokenHeaderKey: {"secretAdminToken"},
-			},
-
+			Owner: "SF Giants",
 			ExpectedDecodedRequest: &getAllItemsRequest{
 				bucket:    "california",
 				owner:     "SF Giants",
 				adminMode: true,
 			},
+			ElevatedAccess: true,
 		},
 	}
 
@@ -172,16 +179,22 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			r := httptest.NewRequest(http.MethodGet, "http://localhost/test", nil)
-			transferHeaders(testCase.Headers, r)
-
 			r = mux.SetURLVars(r, testCase.URLVars)
-			config := &requestConfig{
-				Authorization: authorizationConfig{
-					AdminToken: "secretAdminToken",
-				},
+			if len(testCase.Owner) > 0 {
+				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
+			}
+
+			config := &transportConfig{
+				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
+				ItemMaxTTL:              time.Hour * 24,
+			}
+
+			ctx := context.Background()
+			if testCase.ElevatedAccess {
+				ctx = withElevatedAccess(ctx)
 			}
 			decoder := getAllItemsRequestDecoder(config)
-			decodedRequest, err := decoder(context.Background(), r)
+			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
 			assert.Equal(testCase.ExpectedErr, err)
@@ -227,7 +240,8 @@ func TestSetItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		URLVars         map[string]string
-		Headers         map[string][]string
+		Owner           string
+		ElevatedAccess  bool
 		RequestBody     string
 		ExpectedErr     error
 		ExpectedRequest *setItemRequest
@@ -247,7 +261,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "Capped TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}},
+			Owner:       "math",
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
@@ -281,10 +295,11 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			ExpectedErr: errInvalidID,
 		},
 		{
-			Name:        "Happy Path - Admin mode",
-			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}, AdminTokenHeaderKey: {"secretAdminPassKey"}},
-			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
+			Name:           "Happy Path. Admin mode",
+			URLVars:        map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Owner:          "math",
+			ElevatedAccess: true,
+			RequestBody:    `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
@@ -308,7 +323,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "Alternative ID format",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4B13653E5D6D611DE5999AB0E7C0AA67E1D83D4CBA8349A04DA0A431FB27F74B"},
-			Headers:     map[string][]string{ItemOwnerHeaderKey: {"math"}},
+			Owner:       "math",
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
@@ -335,20 +350,23 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			r := httptest.NewRequest(http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
-
 			r = mux.SetURLVars(r, testCase.URLVars)
-			transferHeaders(testCase.Headers, r)
+			if len(testCase.Owner) > 0 {
+				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
+			}
 
-			config := &requestConfig{
-				Authorization: authorizationConfig{
-					AdminToken: "secretAdminPassKey",
-				},
-				Validation: validationConfig{
-					MaxTTL: time.Minute * 5,
-				},
+			config := &transportConfig{
+				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
+				ItemMaxTTL:              time.Minute * 5,
 			}
 			decoder := setItemRequestDecoder(config)
-			decodedRequest, err := decoder(context.Background(), r)
+
+			ctx := context.Background()
+			if testCase.ElevatedAccess {
+				ctx = withElevatedAccess(ctx)
+			}
+
+			decodedRequest, err := decoder(ctx, r)
 			if testCase.ExpectedRequest == nil {
 				assert.Nil(decodedRequest)
 			} else {
@@ -418,4 +436,83 @@ func TestIsIDValid(t *testing.T) {
 			assert.Equal(tc.Expected, isIDValid(tc.ID))
 		})
 	}
+}
+
+func TestHasElevatedAccess(t *testing.T) {
+	type testCase struct {
+		Description           string
+		IncludeBasculeAuth    bool
+		IncludeAttributeValue bool
+		AttributeValue        interface{}
+		Expected              bool
+	}
+
+	tcs := []testCase{
+		{
+			Description:        "BasculeAuthMissing",
+			IncludeBasculeAuth: false,
+		},
+		{
+			Description:           "AttributeMissing",
+			IncludeBasculeAuth:    true,
+			IncludeAttributeValue: false,
+		},
+		{
+			Description:           "WrongAttributeType",
+			IncludeBasculeAuth:    true,
+			IncludeAttributeValue: true,
+			AttributeValue:        "1",
+		},
+		{
+			Description:           "StandardAccess",
+			IncludeBasculeAuth:    true,
+			IncludeAttributeValue: true,
+			AttributeValue:        auth.DefaultAccessLevelAttributeValue,
+		},
+		{
+			Description:           "ElevatedAccess",
+			IncludeBasculeAuth:    true,
+			IncludeAttributeValue: true,
+			AttributeValue:        auth.ElevatedAccessLevelAttributeValue,
+			Expected:              true,
+		},
+	}
+
+	for _, tc := range tcs {
+
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			attributeKey := "attrKey"
+			ctx := context.Background()
+			attributesMap := make(map[string]interface{})
+
+			if tc.IncludeAttributeValue {
+				attributesMap[attributeKey] = tc.AttributeValue
+			}
+
+			attributes := bascule.NewAttributes(attributesMap)
+
+			auth := bascule.Authentication{
+				Token: bascule.NewToken("Bearer", "testUser", attributes),
+			}
+
+			if tc.IncludeBasculeAuth {
+				ctx = bascule.WithAuthentication(ctx, auth)
+			}
+
+			assert.Equal(tc.Expected, hasElevatedAccess(ctx, attributeKey))
+
+		})
+	}
+}
+
+func withElevatedAccess(ctx context.Context) context.Context {
+	attributes := bascule.NewAttributes(map[string]interface{}{
+		auth.DefaultAccessLevelAttributeKey: auth.ElevatedAccessLevelAttributeValue,
+	})
+	basculeAuth := bascule.Authentication{
+		Authorization: bascule.Authorization("Bearer"),
+		Token:         bascule.NewToken("Bearer", "testUser", attributes),
+	}
+	return bascule.WithAuthentication(ctx, basculeAuth)
 }

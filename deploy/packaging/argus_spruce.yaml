@@ -124,23 +124,12 @@ dynamo:
   secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
 
 
+itemMaxTTL: (( grab $ITEM_MAX_TTL || "24h" ))
+
+
 ##############################################################################
 # Authorization Credentials
 ##############################################################################
-
-# request is a config section related to operation authorization
-# and request validation.
-request:
-  authorization:
-    # adminToken serves as a master key which allows performing operations on any
-    # item regardless of their ownership status.
-    adminToken: (( grab $ARGUS_ADMIN_TOKEN || "Hzu1WpIe7S8G" ))
-
-  validation:
-    # maxTTL specifies the cap for the TTL of items when values are specified.
-    maxTTL: (( grab $DEFAULT_TTL || "1d" ))
-
-
 authx:
   inbound:
     profiles:
@@ -160,6 +149,45 @@ authx:
                 uri: (( grab $THEMIS_ENDPOINT || "http://themis:6500/keys/docker" ))
             purpose: 0
             updateInterval: 24h
+        
+        # accessLevel defines config around the injection of an attribute to bascule tokens
+        # which application code can leverage to decide if a given request is allowed to execute some operation.
+        # Note that accessLevel differs from capabilityCheck in that it allows more complex access hierarchy. 
+        # That is, while capabilityCheck verifies whether a user is allowed to use an API endpoint, accessLevel 
+        # assigns a number to the user's request which application code can use for security purposes.
+        # An access level is defined as a non-negative number and the higher the number, the higher the access the 
+        # request has for the target application.
+        # (Optional). If section is not provided, the lowest access level value of 0 will be assigned to the attribute.
+        accessLevel:
+          # attributeKey is the key that application code can use to fetch the access level from the provided bascule token.
+          # (Optional) defaults to 'access-level'
+          attributeKey: (( grab $ACCESS_LEVEL_ATTRIBUTE_KEY || "access-level" ))
+
+          # capabilitySource provides configuration to the component which generates the access level for an incoming request
+          # based on its endpoint capabilities. This component assigns only two access levels: 1 for elevated access and 0 otherwise.
+          # Components that assign more than two values might be added in the future.
+          # (Optional)
+          capabilitySource:
+            # name is the capability we will search for inside the capability list pointed by path.
+            # If this value is found in the list, the access level assigned to the request will be 1. Otherwise, it will be 0.
+            # (Optional) defaults to 'xmidt:svc:admin'
+            name:  (( grab $ACCESS_LEVEL_CAPABILITY || "xmidt:svc:admin" ))
+        
+            # path is the list of nested keys to get to the claim which contains the capabilities.
+            # For example, if your JWT payload looks like this:
+            # ```
+            # {
+            #   "iat": 1234567899,
+            #   "nbf": 1234567899,
+            #   "my_company": {
+            #     "capabilities": ["capability0", "capability1"]
+            #   }
+            # } 
+            # ```  
+            # you'll want to set path to ["my_company", "capabilities"]
+            # (Optional) default: ["capabilities"]
+            path: 
+              - (( grab $ACCESS_LEVEL_CAPABILITIES_PATH  || "capabilities" ))
 
         # # capabilityCheck provides the details needed for checking an incoming JWT's
         # # capabilities.  If the type of check isn't provided, no checking is done.  The
