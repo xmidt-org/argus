@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - UUID field is now ID. [#88](https://github.com/xmidt-org/argus/pull/88)
 - Update buildtime format in Makefile to match RPM spec file. [#95](https://github.com/xmidt-org/argus/pull/95)
 - Update configuration structure for inbound authn/z. [#101](https://github.com/xmidt-org/argus/pull/101)
+- Admin mode flag now originates from JWT claims instead of an HTTP header. [#112](https://github.com/xmidt-org/argus/pull/112)
 
 ### Removed
 - Removed identifier as a field from the API. [#85](https://github.com/xmidt-org/argus/pull/85)
