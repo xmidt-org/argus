@@ -124,7 +124,7 @@ dynamo:
   secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
 
 
-itemMaxTTL: (( grab $ITEM_MAX_TTL || "24h"
+itemMaxTTL: (( grab $ITEM_MAX_TTL || "24h" ))
 
 
 ##############################################################################
