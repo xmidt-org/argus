@@ -34,6 +34,10 @@ To enable this, argus has two endpoints: 1) individual items, and 2) buckets con
 This endpoint allows for clients to `PUT` an object into argus.  The placeholder variables in the path must contain:
 
 * _bucket_ - The name used to indicate the resource type of which the stored data represents.  A plural form of a noun word should be used for stylistic reasons.
+  The following rules will be enforced:
+    - Bucket names must be between 3 and 63 characters long.
+    - Bucket names can consist only of lowercase letters, numbers and hyphens (-).
+    - Bucket names must begin and end with a letter or number. 
 * _id_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<common_name>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.  argus will not accept any values for this attribute that is not a 64 character hex string.
 
 
