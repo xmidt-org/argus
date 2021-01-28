@@ -35,6 +35,15 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			},
 			ExpectedErr: errInvalidID,
 		},
+
+		{
+			Name: "Invalid Bucket",
+			URLVars: map[string]string{
+				"bucket": "california?",
+				"id":     sfID,
+			},
+			ExpectedErr: errInvalidBucket,
+		},
 		{
 			Name: "Happy path. No owner. Normal mode",
 			URLVars: map[string]string{
@@ -151,6 +160,13 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 		ExpectedErr            error
 	}{
 		{
+			Name: "Invalid bucket",
+			URLVars: map[string]string{
+				"bucket": "cal!fornia",
+			},
+			ExpectedErr: errInvalidBucket,
+		},
+		{
 			Name: "Happy path. No owner. Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
@@ -228,14 +244,6 @@ func TestEncodeGetAllItemsResponse(t *testing.T) {
 	assert.JSONEq(expectedResponseBody, recorder.Body.String())
 }
 
-func transferHeaders(headers map[string][]string, r *http.Request) {
-	for k, values := range headers {
-		for _, value := range values {
-			r.Header.Add(k, value)
-		}
-	}
-}
-
 func TestSetItemRequestDecoder(t *testing.T) {
 	testCases := []struct {
 		Name            string
@@ -283,16 +291,20 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			},
 		},
 		{
+			Name:        "Invalid ID",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "badID"},
+			ExpectedErr: errInvalidID,
+		},
+		{
+			Name:        "Invalid Bucket",
+			URLVars:     map[string]string{bucketVarKey: "when-validation-gives-you-lemons!", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			ExpectedErr: errInvalidBucket,
+		},
+		{
 			Name:        "ID mismatch",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74oops", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedErr: errIDMismatch,
-		},
-		{
-			Name:        "Invalid ID",
-			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "badID"},
-			RequestBody: `{"id":"badID", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
-			ExpectedErr: errInvalidID,
 		},
 		{
 			Name:           "Happy Path. Admin mode",
