@@ -54,7 +54,6 @@ func TestIsBucketValid(t *testing.T) {
 	type testCase struct {
 		Description string
 		Bucket      string
-		ExpectedErr error
 		Succeeds    bool
 	}
 
@@ -62,7 +61,6 @@ func TestIsBucketValid(t *testing.T) {
 		{
 			Description: "Too short",
 			Bucket:      "ab",
-			ExpectedErr: errInvalidBucket,
 		},
 		{
 			Description: "Too long",
