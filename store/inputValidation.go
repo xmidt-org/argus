@@ -13,7 +13,14 @@ var (
 	bucketFormatRegex *regexp.Regexp
 )
 
-var errInvalidBucket = BadRequestErr{Message: "invalid bucket name"}
+var (
+	errInvalidID               = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
+	errIDMismatch              = BadRequestErr{Message: "IDs must match between the URL and payload."}
+	errDataFieldMissing        = BadRequestErr{Message: "Data field must be set in payload."}
+	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
+	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
+	errInvalidBucket           = BadRequestErr{Message: "Invalid bucket format."}
+)
 
 func init() {
 	idFormatRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -55,6 +62,24 @@ func validateItemPathVars(bucket, normalizedID string) error {
 
 	if !isBucketValid(bucket) {
 		return errInvalidBucket
+	}
+
+	return nil
+}
+
+// validateItemData returns a pertinent HTTP-encoded error if any part of the item
+// data is invalid.
+func validateItemData(item *model.Item, normalizedID string, itemMaxTTL time.Duration) error {
+	validateItemTTL(item, itemMaxTTL)
+
+	if len(item.Data) < 1 {
+		return errDataFieldMissing
+	}
+
+	item.ID = normalizeID(item.ID)
+
+	if item.ID != normalizedID {
+		return errIDMismatch
 	}
 
 	return nil

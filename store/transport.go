@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"sort"
 	"time"
 
@@ -35,18 +34,6 @@ const (
 // ElevatedAccessLevel is the bascule attribute value found in requests that should be granted
 // priviledged access to operations.
 const ElevatedAccessLevel = 1
-
-func init() {
-	idFormatRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
-}
-
-var (
-	errInvalidID               = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
-	errIDMismatch              = BadRequestErr{Message: "IDs must match between the URL and payload."}
-	errDataFieldMissing        = BadRequestErr{Message: "Data field must be set in payload."}
-	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
-	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
-)
 
 // ErrCasting indicates there was (most likely) a middleware wiring mistake with
 // the go-kit style encoders/decoders.
@@ -80,8 +67,12 @@ type setItemResponse struct {
 
 func getAllItemsRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		bucket := mux.Vars(r)[bucketVarKey]
+		if !isBucketValid(bucket) {
+			return nil, errInvalidBucket
+		}
 		return &getAllItemsRequest{
-			bucket:    mux.Vars(r)[bucketVarKey],
+			bucket:    bucket,
 			owner:     r.Header.Get(ItemOwnerHeaderKey),
 			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
 		}, nil
@@ -106,21 +97,12 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 		}
 
 		item := model.Item{}
-		err = json.Unmarshal(data, &item)
-		if err != nil {
+		if err := json.Unmarshal(data, &item); err != nil {
 			return nil, errPayloadUnmarshalFailure
 		}
 
-		if len(item.Data) < 1 {
-			return nil, errDataFieldMissing
-		}
-
-		validateItemTTL(&item, config.ItemMaxTTL)
-
-		item.ID = normalizeID(item.ID)
-
-		if item.ID != id {
-			return nil, errIDMismatch
+		if err := validateItemData(&item, id, config.ItemMaxTTL); err != nil {
+			return nil, err
 		}
 
 		return &setItemRequest{
