@@ -248,7 +248,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 	}{
 		{
 			Name:        "Bad JSON data",
-			URLVars:     map[string]string{bucketVarKey: "bucketVal", idVarKey: "7731f5f6fc9456d9ca274416ad66030777778026716e821f1de966bf54ab9e2e"},
+			URLVars:     map[string]string{bucketVarKey: "bucket-val", idVarKey: "7731f5f6fc9456d9ca274416ad66030777778026716e821f1de966bf54ab9e2e"},
 			RequestBody: `{"validJSON": false,}`,
 			ExpectedErr: errPayloadUnmarshalFailure,
 		},
@@ -392,50 +392,6 @@ func TestEncodeSetItemResponse(t *testing.T) {
 	})
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, updatedRecorder.Code)
-}
-
-func TestNormalizeID(t *testing.T) {
-	type test struct {
-		Name     string
-		ID       string
-		Expected string
-	}
-
-	tcs := []test{
-		{Name: "Same", ID: "notchanged", Expected: "notchanged"},
-		{Name: "ClearWhiteSpace", ID: "			clean    ", Expected: "clean"},
-		{Name: "Lower case", ID: "TESTING!!	", Expected: "testing!!"},
-		{Name: "Combined", ID: "			hElLo, WoRlD!    ", Expected: "hello, world!"},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			assert.Equal(tc.Expected, normalizeID(tc.ID))
-		})
-	}
-}
-
-func TestIsIDValid(t *testing.T) {
-	type test struct {
-		Name     string
-		ID       string
-		Expected bool
-	}
-
-	tcs := []test{
-		{Name: "CharacterOver", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7a", Expected: false},
-		{Name: "NonHex", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7z", Expected: false},
-		{Name: "NonLowerCase", ID: "7E8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7", Expected: false},
-		{Name: "Success", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7", Expected: true},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			assert.Equal(tc.Expected, isIDValid(tc.ID))
-		})
-	}
 }
 
 func TestHasElevatedAccess(t *testing.T) {

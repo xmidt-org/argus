@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -36,8 +35,6 @@ const (
 // ElevatedAccessLevel is the bascule attribute value found in requests that should be granted
 // priviledged access to operations.
 const ElevatedAccessLevel = 1
-
-var idFormatRegex *regexp.Regexp
 
 func init() {
 	idFormatRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -93,12 +90,14 @@ func getAllItemsRequestDecoder(config *transportConfig) kithttp.DecodeRequestFun
 
 func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		URLVars := mux.Vars(r)
-		bucket := URLVars[bucketVarKey]
-		id := normalizeID(URLVars[idVarKey])
+		var (
+			URLVars = mux.Vars(r)
+			id      = normalizeID(URLVars[idVarKey])
+			bucket  = URLVars[bucketVarKey]
+		)
 
-		if !isIDValid(id) {
-			return nil, errInvalidID
+		if err := validateItemPathVars(bucket, id); err != nil {
+			return nil, err
 		}
 
 		data, err := ioutil.ReadAll(r.Body)
@@ -140,15 +139,19 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 
 func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		URLVars := mux.Vars(r)
-		id := normalizeID(URLVars[idVarKey])
-		if !isIDValid(id) {
-			return nil, errInvalidID
+		var (
+			URLVars = mux.Vars(r)
+			id      = normalizeID(URLVars[idVarKey])
+			bucket  = URLVars[bucketVarKey]
+		)
+
+		if err := validateItemPathVars(bucket, id); err != nil {
+			return nil, err
 		}
 
 		return &getOrDeleteItemRequest{
 			key: model.Key{
-				Bucket: URLVars[bucketVarKey],
+				Bucket: bucket,
 				ID:     id,
 			},
 			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
@@ -218,24 +221,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		code = sc.StatusCode()
 	}
 	w.WriteHeader(code)
-}
-
-func validateItemTTL(item *model.Item, maxTTL time.Duration) {
-	ttlMaxSeconds := int64(maxTTL.Seconds())
-	if item.TTL == nil || *item.TTL > ttlMaxSeconds {
-		item.TTL = &ttlMaxSeconds
-	}
-}
-
-// normalizeID should be run on all instances of item IDs from external origin
-func normalizeID(ID string) string {
-	return strings.ToLower(strings.TrimSpace(ID))
-}
-
-// isIDValid returns true if the given ID is a hex digest string of 64 characters (i.e. 7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7)
-// per the input string name, we expect the ID to be normalized by the time we get here (remove whitespaces, all lowercase)
-func isIDValid(normalizedID string) bool {
-	return idFormatRegex.MatchString(normalizedID)
 }
 
 // Sha256HexDigest returns the SHA-256 hex digest of the given input.
