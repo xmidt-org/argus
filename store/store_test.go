@@ -38,31 +38,31 @@ func TestFilterOwner(t *testing.T) {
 		{
 			Name: "No owner - nothing filtered out",
 			InputItems: map[string]OwnableItem{
-				"item0": OwnableItem{},
-				"item1": OwnableItem{},
+				"item0": {},
+				"item1": {},
 			},
 			ExpectedFilteredItems: map[string]OwnableItem{
-				"item0": OwnableItem{},
-				"item1": OwnableItem{},
+				"item0": {},
+				"item1": {},
 			},
 		},
 		{
 			Name:       "Filtered by owner",
 			InputOwner: "Argus",
 			InputItems: map[string]OwnableItem{
-				"item0": OwnableItem{
+				"item0": {
 					Owner: "Tr1d1um",
 				},
 
-				"item1": OwnableItem{
+				"item1": {
 					Owner: "Argus",
 				},
-				"item2": OwnableItem{
+				"item2": {
 					Owner: "Talaria",
 				},
 			},
 			ExpectedFilteredItems: map[string]OwnableItem{
-				"item1": OwnableItem{
+				"item1": {
 					Owner: "Argus",
 				},
 			},
