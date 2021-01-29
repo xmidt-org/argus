@@ -15,12 +15,10 @@ var (
 )
 
 var (
-	errInvalidID               = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
-	errIDMismatch              = BadRequestErr{Message: "IDs must match between the URL and payload."}
-	errDataFieldMissing        = BadRequestErr{Message: "Data field must be set in payload."}
-	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
-	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
-	errInvalidBucket           = BadRequestErr{Message: "Invalid bucket format."}
+	errInvalidID        = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
+	errIDMismatch       = BadRequestErr{Message: "IDs must match between the URL and payload."}
+	errDataFieldMissing = BadRequestErr{Message: "Data field must be set in payload."}
+	errInvalidBucket    = BadRequestErr{Message: "Invalid bucket format."}
 )
 
 func validateItemTTL(item *model.Item, maxTTL time.Duration) {

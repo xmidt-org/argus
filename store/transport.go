@@ -40,6 +40,11 @@ const ElevatedAccessLevel = 1
 // the go-kit style encoders/decoders.
 var ErrCasting = errors.New("casting error due to middleware wiring mistake")
 
+var (
+	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
+	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
+)
+
 type transportConfig struct {
 	AccessLevelAttributeKey string
 	ItemMaxTTL              time.Duration
