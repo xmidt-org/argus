@@ -11,9 +11,9 @@ const (
 	DefaultAccessLevelAttributeValue = 0
 )
 
-const (
-	ElevatedAccessLevelAttributeValue = 1
-)
+// ElevatedAccessLevelAttributeValue is the value that will be used when a request
+// passes all checks for running in elevated access mode.
+const ElevatedAccessLevelAttributeValue = 1
 
 // internal default values
 const (
@@ -22,6 +22,8 @@ const (
 
 var defaultAccessLevelPath = []string{"capabilities"}
 
+// AccessLevel provides logic for resolving the correct access level for a
+// request given its bascule attributes.
 type AccessLevel struct {
 	Resolve      accessLevelResolver
 	AttributeKey string
