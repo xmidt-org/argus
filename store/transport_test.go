@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,19 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			URLVars: map[string]string{
 				"bucket": "california",
 				"id":     sfID,
+			},
+			ExpectedDecodedRequest: &getOrDeleteItemRequest{
+				key: model.Key{
+					Bucket: "california",
+					ID:     sfID,
+				},
+			},
+		},
+		{
+			Name: "Happy path. No owner. Normal mode. Uppercase ok",
+			URLVars: map[string]string{
+				"bucket": "california",
+				"id":     strings.ToUpper(sfID),
 			},
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
 				key: model.Key{
@@ -274,11 +288,30 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
+						ID:   "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
+						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
+						TTL:  aws.Int64(int64((time.Minute * 5).Seconds())),
+					},
+					Owner: "math",
+				},
+				key: model.Key{
+					Bucket: "variables",
+					ID:     "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
+				},
+			},
+		},
+
+		{
+			Name:        "TTL Not Provided",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Owner:       "math",
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}}`,
+			ExpectedRequest: &setItemRequest{
+				item: OwnableItem{
+					Item: model.Item{
 						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
+							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
 						TTL: aws.Int64(int64((time.Minute * 5).Seconds())),
 					},
@@ -291,8 +324,15 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			},
 		},
 		{
-			Name:        "Invalid ID",
+			Name:        "Invalid URL Path ID",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "badID"},
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74a", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			ExpectedErr: errInvalidID,
+		},
+		{
+			Name:        "Invalid Item ID",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			RequestBody: `{"id":"notASha256HexDigest", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedErr: errInvalidID,
 		},
 		{
@@ -303,7 +343,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "ID mismatch",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74oops", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74a", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
 			ExpectedErr: errIDMismatch,
 		},
 		{
@@ -317,9 +357,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 					Item: model.Item{
 						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
+							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
 						TTL: aws.Int64(39),
 					},
@@ -340,13 +378,9 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
-						ID: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
-						Data: map[string]interface{}{
-							"x": float64(0),
-							"y": float64(1),
-							"z": float64(2),
-						},
-						TTL: aws.Int64(39),
+						ID:   "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
+						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
+						TTL:  aws.Int64(39),
 					},
 					Owner: "math",
 				},
