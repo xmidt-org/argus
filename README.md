@@ -38,7 +38,7 @@ This endpoint allows for clients to `PUT` an object into argus.  The placeholder
     - Bucket names must be between 3 and 63 characters long.
     - Bucket names can consist only of lowercase letters, numbers and hyphens (-).
     - Bucket names must begin and end with a letter or number. 
-  If you'd like to define your own bucket validation format, checkout the `userInputValidation.bucketFormatRegex` configuration option.
+  If you'd like to define your own bucket validation format, check out the `userInputValidation.bucketFormatRegex` configuration option.
 * _id_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<common_name>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.  argus will not accept any values for this attribute that is not a 64 character hex string.
 
 **Note:** While Argus is case insensitive for its IDs, all responses will always return their lowercase form regardless of the casing of your input ID.
