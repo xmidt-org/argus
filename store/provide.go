@@ -95,7 +95,11 @@ func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
 	}
 
 	if userInputValidation.BucketFormatRegex != "" {
-		bucketFormatRegex = regexp.MustCompile(userInputValidation.BucketFormatRegex)
+		bucketRegex, err := regexp.Compile(userInputValidation.BucketFormatRegex)
+		if err != nil {
+			return nil, err
+		}
+		bucketFormatRegex = bucketRegex
 	}
 
 	return &transportConfig{
