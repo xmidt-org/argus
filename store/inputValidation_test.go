@@ -6,28 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNormalizeID(t *testing.T) {
-	type test struct {
-		Name     string
-		ID       string
-		Expected string
-	}
-
-	tcs := []test{
-		{Name: "Same", ID: "notchanged", Expected: "notchanged"},
-		{Name: "ClearWhiteSpace", ID: "			clean    ", Expected: "clean"},
-		{Name: "Lower case", ID: "TESTING!!	", Expected: "testing!!"},
-		{Name: "Combined", ID: "			hElLo, WoRlD!    ", Expected: "hello, world!"},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
-			assert := assert.New(t)
-			assert.Equal(tc.Expected, normalizeID(tc.ID))
-		})
-	}
-}
-
 func TestIsIDValid(t *testing.T) {
 	type test struct {
 		Name     string

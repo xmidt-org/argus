@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -83,7 +84,7 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		var (
 			URLVars = mux.Vars(r)
-			id      = normalizeID(URLVars[idVarKey])
+			id      = strings.ToLower(URLVars[idVarKey])
 			bucket  = URLVars[bucketVarKey]
 		)
 
@@ -96,18 +97,18 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 			return nil, errBodyReadFailure
 		}
 
-		item := model.Item{}
-		if err := json.Unmarshal(data, &item); err != nil {
-			return nil, errPayloadUnmarshalFailure
-		}
+		unmarshaler := validItemUnmarshaler{config: config, id: id}
 
-		if err := validateItemData(&item, id, config.ItemMaxTTL); err != nil {
+		if err := json.Unmarshal(data, &unmarshaler); err != nil {
+			if _, ok := err.(BadRequestErr); !ok {
+				err = errPayloadUnmarshalFailure
+			}
 			return nil, err
 		}
 
 		return &setItemRequest{
 			item: OwnableItem{
-				Item:  item,
+				Item:  unmarshaler.item,
 				Owner: r.Header.Get(ItemOwnerHeaderKey),
 			},
 			key: model.Key{
@@ -123,7 +124,7 @@ func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeReques
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		var (
 			URLVars = mux.Vars(r)
-			id      = normalizeID(URLVars[idVarKey])
+			id      = strings.ToLower(URLVars[idVarKey])
 			bucket  = URLVars[bucketVarKey]
 		)
 
