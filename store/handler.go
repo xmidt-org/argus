@@ -32,37 +32,37 @@ type KeyItemPairRequest struct {
 	Method string
 }
 
-func newGetItemHandler(config *transportConfig, s S) Handler {
+func newGetItemHandler(in handlerIn) Handler {
 	return kithttp.NewServer(
-		newGetItemEndpoint(s),
-		getOrDeleteItemRequestDecoder(config),
+		newGetItemEndpoint(in.Store),
+		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newDeleteItemHandler(config *transportConfig, s S) Handler {
+func newDeleteItemHandler(in handlerIn) Handler {
 	return kithttp.NewServer(
-		newDeleteItemEndpoint(s),
-		getOrDeleteItemRequestDecoder(config),
+		newDeleteItemEndpoint(in.Store),
+		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newGetAllItemsHandler(config *transportConfig, s S) Handler {
+func newGetAllItemsHandler(in handlerIn) Handler {
 	return kithttp.NewServer(
-		newGetAllItemsEndpoint(s),
-		getAllItemsRequestDecoder(config),
+		newGetAllItemsEndpoint(in.Store),
+		getAllItemsRequestDecoder(in.Config),
 		encodeGetAllItemsResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)
 }
 
-func newSetItemHandler(config *transportConfig, s S) Handler {
+func newSetItemHandler(in handlerIn) Handler {
 	return kithttp.NewServer(
-		newSetItemEndpoint(s),
-		setItemRequestDecoder(config),
+		newSetItemEndpoint(in.Store),
+		setItemRequestDecoder(in.Config),
 		encodeSetItemResponse,
 		kithttp.ServerErrorEncoder(encodeError),
 	)

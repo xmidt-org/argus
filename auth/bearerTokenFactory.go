@@ -22,7 +22,7 @@ type accessLevelBearerTokenFactory struct {
 	Resolver     key.Resolver
 	Parser       bascule.JWTParser
 	Leeway       bascule.Leeway
-	AccessLevel  accessLevel
+	AccessLevel  AccessLevel
 }
 
 // ParseAndValidate expects the given value to be a JWT with a kid header.  The
