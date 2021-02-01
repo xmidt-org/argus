@@ -19,6 +19,7 @@ package store
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-kit/kit/endpoint"
 )
@@ -80,17 +81,15 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 		itemResponse, err := s.Get(setItemRequest.key)
 
 		if err != nil {
-			switch err.(type) {
-			case KeyNotFoundError:
+			var errKeyNotFound KeyNotFoundError
+			if errors.As(err, &errKeyNotFound) {
 				err = s.Push(setItemRequest.key, setItemRequest.item)
 				if err != nil {
 					return nil, err
 				}
 				return &setItemResponse{}, nil
-
-			default:
-				return nil, err
 			}
+			return nil, err
 		}
 
 		if !authorized(setItemRequest.adminMode, itemResponse.Owner, setItemRequest.item.Owner) {
