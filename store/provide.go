@@ -40,19 +40,19 @@ func ProvideHandlers() fx.Option {
 		newTransportConfig,
 
 		fx.Annotated{
-			Name:   "setHandler",
+			Name:   "set_handler",
 			Target: newSetItemHandler,
 		},
 		fx.Annotated{
-			Name:   "getHandler",
+			Name:   "get_handler",
 			Target: newGetItemHandler,
 		},
 		fx.Annotated{
-			Name:   "getAllHandler",
+			Name:   "get_all_handler",
 			Target: newGetAllItemsHandler,
 		},
 		fx.Annotated{
-			Name:   "deleteHandler",
+			Name:   "delete_handler",
 			Target: newDeleteItemHandler,
 		},
 	)
