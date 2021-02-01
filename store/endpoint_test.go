@@ -328,13 +328,8 @@ func TestSetItemEndpoint(t *testing.T) {
 				pushItem.Owner = testCase.GetDAOResponse.Owner
 			}
 
-			if testCase.PushDAOResponseErr == nil {
-				m.On("Push", testCase.ItemRequest.key, pushItem).Return(nil).Once()
-			} else {
-				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(testCase.PushDAOResponseErr).Once()
-			}
-
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
+			m.On("Push", testCase.ItemRequest.key, pushItem).Return(testCase.PushDAOResponseErr).Once()
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, testCase.GetDAOResponseErr).Once()
 
 			endpoint := newSetItemEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
