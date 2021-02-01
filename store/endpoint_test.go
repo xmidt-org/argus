@@ -370,26 +370,26 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				owner:  "alfa-romeo",
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
 
 			ExpectedResponse: map[string]OwnableItem{
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
 
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
@@ -403,31 +403,31 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				adminMode: true,
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
 
 			ExpectedResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
@@ -440,10 +440,10 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				owner:  "volkswagen",
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
