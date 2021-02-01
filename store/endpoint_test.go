@@ -272,7 +272,7 @@ func TestSetItemEndpoint(t *testing.T) {
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
-					Owner: "cable",
+					Owner: "shouldBeIgnored",
 				},
 				adminMode: true,
 			},
@@ -316,8 +316,20 @@ func TestSetItemEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
+			pushItem := OwnableItem{
+				Item: model.Item{
+					ID:   testCase.ItemRequest.item.ID,
+					Data: testCase.ItemRequest.item.Data,
+				},
+				Owner: testCase.ItemRequest.item.Owner,
+			}
+
+			if testCase.ItemRequest.adminMode {
+				pushItem.Owner = testCase.GetDAOResponse.Owner
+			}
+
 			if testCase.PushDAOResponseErr == nil {
-				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(nil).Once()
+				m.On("Push", testCase.ItemRequest.key, pushItem).Return(nil).Once()
 			} else {
 				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(testCase.PushDAOResponseErr).Once()
 			}
