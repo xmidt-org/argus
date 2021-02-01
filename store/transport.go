@@ -105,7 +105,9 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 		unmarshaler := validItemUnmarshaler{config: config, id: id}
 
 		if err := json.Unmarshal(data, &unmarshaler); err != nil {
-			if _, ok := err.(BadRequestErr); !ok {
+			var berr BadRequestErr
+
+			if ok := errors.As(err, &berr); !ok {
 				err = errPayloadUnmarshalFailure
 			}
 			return nil, err
