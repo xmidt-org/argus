@@ -109,6 +109,7 @@ func main() {
 		basculechecks.ProvideMetricsVec(),
 		basculemetrics.ProvideMetricsVec(),
 		auth.ProvidePrimaryServerChain(apiBase),
+		store.ProvideHandlers(),
 		fx.Provide(
 			auth.ProfilesUnmarshaler{
 				ConfigKey:        "authx.inbound.profiles",
@@ -117,7 +118,6 @@ func main() {
 			xlog.Unmarshal("log"),
 			xloghttp.ProvideStandardBuilders,
 			db.Provide,
-			store.NewHandlers,
 			xhealth.Unmarshal("health"),
 			provideServerChainFactory,
 			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),

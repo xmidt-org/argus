@@ -103,10 +103,17 @@ dynamo:
   secretKey: "secretKey"
 
 
-# itemMaxTTL defines the limit for TTL values provided by users of the API. 
-# refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
-# (Optional) default: 24h (a day)
-itemMaxTTL: "24h"
+# userInputValidation groups options around validating data on incoming requests.
+# (Optional) The default values are those listed above the fields below.
+userInputValidation:
+  # itemMaxTTL defines the limit for TTL values provided by users of the API. 
+  # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
+  # (Optional) default: 24h (a day)
+  itemMaxTTL: "24h" 
+
+  # bucketFormatRegex helps define the validity of a bucket through a regular expression.
+  bucketFormatRegex: "^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$"
+
 
 ##############################################################################
 # Authorization Credentials

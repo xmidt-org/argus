@@ -24,7 +24,7 @@ type primaryBearerTokenFactoryIn struct {
 	DefaultKeyID string         `name:"primary_bearer_default_kid"`
 	Resolver     key.Resolver   `name:"primary_bearer_key_resolver"`
 	Leeway       bascule.Leeway `name:"primary_bearer_leeway"`
-	AccessLevel  accessLevel    `name:"primary_bearer_access_level"`
+	AccessLevel  AccessLevel    `name:"primary_bearer_access_level"`
 }
 
 type primaryBasculeMetricListenerIn struct {
@@ -135,7 +135,7 @@ func providePrimaryTokenFactoryInput() fx.Option {
 		},
 		fx.Annotated{
 			Name: "primary_bearer_access_level",
-			Target: func(in primaryProfileIn) accessLevel {
+			Target: func(in primaryProfileIn) AccessLevel {
 				if anyNil(in.Profile, in.Profile.AccessLevel) {
 					return defaultAccessLevel()
 				}

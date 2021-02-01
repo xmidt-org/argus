@@ -92,10 +92,10 @@ type PrimaryRouter struct {
 
 type PrimaryRoutes struct {
 	fx.In
-	Set    store.Handler `name:"setHandler"`
-	Delete store.Handler `name:"deleteHandler"`
-	Get    store.Handler `name:"getHandler"`
-	GetAll store.Handler `name:"getAllHandler"`
+	Set    store.Handler `name:"set_handler"`
+	Delete store.Handler `name:"delete_handler"`
+	Get    store.Handler `name:"get_handler"`
+	GetAll store.Handler `name:"get_all_handler"`
 }
 
 func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {

@@ -18,56 +18,92 @@
 package store
 
 import (
+	"regexp"
 	"time"
 
+	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 )
 
-// StoreIn is the set of dependencies for this package's components
-type StoreIn struct {
+type handlerIn struct {
 	fx.In
 
+	Store  S
+	Config *transportConfig
+}
+
+// ProvideHandlers fetches all dependencies and builds the four main handlers for this store.
+func ProvideHandlers() fx.Option {
+	return fx.Provide(
+		newAccessLevelAttributeKeyAnnotated(),
+		newTransportConfig,
+
+		fx.Annotated{
+			Name:   "set_handler",
+			Target: newSetItemHandler,
+		},
+		fx.Annotated{
+			Name:   "get_handler",
+			Target: newGetItemHandler,
+		},
+		fx.Annotated{
+			Name:   "get_all_handler",
+			Target: newGetAllItemsHandler,
+		},
+		fx.Annotated{
+			Name:   "delete_handler",
+			Target: newDeleteItemHandler,
+		},
+	)
+}
+
+type accessLevelAttributeKeyIn struct {
+	fx.In
+	AccessLevel auth.AccessLevel `name:"primary_bearer_access_level"`
+}
+
+func newAccessLevelAttributeKeyAnnotated() fx.Annotated {
+	return fx.Annotated{
+		Name: "access_level_attribute_key",
+		Target: func(in accessLevelAttributeKeyIn) string {
+			return in.AccessLevel.AttributeKey
+		},
+	}
+}
+
+type userInputValidationConfig struct {
+	ItemMaxTTL        time.Duration
+	BucketFormatRegex string
+}
+
+type transportConfigIn struct {
+	fx.In
 	Unmarshaler             config.Unmarshaller
-	Store                   S
 	AccessLevelAttributeKey string `name:"access_level_attribute_key"`
 }
 
-// StoreOut is the set of components emitted by this package
-type StoreOut struct {
-	fx.Out
+func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
+	var userInputValidation userInputValidationConfig
 
-	// SetItemHandler is the http.Handler to update an item in the store.
-	SetItemHandler Handler `name:"setHandler"`
-
-	// SetKeyHandler is the http.Handler to fetch an individual item from the store.
-	GetItemHandler Handler `name:"getHandler"`
-
-	// GetAllItems is the http.Handler to fetch all items from the store for a given bucket.
-	GetAllItemsHandler Handler `name:"getAllHandler"`
-
-	// DeletItems is the http.Handler to delete a certain item.
-	DeleteKeyHandler Handler `name:"deleteHandler"`
-}
-
-// NewHandlers initializes all handlers that will be needed for the store endpoints.
-func NewHandlers(in StoreIn) StoreOut {
-	var itemMaxTTL time.Duration
-
-	in.Unmarshaler.UnmarshalKey("itemMaxTTL", &itemMaxTTL)
-	if itemMaxTTL == 0 {
-		itemMaxTTL = time.Hour * 24
+	if err := in.Unmarshaler.UnmarshalKey("userInputValidation", &userInputValidation); err != nil {
+		return nil, err
 	}
 
-	config := &transportConfig{
+	if userInputValidation.ItemMaxTTL == 0 {
+		userInputValidation.ItemMaxTTL = time.Hour * 24
+	}
+
+	if userInputValidation.BucketFormatRegex != "" {
+		bucketRegex, err := regexp.Compile(userInputValidation.BucketFormatRegex)
+		if err != nil {
+			return nil, err
+		}
+		bucketFormatRegex = bucketRegex
+	}
+
+	return &transportConfig{
 		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
-		ItemMaxTTL:              itemMaxTTL,
-	}
-
-	return StoreOut{
-		SetItemHandler:     newSetItemHandler(config, in.Store),
-		GetItemHandler:     newGetItemHandler(config, in.Store),
-		GetAllItemsHandler: newGetAllItemsHandler(config, in.Store),
-		DeleteKeyHandler:   newDeleteItemHandler(config, in.Store),
-	}
+		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
+	}, nil
 }

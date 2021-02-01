@@ -26,7 +26,6 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 		fx.Provide(
 			profileFactory{serverName: "primary"}.annotated(),
 			basculemetrics.MeasuresFactory{ServerName: "primary"}.Annotated(),
-			accessLevelAttributeKeyAnnotated(),
 			fx.Annotated{
 				Name: "primary_alice_listener",
 				Target: func(in primaryBasculeMetricListenerIn) alice.Constructor {
@@ -40,17 +39,6 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 				},
 			},
 		))
-}
-
-// accessLevelAttributeKeyAnnotated shares the access level attribute key which outside packages such as argus/store can
-// as parameters.
-func accessLevelAttributeKeyAnnotated() fx.Annotated {
-	return fx.Annotated{
-		Name: "access_level_attribute_key",
-		Target: func(in primaryBearerTokenFactoryIn) string {
-			return in.AccessLevel.AttributeKey
-		},
-	}
 }
 
 // anyNil returns true if any of the provided objects are nil, false otherwise.

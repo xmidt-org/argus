@@ -11,9 +11,9 @@ const (
 	DefaultAccessLevelAttributeValue = 0
 )
 
-const (
-	ElevatedAccessLevelAttributeValue = 1
-)
+// ElevatedAccessLevelAttributeValue is the value that will be used when a request
+// passes all checks for running in elevated access mode.
+const ElevatedAccessLevelAttributeValue = 1
 
 // internal default values
 const (
@@ -22,7 +22,9 @@ const (
 
 var defaultAccessLevelPath = []string{"capabilities"}
 
-type accessLevel struct {
+// AccessLevel provides logic for resolving the correct access level for a
+// request given its bascule attributes.
+type AccessLevel struct {
 	Resolve      accessLevelResolver
 	AttributeKey string
 }
@@ -47,8 +49,8 @@ type accessLevelConfig struct {
 	CapabilitySource accessLevelCapabilitySource
 }
 
-func defaultAccessLevel() accessLevel {
-	return accessLevel{
+func defaultAccessLevel() AccessLevel {
+	return AccessLevel{
 		AttributeKey: DefaultAccessLevelAttributeKey,
 		Resolve: func(_ bascule.Attributes) int {
 			return DefaultAccessLevelAttributeValue
@@ -70,7 +72,7 @@ func validateAccessLevelConfig(config *accessLevelConfig) {
 	}
 }
 
-func newContainsAttributeAccessLevel(config *accessLevelConfig) accessLevel {
+func newContainsAttributeAccessLevel(config *accessLevelConfig) AccessLevel {
 	validateAccessLevelConfig(config)
 
 	resolve := func(attributes bascule.Attributes) int {
@@ -89,7 +91,7 @@ func newContainsAttributeAccessLevel(config *accessLevelConfig) accessLevel {
 		return DefaultAccessLevelAttributeValue
 	}
 
-	return accessLevel{
+	return AccessLevel{
 		AttributeKey: config.AttributeKey,
 		Resolve:      resolve,
 	}
