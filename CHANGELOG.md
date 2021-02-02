@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Admin mode flag now originates from JWT claims instead of an HTTP header. [#112](https://github.com/xmidt-org/argus/pull/112)
 - Add bucket validation. [#114](https://github.com/xmidt-org/argus/pull/114)
 
+### Fixed
+- Fix behavior in which the owner of an existing item was overwritten in super user mode. [#116](https://github.com/xmidt-org/argus/pull/116)
+
 ### Added
 - Item ID is validated to have the format of a SHA256 message hex digest. [#106](https://github.com/xmidt-org/argus/pull/106)
 

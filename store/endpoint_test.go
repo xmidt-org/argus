@@ -272,7 +272,7 @@ func TestSetItemEndpoint(t *testing.T) {
 				},
 				item: OwnableItem{
 					Item:  model.Item{},
-					Owner: "cable",
+					Owner: "shouldBeIgnored",
 				},
 				adminMode: true,
 			},
@@ -316,13 +316,20 @@ func TestSetItemEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
-			if testCase.PushDAOResponseErr == nil {
-				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(nil).Once()
-			} else {
-				m.On("Push", testCase.ItemRequest.key, testCase.ItemRequest.item).Return(testCase.PushDAOResponseErr).Once()
+			pushItem := OwnableItem{
+				Item: model.Item{
+					ID:   testCase.ItemRequest.item.ID,
+					Data: testCase.ItemRequest.item.Data,
+				},
+				Owner: testCase.ItemRequest.item.Owner,
 			}
 
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
+			if testCase.ItemRequest.adminMode {
+				pushItem.Owner = testCase.GetDAOResponse.Owner
+			}
+
+			m.On("Push", testCase.ItemRequest.key, pushItem).Return(testCase.PushDAOResponseErr).Once()
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, testCase.GetDAOResponseErr).Once()
 
 			endpoint := newSetItemEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
@@ -363,26 +370,26 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				owner:  "alfa-romeo",
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
 
 			ExpectedResponse: map[string]OwnableItem{
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
 
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
@@ -396,31 +403,31 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				adminMode: true,
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
 
 			ExpectedResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"4c-spider": OwnableItem{
+				"4c-spider": {
 					Owner: "alfa-romeo",
 				},
-				"gtr": OwnableItem{
+				"gtr": {
 					Owner: "nissan",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
@@ -433,10 +440,10 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 				owner:  "volkswagen",
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
-				"mustang": OwnableItem{
+				"mustang": {
 					Owner: "ford",
 				},
-				"giulia": OwnableItem{
+				"giulia": {
 					Owner: "alfa-romeo",
 				},
 			},
