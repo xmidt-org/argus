@@ -159,6 +159,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.StatusCode)
@@ -202,6 +203,8 @@ func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
 		return "", err
 	}
 
+	defer response.Body.Close()
+
 	switch response.StatusCode {
 	case http.StatusCreated:
 		return CreatedPushResult, nil
@@ -234,6 +237,7 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	if response.StatusCode != 200 {
 		return model.Item{}, errors.New("failed to delete item, non 200 statuscode")
 	}
+	defer response.Body.Close()
 	responsePayload, _ := ioutil.ReadAll(response.Body)
 	item := model.Item{}
 	err = json.Unmarshal(responsePayload, &item)
