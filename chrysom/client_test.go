@@ -1,14 +1,17 @@
 package chrysom
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInterface(t *testing.T) {
@@ -94,4 +97,37 @@ func TestValidateConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDo(t *testing.T) {
+	var (
+		assert  = assert.New(t)
+		require = require.New(t)
+	)
+
+	echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		require.Nil(err)
+		rw.Write(bodyBytes)
+	})
+
+	server := httptest.NewServer(echoHandler)
+	defer server.Close()
+	client, err := NewClient(&ClientConfig{
+		HTTPClient:      server.Client(),
+		Address:         server.URL,
+		MetricsProvider: provider.NewDiscardProvider(),
+	})
+	assert.Nil(err)
+
+	var inputBody = []byte("this is a test")
+	request, err := http.NewRequest(http.MethodPut, server.URL, bytes.NewBuffer(inputBody))
+	require.Nil(err)
+
+	resp, err := client.do(request)
+	assert.Nil(err)
+	assert.Equal(http.StatusOK, resp.code)
+	assert.Equal(inputBody, resp.body)
+
 }
