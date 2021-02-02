@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -36,15 +37,20 @@ import (
 	"github.com/xmidt-org/themis/xlog"
 )
 
+const storeAPIPath = "/api/v1/store"
+
 // errors that can be returned by this package
 var (
-	ErrAddressEmpty             = errors.New("argus address can't be empty")
+	ErrAddressEmpty             = errors.New("argus address is required")
+	ErrBucketEmpty              = errors.New("bucket name is required")
 	ErrItemIDEmpty              = errors.New("item ID is required")
 	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
 	ErrUndefinedIntervalTicker  = errors.New("interval ticket is nil. Can't listen for updates")
 	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
 	ErrDeleteItemFailure        = errors.New("failed delete item. Non-200 statuscode was received")
 	ErrPushItemFailure          = errors.New("failed push item. Non-success statuscode was received")
+
+	ErrUndefinedInput = errors.New("input for operation was nil")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -78,6 +84,7 @@ type Client struct {
 	ticker             *time.Ticker
 	auth               acquire.Acquirer
 	metrics            *measures
+	storeBaseURL       string
 	listener           Listener
 	bucketName         string
 	remoteStoreAddress string
@@ -90,24 +97,25 @@ func initMetrics(p provider.Provider) *measures {
 	}
 }
 
-func CreateClient(config ClientConfig) (*Client, error) {
-	err := validateConfig(&config)
+func NewClient(config *ClientConfig) (*Client, error) {
+	err := validateConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	auth, err := determineTokenAcquirer(config)
+	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
 	if err != nil {
 		return nil, err
 	}
 	clientStore := &Client{
 		client:             config.HTTPClient,
 		ticker:             time.NewTicker(config.PullInterval),
-		auth:               auth,
+		auth:               tokenAcquirer,
 		metrics:            initMetrics(config.MetricsProvider),
 		logger:             config.Logger,
 		listener:           config.Listener,
 		remoteStoreAddress: config.Address,
 		bucketName:         config.Bucket,
+		storeBaseURL:       config.Address + storeAPIPath,
 	}
 
 	if config.PullInterval > 0 {
@@ -140,50 +148,101 @@ func validateConfig(config *ClientConfig) error {
 	}
 	return nil
 }
-
-func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
-	defaultAcquirer := &acquire.DefaultAcquirer{}
-	if config.Auth.JWT.AuthURL != "" && config.Auth.JWT.Buffer != 0 && config.Auth.JWT.Timeout != 0 {
-		return acquire.NewRemoteBearerTokenAcquirer(config.Auth.JWT)
-	}
-
-	if config.Auth.Basic != "" {
-		return acquire.NewFixedAuthAcquirer(config.Auth.Basic)
-	}
-
-	return defaultAcquirer, nil
+func shouldUseJWTAcquirer(options acquire.RemoteBearerTokenAcquirerOptions) bool {
+	return len(options.AuthURL) > 0 && options.Buffer != 0 && options.Timeout != 0
 }
 
-func (c *Client) GetItems(owner string) ([]model.Item, error) {
-	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), nil)
+func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
+	if shouldUseJWTAcquirer(auth.JWT) {
+		return acquire.NewRemoteBearerTokenAcquirer(auth.JWT)
+	} else if len(auth.Basic) > 0 {
+		return acquire.NewFixedAuthAcquirer(auth.Basic)
+	}
+	return &acquire.DefaultAcquirer{}, nil
+}
+
+func validateGetItemsInput(input *GetItemsInput) error {
+	if input == nil {
+		return ErrUndefinedInput
+	}
+
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
+	return nil
+}
+
+func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.Request, error) {
+	r, err := http.NewRequest(method, URL, body)
 	if err != nil {
 		return nil, err
 	}
-	err = acquire.AddAuth(request, c.auth)
+	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return nil, err
 	}
 
-	request.Header.Set(store.ItemOwnerHeaderKey, owner)
+	if len(owner) > 0 {
+		r.Header.Set(store.ItemOwnerHeaderKey, owner)
+	}
 
-	response, err := c.client.Do(request)
+	return r, nil
+}
+
+type doResponse struct {
+	body []byte
+	code int
+}
+
+func (c *Client) do(r *http.Request) (*doResponse, error) {
+	resp, err := c.client.Do(r)
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer resp.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.StatusCode)
+	var dResp = doResponse{
+		code: resp.StatusCode,
+	}
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return &dResp, err
+	}
+	dResp.body = bodyBytes
+	return &dResp, nil
+}
+
+// GetItems fetches all items in a bucket that belong to a given owner.
+func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
+	err := validateGetItemsInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	URL := fmt.Sprintf("%s/%s", c.storeBaseURL, input.Bucket)
+	request, err := c.makeRequest(input.Owner, http.MethodGet, URL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := c.do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.code != http.StatusOK {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.code)
 		return nil, ErrGetItemsFailure
 	}
 
-	items := []model.Item{}
-	err = json.NewDecoder(response.Body).Decode(&items)
+	var output GetItemsOutput
+
+	err = json.Unmarshal(response.body, &output.Items)
 	if err != nil {
 		return nil, err
 	}
 
-	return items, nil
+	return &output, nil
 }
 
 func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
@@ -254,9 +313,14 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	return item, nil
 }
 
-func (c *Client) Start(ctx context.Context) error {
+func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
 	if c.ticker == nil {
 		return ErrUndefinedIntervalTicker
+	}
+
+	err := validateGetItemsInput(input)
+	if err != nil {
+		return err
 	}
 
 	if c.listener == nil {
@@ -267,9 +331,9 @@ func (c *Client) Start(ctx context.Context) error {
 	go func() {
 		for range c.ticker.C {
 			outcome := SuccessOutcome
-			items, err := c.GetItems("")
+			output, err := c.GetItems(input)
 			if err == nil {
-				c.listener.Update(items)
+				c.listener.Update(output.Items)
 			} else {
 				outcome = FailureOutcome
 				level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
