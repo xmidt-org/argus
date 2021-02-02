@@ -36,6 +36,17 @@ import (
 	"github.com/xmidt-org/themis/xlog"
 )
 
+// errors that can be returned by this package
+var (
+	ErrAddressEmpty             = errors.New("argus address can't be empty")
+	ErrItemIDEmpty              = errors.New("item ID is required")
+	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
+	ErrUndefinedIntervalTicker  = errors.New("interval ticket is nil. Can't listen for updates")
+	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
+	ErrDeleteItemFailure        = errors.New("failed delete item. Non-200 statuscode was received")
+	ErrPushItemFailure          = errors.New("failed push item. Non-success statuscode was received")
+)
+
 // PushResult is a simple type to indicate the result type for the
 // PushItem operation.
 type PushResult string
@@ -111,13 +122,13 @@ func validateConfig(config *ClientConfig) error {
 		config.HTTPClient = http.DefaultClient
 	}
 	if config.Address == "" {
-		return errors.New("address can't be empty")
+		return ErrAddressEmpty
 	}
 	if config.Bucket == "" {
 		config.Bucket = "testing"
 	}
 	if config.MetricsProvider == nil {
-		return errors.New("a metrics provider is required")
+		return ErrUndefinedMetricsProvider
 	}
 
 	if config.PullInterval == 0 {
@@ -163,7 +174,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 
 	if response.StatusCode != http.StatusOK {
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.StatusCode)
-		return nil, errors.New("failed to get items, non 200 statuscode")
+		return nil, ErrGetItemsFailure
 	}
 
 	items := []model.Item{}
@@ -177,11 +188,7 @@ func (c *Client) GetItems(owner string) ([]model.Item, error) {
 
 func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
 	if item.ID == "" {
-		return "", errors.New("id can't be empty")
-	}
-
-	if item.TTL != nil && *item.TTL < 1 {
-		return "", errors.New("when provided, TTL must be > 0")
+		return "", ErrItemIDEmpty
 	}
 
 	data, err := json.Marshal(&item)
@@ -217,7 +224,7 @@ func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
 
 func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	if id == "" {
-		return model.Item{}, errors.New("id can't be empty")
+		return model.Item{}, ErrItemIDEmpty
 	}
 	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), nil)
 	if err != nil {
@@ -235,7 +242,7 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 		return model.Item{}, err
 	}
 	if response.StatusCode != 200 {
-		return model.Item{}, errors.New("failed to delete item, non 200 statuscode")
+		return model.Item{}, ErrDeleteItemFailure
 	}
 	defer response.Body.Close()
 	responsePayload, _ := ioutil.ReadAll(response.Body)
@@ -249,11 +256,11 @@ func (c *Client) Remove(id string, owner string) (model.Item, error) {
 
 func (c *Client) Start(ctx context.Context) error {
 	if c.ticker == nil {
-		return errors.New("interval ticker is nil")
+		return ErrUndefinedIntervalTicker
 	}
 
 	if c.listener == nil {
-		level.Info(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
+		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
 
