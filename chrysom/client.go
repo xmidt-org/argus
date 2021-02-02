@@ -54,7 +54,6 @@ type ClientConfig struct {
 	MetricsProvider provider.Provider
 	Logger          log.Logger
 	Listener        Listener
-	AdminToken      string
 }
 
 type Auth struct {
@@ -77,7 +76,6 @@ type Client struct {
 	bucketName         string
 	remoteStoreAddress string
 	loggers            loggerGroup
-	adminToken         string
 }
 
 func initLoggers(logger log.Logger) loggerGroup {
@@ -112,7 +110,6 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		listener:           config.Listener,
 		remoteStoreAddress: config.Address,
 		bucketName:         config.Bucket,
-		adminToken:         config.AdminToken,
 	}
 
 	if config.PullInterval > 0 {
@@ -159,7 +156,7 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 	return defaultAcquirer, nil
 }
 
-func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
+func (c *Client) GetItems(owner string) ([]model.Item, error) {
 	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), nil)
 	if err != nil {
 		return nil, err
@@ -170,13 +167,6 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	}
 
 	request.Header.Set(store.ItemOwnerHeaderKey, owner)
-
-	if adminMode {
-		if c.adminToken == "" {
-			return nil, errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
 
 	response, err := c.client.Do(request)
 	if err != nil {
@@ -197,7 +187,7 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	return items, nil
 }
 
-func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
+func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
 	if item.ID == "" {
 		return "", errors.New("id can't be empty")
 	}
@@ -220,13 +210,6 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	}
 	request.Header.Add(store.ItemOwnerHeaderKey, owner)
 
-	if adminMode {
-		if c.adminToken == "" {
-			return "", errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
-
 	response, err := c.client.Do(request)
 	if err != nil {
 		return "", err
@@ -243,7 +226,7 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	return "", errors.New("Failed to set item as DB responded with non-success statuscode")
 }
 
-func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, error) {
+func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	if id == "" {
 		return model.Item{}, errors.New("id can't be empty")
 	}
@@ -257,13 +240,6 @@ func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, er
 	}
 
 	request.Header.Add(store.ItemOwnerHeaderKey, owner)
-
-	if adminMode {
-		if c.adminToken == "" {
-			return model.Item{}, errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
 
 	response, err := c.client.Do(request)
 	if err != nil {
@@ -294,7 +270,7 @@ func (c *Client) Start(ctx context.Context) error {
 	go func() {
 		for range c.ticker.C {
 			outcome := SuccessOutcome
-			items, err := c.GetItems("", true)
+			items, err := c.GetItems("")
 			if err == nil {
 				c.listener.Update(items)
 			} else {
