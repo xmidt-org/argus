@@ -24,7 +24,7 @@ const (
 // Metrics returns the Metrics relevant to this package
 func Metrics() []xmetrics.Metric {
 	return []xmetrics.Metric{
-		xmetrics.Metric{
+		{
 			Name:       PollCounter,
 			Type:       xmetrics.CounterType,
 			Help:       "Counter for the number of polls (and their success/failure outcomes) to fetch new items.",

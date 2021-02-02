@@ -33,6 +33,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
+	"github.com/xmidt-org/themis/xlog"
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -54,18 +55,11 @@ type ClientConfig struct {
 	MetricsProvider provider.Provider
 	Logger          log.Logger
 	Listener        Listener
-	AdminToken      string
 }
 
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
-}
-
-type loggerGroup struct {
-	Info  log.Logger
-	Error log.Logger
-	Debug log.Logger
 }
 
 type Client struct {
@@ -76,16 +70,7 @@ type Client struct {
 	listener           Listener
 	bucketName         string
 	remoteStoreAddress string
-	loggers            loggerGroup
-	adminToken         string
-}
-
-func initLoggers(logger log.Logger) loggerGroup {
-	return loggerGroup{
-		Info:  level.Info(logger),
-		Error: level.Error(logger),
-		Debug: level.Debug(logger),
-	}
+	logger             log.Logger
 }
 
 func initMetrics(p provider.Provider) *measures {
@@ -108,11 +93,10 @@ func CreateClient(config ClientConfig) (*Client, error) {
 		ticker:             time.NewTicker(config.PullInterval),
 		auth:               auth,
 		metrics:            initMetrics(config.MetricsProvider),
-		loggers:            initLoggers(config.Logger),
+		logger:             config.Logger,
 		listener:           config.Listener,
 		remoteStoreAddress: config.Address,
 		bucketName:         config.Bucket,
-		adminToken:         config.AdminToken,
 	}
 
 	if config.PullInterval > 0 {
@@ -159,7 +143,7 @@ func determineTokenAcquirer(config ClientConfig) (acquire.Acquirer, error) {
 	return defaultAcquirer, nil
 }
 
-func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
+func (c *Client) GetItems(owner string) ([]model.Item, error) {
 	request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/store/%s", c.remoteStoreAddress, c.bucketName), nil)
 	if err != nil {
 		return nil, err
@@ -171,20 +155,14 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 
 	request.Header.Set(store.ItemOwnerHeaderKey, owner)
 
-	if adminMode {
-		if c.adminToken == "" {
-			return nil, errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
-
 	response, err := c.client.Do(request)
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
-		c.loggers.Error.Log("msg", "DB responded with non-200 response for request to get items", "code", response.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.StatusCode)
 		return nil, errors.New("failed to get items, non 200 statuscode")
 	}
 
@@ -197,7 +175,7 @@ func (c *Client) GetItems(owner string, adminMode bool) ([]model.Item, error) {
 	return items, nil
 }
 
-func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult, error) {
+func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
 	if item.ID == "" {
 		return "", errors.New("id can't be empty")
 	}
@@ -220,17 +198,12 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	}
 	request.Header.Add(store.ItemOwnerHeaderKey, owner)
 
-	if adminMode {
-		if c.adminToken == "" {
-			return "", errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
-
 	response, err := c.client.Do(request)
 	if err != nil {
 		return "", err
 	}
+
+	defer response.Body.Close()
 
 	switch response.StatusCode {
 	case http.StatusCreated:
@@ -238,12 +211,11 @@ func (c *Client) Push(item model.Item, owner string, adminMode bool) (PushResult
 	case http.StatusOK:
 		return UpdatedPushResult, nil
 	}
-
-	c.loggers.Error.Log("msg", "DB responded with non-successful response for request to update an item", "code", response.StatusCode)
+	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a Push request", "code", response.StatusCode)
 	return "", errors.New("Failed to set item as DB responded with non-success statuscode")
 }
 
-func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, error) {
+func (c *Client) Remove(id string, owner string) (model.Item, error) {
 	if id == "" {
 		return model.Item{}, errors.New("id can't be empty")
 	}
@@ -258,13 +230,6 @@ func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, er
 
 	request.Header.Add(store.ItemOwnerHeaderKey, owner)
 
-	if adminMode {
-		if c.adminToken == "" {
-			return model.Item{}, errors.New("adminToken needed to run as admin")
-		}
-		request.Header.Set(store.AdminTokenHeaderKey, c.adminToken)
-	}
-
 	response, err := c.client.Do(request)
 	if err != nil {
 		return model.Item{}, err
@@ -272,6 +237,7 @@ func (c *Client) Remove(id string, owner string, adminMode bool) (model.Item, er
 	if response.StatusCode != 200 {
 		return model.Item{}, errors.New("failed to delete item, non 200 statuscode")
 	}
+	defer response.Body.Close()
 	responsePayload, _ := ioutil.ReadAll(response.Body)
 	item := model.Item{}
 	err = json.Unmarshal(responsePayload, &item)
@@ -287,19 +253,19 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 
 	if c.listener == nil {
-		c.loggers.Info.Log("msg", "No listener setup for updates")
+		level.Info(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
 
 	go func() {
 		for range c.ticker.C {
 			outcome := SuccessOutcome
-			items, err := c.GetItems("", true)
+			items, err := c.GetItems("")
 			if err == nil {
 				c.listener.Update(items)
 			} else {
 				outcome = FailureOutcome
-				c.loggers.Error.Log("msg", "failed to get items", level.ErrorValue(), err)
+				level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
 			}
 			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
