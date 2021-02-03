@@ -45,7 +45,7 @@ var (
 	ErrBucketEmpty              = errors.New("bucket name is required")
 	ErrItemIDEmpty              = errors.New("item ID is required")
 	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
-	ErrUndefinedIntervalTicker  = errors.New("interval ticket is nil. Can't listen for updates")
+	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
 	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
 	ErrDeleteItemFailure        = errors.New("failed delete item. Non-200 statuscode was received")
 	ErrPushItemFailure          = errors.New("failed push item. Non-success statuscode was received")
@@ -53,6 +53,8 @@ var (
 	ErrUndefinedInput      = errors.New("input for operation was nil")
 	ErrNewRequestFailure   = errors.New("failed creating an HTTP request")
 	ErrAuthAcquirerFailure = errors.New("failed acquiring auth token")
+	ErrDoRequestFailure    = errors.New("http client failed while sending request")
+	ErrReadingBodyFailure  = errors.New("failed while reading http response body")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -199,7 +201,7 @@ type doResponse struct {
 func (c *Client) do(r *http.Request) (*doResponse, error) {
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrDoRequestFailure, err)
 	}
 	defer resp.Body.Close()
 
@@ -208,7 +210,7 @@ func (c *Client) do(r *http.Request) (*doResponse, error) {
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &dResp, err
+		return &dResp, fmt.Errorf("%w: %v", ErrReadingBodyFailure, err)
 	}
 	dResp.body = bodyBytes
 	return &dResp, nil
