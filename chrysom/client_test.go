@@ -3,32 +3,35 @@ package chrysom
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 )
 
-func TestInterface(t *testing.T) {
-	assert := assert.New(t)
-	var (
-		client interface{}
-	)
-	client = &Client{}
-	_, ok := client.(Pusher)
-	assert.True(ok, "not a pusher")
-	_, ok = client.(Reader)
-	assert.True(ok, "not a reader")
-	_, ok = client.(PushReader)
-	assert.True(ok, "not a PushReader")
-}
+// func TestInterface(t *testing.T) {
+// 	assert := assert.New(t)
+// 	var (
+// 		client interface{}
+// 	)
+// 	client = &Client{}
+// 	_, ok := client.(Pusher)
+// 	assert.True(ok, "not a pusher")
+// 	_, ok = client.(Reader)
+// 	assert.True(ok, "not a reader")
+// 	_, ok = client.(PushReader)
+// 	assert.True(ok, "not a PushReader")
+// }
 
 func TestValidateConfig(t *testing.T) {
 	type testCase struct {
@@ -169,16 +172,6 @@ func TestDo(t *testing.T) {
 
 }
 
-func failAcquirer() (string, error) {
-	return "", errors.New("always fail")
-}
-
-type acquirerFunc func() (string, error)
-
-func (a acquirerFunc) Acquire() (string, error) {
-	return a()
-}
-
 func TestMakeRequest(t *testing.T) {
 	type testCase struct {
 		Description   string
@@ -244,5 +237,144 @@ func TestMakeRequest(t *testing.T) {
 				assert.True(errors.Is(err, tc.ExpectedErr))
 			}
 		})
+	}
+}
+
+func TestGetItems(t *testing.T) {
+	type testCase struct {
+		Description           string
+		Input                 *GetItemsInput
+		ExpectedOutput        *GetItemsOutput
+		ResponsePayload       []byte
+		ShouldRespNonSuccess  bool
+		ShouldMakeRequestFail bool
+		ShouldDoRequestFail   bool
+		ExpectedErr           error
+	}
+
+	validInput := &GetItemsInput{
+		Bucket: "bucket-name",
+		Owner:  "owner-name",
+	}
+
+	tcs := []testCase{
+		{
+			Description: "Input is nil",
+			ExpectedErr: ErrUndefinedInput,
+		},
+		{
+			Description: "Bucket is required",
+			Input: &GetItemsInput{
+				Owner: "owner-name",
+			},
+			ExpectedErr: ErrBucketEmpty,
+		},
+		{
+
+			Description:           "Make request fails",
+			Input:                 validInput,
+			ShouldMakeRequestFail: true,
+			ExpectedErr:           ErrAuthAcquirerFailure,
+		},
+		{
+			Description:         "Do request fails",
+			Input:               validInput,
+			ShouldDoRequestFail: true,
+			ExpectedErr:         ErrDoRequestFailure,
+		},
+		{
+			Description:          "Non success code",
+			Input:                validInput,
+			ShouldRespNonSuccess: true,
+			ExpectedErr:          ErrGetItemsFailure,
+		},
+		{
+			Description:     "Payload unmarhsal error",
+			Input:           validInput,
+			ResponsePayload: []byte("[{}"),
+			ExpectedErr:     ErrJSONUnmarshal,
+		},
+		{
+			Description:     "Happy path",
+			Input:           validInput,
+			ResponsePayload: getItemsValidPayload(),
+			ExpectedOutput:  getItemsHappyOutput(),
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				assert.Equal(fmt.Sprintf("%s/%s", storeAPIPath, tc.Input.Bucket), r.URL.Path)
+				if tc.ShouldRespNonSuccess {
+					rw.WriteHeader(http.StatusBadRequest)
+				}
+
+				rw.Write(tc.ResponsePayload)
+			}))
+
+			client, err := NewClient(&ClientConfig{
+				HTTPClient:      server.Client(),
+				Address:         server.URL,
+				MetricsProvider: provider.NewDiscardProvider(),
+			})
+
+			if tc.ShouldMakeRequestFail {
+				client.auth = acquirerFunc(failAcquirer)
+			}
+
+			if tc.ShouldDoRequestFail {
+				client.storeBaseURL = "wrong-URL"
+			}
+
+			require.Nil(err)
+			output, err := client.GetItems(tc.Input)
+
+			assert.True(errors.Is(err, tc.ExpectedErr))
+			if tc.ExpectedErr == nil {
+				assert.EqualValues(tc.ExpectedOutput, output)
+			}
+		})
+	}
+}
+
+func failAcquirer() (string, error) {
+	return "", errors.New("always fail")
+}
+
+type acquirerFunc func() (string, error)
+
+func (a acquirerFunc) Acquire() (string, error) {
+	return a()
+}
+
+func getItemsValidPayload() []byte {
+	return []byte(`[{
+    "id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+    "data": {
+      "words": [
+        "Hello",
+        "World"
+      ],
+      "year": 2021
+    },
+    "ttl": 255
+  }]`)
+}
+
+func getItemsHappyOutput() *GetItemsOutput {
+	return &GetItemsOutput{
+		Items: []model.Item{
+			{
+				ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+				Data: map[string]interface{}{
+					"words": []interface{}{"Hello", "World"},
+					"year":  float64(2021),
+				},
+				TTL: aws.Int64(255),
+			},
+		},
 	}
 }

@@ -55,6 +55,7 @@ var (
 	ErrAuthAcquirerFailure = errors.New("failed acquiring auth token")
 	ErrDoRequestFailure    = errors.New("http client failed while sending request")
 	ErrReadingBodyFailure  = errors.New("failed while reading http response body")
+	ErrJSONUnmarshal       = errors.New("failed unmarshaling JSON response payload")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -236,14 +237,14 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 
 	if response.code != http.StatusOK {
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.code)
-		return nil, ErrGetItemsFailure
+		return nil, fmt.Errorf("statusCode %v: %w", response.code, ErrGetItemsFailure)
 	}
 
 	var output GetItemsOutput
 
 	err = json.Unmarshal(response.body, &output.Items)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrJSONUnmarshal, err)
 	}
 
 	return &output, nil
