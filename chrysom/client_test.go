@@ -2,6 +2,7 @@ package chrysom
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-kit/kit/metrics/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xmidt-org/argus/store"
 )
 
 func TestInterface(t *testing.T) {
@@ -130,4 +132,82 @@ func TestDo(t *testing.T) {
 	assert.Equal(http.StatusOK, resp.code)
 	assert.Equal(inputBody, resp.body)
 
+}
+
+func failAcquirer() (string, error) {
+	return "", errors.New("always fail")
+}
+
+type acquirerFunc func() (string, error)
+
+func (a acquirerFunc) Acquire() (string, error) {
+	return a()
+}
+
+func TestMakeRequest(t *testing.T) {
+	type testCase struct {
+		Description   string
+		Owner         string
+		Method        string
+		URL           string
+		Body          []byte
+		AcquirerFails bool
+		ExpectedErr   error
+	}
+
+	tcs := []testCase{
+		{
+			Description: "New Request fails",
+			Method:      "what method?",
+			URL:         "http://argus-hostname.io",
+			ExpectedErr: ErrNewRequestFailure,
+		},
+		{
+			Description:   "Auth acquirer fails",
+			Method:        http.MethodGet,
+			URL:           "http://argus-hostname.io",
+			AcquirerFails: true,
+			ExpectedErr:   ErrAuthAcquirerFailure,
+		},
+		{
+			Description: "Happy path",
+			Method:      http.MethodPut,
+			URL:         "http://argus-hostname.io",
+			Body:        []byte("testing"),
+		},
+
+		{
+			Description: "Happy path with owner",
+			Method:      http.MethodPut,
+			URL:         "http://argus-hostname.io",
+			Owner:       "xmidt",
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			client, err := NewClient(&ClientConfig{
+				Address:         "http://argus-hostname.io",
+				MetricsProvider: provider.NewDiscardProvider(),
+			})
+
+			if tc.AcquirerFails {
+				client.auth = acquirerFunc(failAcquirer)
+			}
+
+			assert.Nil(err)
+			r, err := client.makeRequest(tc.Owner, tc.Method, tc.URL, bytes.NewBuffer(tc.Body))
+
+			if tc.ExpectedErr == nil {
+				assert.Nil(err)
+				assert.Equal(tc.URL, r.URL.String())
+				assert.Equal(tc.Method, r.Method)
+				assert.EqualValues(len(tc.Body), r.ContentLength)
+				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
+			} else {
+				assert.True(errors.Is(err, tc.ExpectedErr))
+			}
+		})
+	}
 }

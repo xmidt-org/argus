@@ -50,7 +50,9 @@ var (
 	ErrDeleteItemFailure        = errors.New("failed delete item. Non-200 statuscode was received")
 	ErrPushItemFailure          = errors.New("failed push item. Non-success statuscode was received")
 
-	ErrUndefinedInput = errors.New("input for operation was nil")
+	ErrUndefinedInput      = errors.New("input for operation was nil")
+	ErrNewRequestFailure   = errors.New("failed creating an HTTP request")
+	ErrAuthAcquirerFailure = errors.New("failed acquiring auth token")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -175,11 +177,11 @@ func validateGetItemsInput(input *GetItemsInput) error {
 func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.Request, error) {
 	r, err := http.NewRequest(method, URL, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrNewRequestFailure, err)
 	}
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrAuthAcquirerFailure, err)
 	}
 
 	if len(owner) > 0 {
