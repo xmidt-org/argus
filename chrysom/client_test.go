@@ -121,8 +121,8 @@ func TestDo(t *testing.T) {
 		{
 			Description: "Success",
 			ExpectedResponse: &doResponse{
-				code: 200,
-				body: []byte("testing"),
+				Code: 200,
+				Body: []byte("testing"),
 			},
 		},
 	}
@@ -162,7 +162,7 @@ func TestDo(t *testing.T) {
 			resp, err := client.do(request)
 
 			if tc.ExpectedErr == nil {
-				assert.Equal(http.StatusOK, resp.code)
+				assert.Equal(http.StatusOK, resp.Code)
 				assert.Equal(tc.ExpectedResponse, resp)
 			} else {
 				assert.True(errors.Is(err, tc.ExpectedErr))
@@ -340,6 +340,138 @@ func TestGetItems(t *testing.T) {
 	}
 }
 
+func TestPushItem(t *testing.T) {
+	type testCase struct {
+		Description           string
+		Input                 *PushItemInput
+		ExpectedOutput        *PushItemOutput
+		SuccessResponseCode   int
+		ShouldRespNonSuccess  bool
+		ShouldMakeRequestFail bool
+		ShouldDoRequestFail   bool
+		ExpectedErr           error
+	}
+
+	validPushItemInput := &PushItemInput{
+		ID:     "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+		Bucket: "bucket-name",
+		Owner:  "owner-name",
+		Item: model.Item{
+			ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+			Data: map[string]interface{}{
+				"field0": 0,
+				"nested": map[string]interface{}{
+					"response": "wow",
+				},
+			},
+		},
+	}
+
+	tcs := []testCase{
+		{
+			Description: "Input is nil",
+			Input:       nil,
+			ExpectedErr: ErrUndefinedInput,
+		},
+		{
+			Description: "Bucket is required",
+			Input:       getPushItemInputBucketMissing(validPushItemInput),
+			ExpectedErr: ErrBucketEmpty,
+		},
+		{
+			Description: "Item ID Missing",
+			Input:       getPushItemInputIDMissing(validPushItemInput),
+			ExpectedErr: ErrItemIDEmpty,
+		},
+		{
+			Description: "Item ID Missing from payload",
+			Input:       getPushItemInputIDMissingFromPayload(validPushItemInput),
+			ExpectedErr: ErrItemIDEmpty,
+		},
+		{
+			Description: "Item ID Mismatch",
+			Input:       getPushItemInputIDMismatch(validPushItemInput),
+			ExpectedErr: ErrItemIDMismatch,
+		},
+		{
+			Description: "Item Data missing",
+			Input:       getPushItemInputDataMissing(validPushItemInput),
+			ExpectedErr: ErrItemDataEmpty,
+		},
+		{
+			Description:           "Make request fails",
+			Input:                 validPushItemInput,
+			ShouldMakeRequestFail: true,
+			ExpectedErr:           ErrAuthAcquirerFailure,
+		},
+		{
+			Description:         "Do request fails",
+			Input:               validPushItemInput,
+			ShouldDoRequestFail: true,
+			ExpectedErr:         ErrDoRequestFailure,
+		},
+		{
+			Description:          "Non success code",
+			Input:                validPushItemInput,
+			ShouldRespNonSuccess: true,
+			ExpectedErr:          ErrPushItemFailure,
+		},
+		{
+			Description:         "Create success",
+			Input:               validPushItemInput,
+			SuccessResponseCode: http.StatusCreated,
+			ExpectedOutput: &PushItemOutput{
+				Result: CreatedPushResult,
+			},
+		},
+		{
+			Description:         "Update success",
+			Input:               validPushItemInput,
+			SuccessResponseCode: http.StatusOK,
+			ExpectedOutput: &PushItemOutput{
+				Result: UpdatedPushResult,
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, tc.Input.Bucket, tc.Input.ID), r.URL.Path)
+				if tc.ShouldRespNonSuccess {
+					rw.WriteHeader(http.StatusBadRequest)
+				} else {
+					rw.WriteHeader(tc.SuccessResponseCode)
+				}
+			}))
+
+			client, err := NewClient(&ClientConfig{
+				HTTPClient:      server.Client(),
+				Address:         server.URL,
+				MetricsProvider: provider.NewDiscardProvider(),
+			})
+
+			if tc.ShouldMakeRequestFail {
+				client.auth = acquirerFunc(failAcquirer)
+			}
+
+			if tc.ShouldDoRequestFail {
+				client.storeBaseURL = "wrong-URL"
+			}
+
+			require.Nil(err)
+			output, err := client.PushItem(tc.Input)
+
+			assert.True(errors.Is(err, tc.ExpectedErr))
+			if tc.ExpectedErr == nil {
+				assert.EqualValues(tc.ExpectedOutput, output)
+			}
+		})
+	}
+}
+
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }
@@ -375,6 +507,80 @@ func getItemsHappyOutput() *GetItemsOutput {
 				},
 				TTL: aws.Int64(255),
 			},
+		},
+	}
+}
+
+func getItemPayloadWithoutID() model.Item {
+	return model.Item{
+		Data: map[string]interface{}{
+			"field0": 0,
+			"nested": map[string]interface{}{
+				"response": "wow",
+			},
+		},
+	}
+}
+
+func getItemPayloadWithoutData() model.Item {
+	return model.Item{
+		ID:  "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+		TTL: aws.Int64(5),
+	}
+}
+
+func getPushItemInputBucketMissing(validPushItemInput *PushItemInput) *PushItemInput {
+	return &PushItemInput{
+		ID:    validPushItemInput.ID,
+		Owner: validPushItemInput.Owner,
+		Item: model.Item{
+			ID:   validPushItemInput.Item.ID,
+			Data: validPushItemInput.Item.Data,
+		},
+	}
+}
+
+func getPushItemInputIDMissing(validPushItemInput *PushItemInput) *PushItemInput {
+	return &PushItemInput{
+		Bucket: validPushItemInput.Bucket,
+		Owner:  validPushItemInput.Owner,
+		Item: model.Item{
+			ID:   validPushItemInput.Item.ID,
+			Data: validPushItemInput.Item.Data,
+		},
+	}
+}
+
+func getPushItemInputIDMissingFromPayload(validPushItemInput *PushItemInput) *PushItemInput {
+	return &PushItemInput{
+		ID:     validPushItemInput.ID,
+		Bucket: validPushItemInput.Bucket,
+		Owner:  validPushItemInput.Owner,
+		Item: model.Item{
+			Data: validPushItemInput.Item.Data,
+		},
+	}
+}
+
+func getPushItemInputIDMismatch(validPushItemInput *PushItemInput) *PushItemInput {
+	return &PushItemInput{
+		ID:     validPushItemInput.ID,
+		Bucket: validPushItemInput.Bucket,
+		Owner:  validPushItemInput.Owner,
+		Item: model.Item{
+			ID:   "9e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+			Data: validPushItemInput.Item.Data,
+		},
+	}
+}
+
+func getPushItemInputDataMissing(validPushItemInput *PushItemInput) *PushItemInput {
+	return &PushItemInput{
+		ID:     validPushItemInput.ID,
+		Bucket: validPushItemInput.Bucket,
+		Owner:  validPushItemInput.Owner,
+		Item: model.Item{
+			ID: validPushItemInput.Item.ID,
 		},
 	}
 }
