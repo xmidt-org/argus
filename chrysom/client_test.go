@@ -102,35 +102,70 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestDo(t *testing.T) {
-	var (
-		assert  = assert.New(t)
-		require = require.New(t)
-	)
+	type testCase struct {
+		Description      string
+		ClientDoFails    bool
+		ExpectedResponse *doResponse
+		ExpectedErr      error
+	}
 
-	echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.WriteHeader(http.StatusOK)
-		bodyBytes, err := ioutil.ReadAll(r.Body)
-		require.Nil(err)
-		rw.Write(bodyBytes)
-	})
+	tcs := []testCase{
+		{
+			Description:   "Client Do fails",
+			ClientDoFails: true,
+			ExpectedErr:   ErrDoRequestFailure,
+		},
+		{
+			Description: "Success",
+			ExpectedResponse: &doResponse{
+				code: 200,
+				body: []byte("testing"),
+			},
+		},
+	}
 
-	server := httptest.NewServer(echoHandler)
-	defer server.Close()
-	client, err := NewClient(&ClientConfig{
-		HTTPClient:      server.Client(),
-		Address:         server.URL,
-		MetricsProvider: provider.NewDiscardProvider(),
-	})
-	assert.Nil(err)
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			var (
+				assert  = assert.New(t)
+				require = require.New(t)
+			)
 
-	var inputBody = []byte("this is a test")
-	request, err := http.NewRequest(http.MethodPut, server.URL, bytes.NewBuffer(inputBody))
-	require.Nil(err)
+			echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				rw.WriteHeader(http.StatusOK)
+				bodyBytes, err := ioutil.ReadAll(r.Body)
+				require.Nil(err)
+				rw.Write(bodyBytes)
+			})
 
-	resp, err := client.do(request)
-	assert.Nil(err)
-	assert.Equal(http.StatusOK, resp.code)
-	assert.Equal(inputBody, resp.body)
+			server := httptest.NewServer(echoHandler)
+			defer server.Close()
+			client, err := NewClient(&ClientConfig{
+				HTTPClient:      server.Client(),
+				MetricsProvider: provider.NewDiscardProvider(),
+				Address:         server.URL,
+			})
+			require.Nil(err)
+
+			var URL = server.URL
+
+			if tc.ClientDoFails {
+				URL = "http://should-definitely-fail.net"
+			}
+
+			request, err := http.NewRequest(http.MethodPut, URL, bytes.NewBufferString("testing"))
+			require.Nil(err)
+
+			resp, err := client.do(request)
+
+			if tc.ExpectedErr == nil {
+				assert.Equal(http.StatusOK, resp.code)
+				assert.Equal(tc.ExpectedResponse, resp)
+			} else {
+				assert.True(errors.Is(err, tc.ExpectedErr))
+			}
+		})
+	}
 
 }
 
