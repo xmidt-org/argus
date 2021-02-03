@@ -12,6 +12,8 @@ type GetItemsInput struct {
 	Owner string
 }
 
+// GetItemsOutput contains all the output parameters for GetItems.
+// Note: errors are reported separately.
 type GetItemsOutput struct {
 	Items []model.Item
 }
