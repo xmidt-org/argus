@@ -17,3 +17,14 @@ type GetItemsInput struct {
 type GetItemsOutput struct {
 	Items []model.Item
 }
+
+type PushItemInput struct {
+	ID     string
+	Bucket string
+	Owner  string
+	Item   model.Item
+}
+
+type PushItemOutput struct {
+	Result PushResult
+}

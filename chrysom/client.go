@@ -26,6 +26,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -44,6 +45,8 @@ var (
 	ErrAddressEmpty             = errors.New("argus address is required")
 	ErrBucketEmpty              = errors.New("bucket name is required")
 	ErrItemIDEmpty              = errors.New("item ID is required")
+	ErrItemIDMismatch           = errors.New("item ID must match that in payload")
+	ErrItemDataEmpty            = errors.New("data field in item is required")
 	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
 	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
 	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
@@ -56,6 +59,7 @@ var (
 	ErrDoRequestFailure    = errors.New("http client failed while sending request")
 	ErrReadingBodyFailure  = errors.New("failed while reading http response body")
 	ErrJSONUnmarshal       = errors.New("failed unmarshaling JSON response payload")
+	ErrJSONMarshal         = errors.New("failed marshaling item as JSON payload")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -195,8 +199,8 @@ func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.R
 }
 
 type doResponse struct {
-	body []byte
-	code int
+	Body []byte
+	Code int
 }
 
 func (c *Client) do(r *http.Request) (*doResponse, error) {
@@ -207,13 +211,13 @@ func (c *Client) do(r *http.Request) (*doResponse, error) {
 	defer resp.Body.Close()
 
 	var dResp = doResponse{
-		code: resp.StatusCode,
+		Code: resp.StatusCode,
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return &dResp, fmt.Errorf("%w: %v", ErrReadingBodyFailure, err)
 	}
-	dResp.body = bodyBytes
+	dResp.Body = bodyBytes
 	return &dResp, nil
 }
 
@@ -235,14 +239,14 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 		return nil, err
 	}
 
-	if response.code != http.StatusOK {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.code)
-		return nil, fmt.Errorf("statusCode %v: %w", response.code, ErrGetItemsFailure)
+	if response.Code != http.StatusOK {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.Code)
+		return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrGetItemsFailure)
 	}
 
 	var output GetItemsOutput
 
-	err = json.Unmarshal(response.body, &output.Items)
+	err = json.Unmarshal(response.Body, &output.Items)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrJSONUnmarshal, err)
 	}
@@ -250,40 +254,69 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 	return &output, nil
 }
 
-func (c *Client) Push(item model.Item, owner string) (PushResult, error) {
-	if item.ID == "" {
-		return "", ErrItemIDEmpty
+func validatePushItemInput(input *PushItemInput) error {
+	if input == nil {
+		return ErrUndefinedInput
 	}
 
-	data, err := json.Marshal(&item)
-	if err != nil {
-		return "", err
-	}
-	request, err := http.NewRequest("PUT", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, item.ID), bytes.NewReader(data))
-	if err != nil {
-		return "", err
-	}
-	err = acquire.AddAuth(request, c.auth)
-	if err != nil {
-		return "", err
-	}
-	request.Header.Add(store.ItemOwnerHeaderKey, owner)
-
-	response, err := c.client.Do(request)
-	if err != nil {
-		return "", err
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
 	}
 
-	defer response.Body.Close()
-
-	switch response.StatusCode {
-	case http.StatusCreated:
-		return CreatedPushResult, nil
-	case http.StatusOK:
-		return UpdatedPushResult, nil
+	if len(input.ID) < 1 || len(input.Item.ID) < 1 {
+		return ErrItemIDEmpty
 	}
-	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a Push request", "code", response.StatusCode)
-	return "", errors.New("Failed to set item as DB responded with non-success statuscode")
+
+	if strings.ToLower(input.ID) != strings.ToLower(input.Item.ID) {
+		return ErrItemIDMismatch
+	}
+
+	// TODO: we can also validate the ID format here
+	// we'll need to create an exporter validator in argus though
+
+	if len(input.Item.Data) < 1 {
+		return ErrItemDataEmpty
+	}
+
+	return nil
+}
+
+// PushItem creates a new item if one doesn't already exist at
+// the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
+// the item is simply updated.
+func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
+	err := validatePushItemInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := json.Marshal(input.Item)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONMarshal, err)
+	}
+
+	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
+	request, err := c.makeRequest(input.Owner, http.MethodPut, URL, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := c.do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Code == http.StatusCreated {
+		return &PushItemOutput{Result: CreatedPushResult}, nil
+	}
+
+	if response.Code == http.StatusOK {
+		return &PushItemOutput{Result: UpdatedPushResult}, nil
+	}
+
+	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request", "code", response.Code)
+
+	return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
 }
 
 func (c *Client) Remove(id string, owner string) (model.Item, error) {
