@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -48,6 +49,9 @@ var (
 type transportConfig struct {
 	AccessLevelAttributeKey string
 	ItemMaxTTL              time.Duration
+	IDFormatRegex           *regexp.Regexp
+	BucketFormatRegex       *regexp.Regexp
+	OwnerFormatRegex        *regexp.Regexp
 }
 type getOrDeleteItemRequest struct {
 	key       model.Key
@@ -74,7 +78,7 @@ type setItemResponse struct {
 func getAllItemsRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		bucket := mux.Vars(r)[bucketVarKey]
-		if !isBucketValid(bucket) {
+		if !isBucketValid(config.BucketFormatRegex, bucket) {
 			return nil, errInvalidBucket
 		}
 		return &getAllItemsRequest{
@@ -93,7 +97,7 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 			bucket  = URLVars[bucketVarKey]
 		)
 
-		if err := validateItemPathVars(bucket, id); err != nil {
+		if err := validateItemPathVars(config, bucket, id); err != nil {
 			return nil, err
 		}
 
@@ -135,7 +139,7 @@ func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeReques
 			bucket  = URLVars[bucketVarKey]
 		)
 
-		if err := validateItemPathVars(bucket, id); err != nil {
+		if err := validateItemPathVars(config, bucket, id); err != nil {
 			return nil, err
 		}
 

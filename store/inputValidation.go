@@ -9,9 +9,15 @@ import (
 	"github.com/xmidt-org/argus/model"
 )
 
-var (
-	idFormatRegex     = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	bucketFormatRegex = regexp.MustCompile("^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$")
+// IDFormatRegexSource helps validate the ID on incoming requests.
+const IDFormatRegexSource = "^[0-9a-f]{64}$"
+
+// default input field validation regular expressions.
+// Note: these values are configurable so please check the argus.yaml file if
+// you're interested.
+const (
+	BucketFormatRegexSource = "^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$"
+	OwnerFormatRegexSource  = "^.{10,60}$"
 )
 
 var (
@@ -19,6 +25,7 @@ var (
 	errIDMismatch       = BadRequestErr{Message: "IDs must match between the URL and payload."}
 	errDataFieldMissing = BadRequestErr{Message: "Data field must be set in payload."}
 	errInvalidBucket    = BadRequestErr{Message: "Invalid bucket format."}
+	errInvalidOwner     = BadRequestErr{Message: "Invalid Owner format."}
 )
 
 func validateItemTTL(item *model.Item, maxTTL time.Duration) {
@@ -30,7 +37,7 @@ func validateItemTTL(item *model.Item, maxTTL time.Duration) {
 
 // isIDValid returns true if the given ID is a hex digest string of 64 characters (i.e. 7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7).
 // False otherwise. Note that per the input string name, we expect the ID to be normalized by the time it gets here (remove whitespaces, all lowercase)
-func isIDValid(normalizedID string) bool {
+func isIDValid(idFormatRegex *regexp.Regexp, normalizedID string) bool {
 	return idFormatRegex.MatchString(normalizedID)
 }
 
@@ -38,18 +45,18 @@ func isIDValid(normalizedID string) bool {
 // 1) Between 3 and 63 characters long.
 // 2) Consists only of lowercase letters, numbers and hyphens (-).
 // 3) Must begin and end with a letter or number.
-func isBucketValid(bucket string) bool {
+func isBucketValid(bucketFormatRegex *regexp.Regexp, bucket string) bool {
 	return bucketFormatRegex.MatchString(bucket)
 }
 
 // validateItemPathVars returns a pertinent HTTP-coded error if any of the input variables
 // are invalid, nil otherwise.
-func validateItemPathVars(bucket, normalizedID string) error {
-	if !isIDValid(normalizedID) {
+func validateItemPathVars(config *transportConfig, bucket, normalizedID string) error {
+	if !isIDValid(config.IDFormatRegex, normalizedID) {
 		return errInvalidID
 	}
 
-	if !isBucketValid(bucket) {
+	if !isBucketValid(config.BucketFormatRegex, bucket) {
 		return errInvalidBucket
 	}
 
@@ -73,7 +80,7 @@ func (v *validItemUnmarshaler) UnmarshalJSON(data []byte) error {
 		return errDataFieldMissing
 	}
 
-	if !isIDValid(v.item.ID) {
+	if !isIDValid(v.config.IDFormatRegex, v.item.ID) {
 		return errInvalidID
 	}
 

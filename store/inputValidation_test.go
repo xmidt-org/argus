@@ -1,6 +1,7 @@
 package store
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ func TestIsIDValid(t *testing.T) {
 		ID       string
 		Expected bool
 	}
+	IDFormatRegex := regexp.MustCompile(IDFormatRegexSource)
 
 	tcs := []test{
 		{Name: "CharacterOver", ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7a", Expected: false},
@@ -23,7 +25,7 @@ func TestIsIDValid(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			assert.Equal(tc.Expected, isIDValid(tc.ID))
+			assert.Equal(tc.Expected, isIDValid(IDFormatRegex, tc.ID))
 		})
 	}
 }
@@ -34,6 +36,8 @@ func TestIsBucketValid(t *testing.T) {
 		Bucket      string
 		Succeeds    bool
 	}
+
+	BucketFormatRegex := regexp.MustCompile(BucketFormatRegexSource)
 
 	tcs := []testCase{
 		{
@@ -61,7 +65,7 @@ func TestIsBucketValid(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
-			assert.Equal(tc.Succeeds, isBucketValid(tc.Bucket))
+			assert.Equal(tc.Succeeds, isBucketValid(BucketFormatRegex, tc.Bucket))
 		})
 	}
 }
