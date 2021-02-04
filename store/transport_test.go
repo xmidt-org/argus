@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +93,7 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 		},
 	}
 
+	decoder := getOrDeleteItemRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -102,18 +104,11 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
 
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Hour * 24,
-			}
-
 			ctx := context.Background()
-
 			if testCase.ElevatedAccess {
 				ctx = withElevatedAccess(ctx)
 			}
 
-			decoder := getOrDeleteItemRequestDecoder(config)
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
@@ -205,6 +200,7 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 		},
 	}
 
+	decoder := getAllItemsRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -214,16 +210,10 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
 
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Hour * 24,
-			}
-
 			ctx := context.Background()
 			if testCase.ElevatedAccess {
 				ctx = withElevatedAccess(ctx)
 			}
-			decoder := getAllItemsRequestDecoder(config)
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
@@ -284,13 +274,13 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			Name:        "Capped TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
 			Owner:       "math",
-			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 90000}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
 						ID:   "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
-						TTL:  aws.Int64(int64((time.Minute * 5).Seconds())),
+						TTL:  aws.Int64(int64((time.Hour * 24).Seconds())),
 					},
 					Owner: "math",
 				},
@@ -313,7 +303,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						Data: map[string]interface{}{
 							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
-						TTL: aws.Int64(int64((time.Minute * 5).Seconds())),
+						TTL: aws.Int64(int64((time.Hour * 24).Seconds())),
 					},
 					Owner: "math",
 				},
@@ -392,6 +382,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		},
 	}
 
+	decoder := setItemRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -400,12 +391,6 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			if len(testCase.Owner) > 0 {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
-
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Minute * 5,
-			}
-			decoder := setItemRequestDecoder(config)
 
 			ctx := context.Background()
 			if testCase.ElevatedAccess {
@@ -517,4 +502,14 @@ func withElevatedAccess(ctx context.Context) context.Context {
 		Token:         bascule.NewToken("Bearer", "testUser", attributes),
 	}
 	return bascule.WithAuthentication(ctx, basculeAuth)
+}
+
+func getTestTransportConfig() *transportConfig {
+	return &transportConfig{
+		AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
+		ItemMaxTTL:              time.Hour * 24,
+		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
+		BucketFormatRegex:       regexp.MustCompile(BucketFormatRegexSource),
+		OwnerFormatRegex:        regexp.MustCompile(OwnerFormatRegexSource),
+	}
 }
