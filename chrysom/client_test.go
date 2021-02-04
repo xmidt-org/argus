@@ -472,6 +472,112 @@ func TestPushItem(t *testing.T) {
 	}
 }
 
+func TestRemoveItem(t *testing.T) {
+	type testCase struct {
+		Description           string
+		Input                 *RemoveItemInput
+		ExpectedOutput        *RemoveItemOutput
+		ResponsePayload       []byte
+		ShouldRespNonSuccess  bool
+		ShouldMakeRequestFail bool
+		ShouldDoRequestFail   bool
+		ExpectedErr           error
+	}
+
+	validRemoveItemInput := &RemoveItemInput{
+		ID:     "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+		Bucket: "bucket-name",
+		Owner:  "owner-name",
+	}
+
+	tcs := []testCase{
+		{
+			Description: "Input is nil",
+			Input:       nil,
+			ExpectedErr: ErrUndefinedInput,
+		},
+		{
+			Description: "Bucket is required",
+			Input:       &RemoveItemInput{Owner: "owner-name", ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111"},
+			ExpectedErr: ErrBucketEmpty,
+		},
+		{
+			Description: "Item ID Missing",
+			Input:       &RemoveItemInput{Owner: "owner-name", Bucket: "bucket-name"},
+			ExpectedErr: ErrItemIDEmpty,
+		},
+		{
+			Description:           "Make request fails",
+			Input:                 validRemoveItemInput,
+			ShouldMakeRequestFail: true,
+			ExpectedErr:           ErrAuthAcquirerFailure,
+		},
+		{
+			Description:         "Do request fails",
+			Input:               validRemoveItemInput,
+			ShouldDoRequestFail: true,
+			ExpectedErr:         ErrDoRequestFailure,
+		},
+		{
+			Description:          "Non success code",
+			Input:                validRemoveItemInput,
+			ShouldRespNonSuccess: true,
+			ExpectedErr:          ErrRemoveItemFailure,
+		},
+		{
+			Description:     "Unmarshal failure",
+			Input:           validRemoveItemInput,
+			ResponsePayload: []byte("{{}"),
+			ExpectedErr:     ErrJSONUnmarshal,
+		},
+		{
+			Description:     "Succcess",
+			Input:           validRemoveItemInput,
+			ResponsePayload: getRemoveItemValidPayload(),
+			ExpectedOutput:  getRemoveItemHappyOutput(),
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, tc.Input.Bucket, tc.Input.ID), r.URL.Path)
+				assert.Equal(http.MethodDelete, r.Method)
+				if tc.ShouldRespNonSuccess {
+					rw.WriteHeader(http.StatusBadRequest)
+				} else {
+					rw.Write(tc.ResponsePayload)
+				}
+			}))
+
+			client, err := NewClient(&ClientConfig{
+				HTTPClient:      server.Client(),
+				Address:         server.URL,
+				MetricsProvider: provider.NewDiscardProvider(),
+			})
+
+			if tc.ShouldMakeRequestFail {
+				client.auth = acquirerFunc(failAcquirer)
+			}
+
+			if tc.ShouldDoRequestFail {
+				client.storeBaseURL = "wrong-URL"
+			}
+
+			require.Nil(err)
+			output, err := client.RemoveItem(tc.Input)
+
+			fmt.Println(err)
+			assert.True(errors.Is(err, tc.ExpectedErr))
+			if tc.ExpectedErr == nil {
+				assert.EqualValues(tc.ExpectedOutput, output)
+			}
+		})
+	}
+}
+
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }
@@ -506,17 +612,6 @@ func getItemsHappyOutput() *GetItemsOutput {
 					"year":  float64(2021),
 				},
 				TTL: aws.Int64(255),
-			},
-		},
-	}
-}
-
-func getItemPayloadWithoutID() model.Item {
-	return model.Item{
-		Data: map[string]interface{}{
-			"field0": 0,
-			"nested": map[string]interface{}{
-				"response": "wow",
 			},
 		},
 	}
@@ -581,6 +676,34 @@ func getPushItemInputDataMissing(validPushItemInput *PushItemInput) *PushItemInp
 		Owner:  validPushItemInput.Owner,
 		Item: model.Item{
 			ID: validPushItemInput.Item.ID,
+		},
+	}
+}
+
+func getRemoveItemValidPayload() []byte {
+	return []byte(`
+	{
+		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		"data": {
+		  "words": [
+			"Hello",
+			"World"
+		  ],
+		  "year": 2021
+		},
+		"ttl": 100
+	}`)
+}
+
+func getRemoveItemHappyOutput() *RemoveItemOutput {
+	return &RemoveItemOutput{
+		Item: model.Item{
+			ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+			Data: map[string]interface{}{
+				"words": []interface{}{"Hello", "World"},
+				"year":  float64(2021),
+			},
+			TTL: aws.Int64(100),
 		},
 	}
 }
