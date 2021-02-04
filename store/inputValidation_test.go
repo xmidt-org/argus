@@ -30,7 +30,7 @@ func TestIsIDValid(t *testing.T) {
 	}
 }
 
-func TestIsBucketValid(t *testing.T) {
+func TestIsBucketValidFromDefaultSource(t *testing.T) {
 	type testCase struct {
 		Description string
 		Bucket      string
@@ -66,6 +66,43 @@ func TestIsBucketValid(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			assert.Equal(tc.Succeeds, isBucketValid(BucketFormatRegex, tc.Bucket))
+		})
+	}
+}
+
+func TestIsOwnerValidFromDefaultSource(t *testing.T) {
+	type testCase struct {
+		Description string
+		Owner       string
+		Succeeds    bool
+	}
+
+	OwnerFormatRegex := regexp.MustCompile(OwnerFormatRegexSource)
+
+	tcs := []testCase{
+		{
+			Description: "Too short",
+			Owner:       "xmidt",
+		},
+		{
+			Description: "Too long",
+			Owner:       "neque-porro-quisquam-est-qui-dolorem-ipsum-quia-dolor-sit-amet-c",
+		},
+		{
+			Description: "Owner is optional",
+			Owner:       "",
+			Succeeds:    true,
+		},
+		{
+			Description: "Success",
+			Owner:       "a-nice-readable-owner-indeed",
+			Succeeds:    true,
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			assert.Equal(tc.Succeeds, isOwnerValid(OwnerFormatRegex, tc.Owner))
 		})
 	}
 }
