@@ -29,7 +29,6 @@ const (
 // Request and Response Headers.
 const (
 	ItemOwnerHeaderKey  = "X-Midt-Owner"
-	AdminTokenHeaderKey = "X-Midt-Admin-Token"
 	XmidtErrorHeaderKey = "X-Midt-Error"
 )
 
@@ -77,13 +76,20 @@ type setItemResponse struct {
 
 func getAllItemsRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		bucket := mux.Vars(r)[bucketVarKey]
+		var (
+			bucket = mux.Vars(r)[bucketVarKey]
+			owner  = r.Header.Get(ItemOwnerHeaderKey)
+		)
 		if !isBucketValid(config.BucketFormatRegex, bucket) {
 			return nil, errInvalidBucket
 		}
+		if !isOwnerValid(config.OwnerFormatRegex, owner) {
+			return nil, errInvalidOwner
+		}
+
 		return &getAllItemsRequest{
 			bucket:    bucket,
-			owner:     r.Header.Get(ItemOwnerHeaderKey),
+			owner:     owner,
 			adminMode: hasElevatedAccess(ctx, config.AccessLevelAttributeKey),
 		}, nil
 	}
@@ -95,9 +101,10 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 			URLVars = mux.Vars(r)
 			id      = strings.ToLower(URLVars[idVarKey])
 			bucket  = URLVars[bucketVarKey]
+			owner   = r.Header.Get(ItemOwnerHeaderKey)
 		)
 
-		if err := validateItemPathVars(config, bucket, id); err != nil {
+		if err := validateItemRequestVars(config, owner, bucket, id); err != nil {
 			return nil, err
 		}
 
@@ -120,7 +127,7 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 		return &setItemRequest{
 			item: OwnableItem{
 				Item:  unmarshaler.item,
-				Owner: r.Header.Get(ItemOwnerHeaderKey),
+				Owner: owner,
 			},
 			key: model.Key{
 				Bucket: bucket,
@@ -137,9 +144,10 @@ func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeReques
 			URLVars = mux.Vars(r)
 			id      = strings.ToLower(URLVars[idVarKey])
 			bucket  = URLVars[bucketVarKey]
+			owner   = r.Header.Get(ItemOwnerHeaderKey)
 		)
 
-		if err := validateItemPathVars(config, bucket, id); err != nil {
+		if err := validateItemRequestVars(config, owner, bucket, id); err != nil {
 			return nil, err
 		}
 

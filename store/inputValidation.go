@@ -41,7 +41,7 @@ func isIDValid(idFormatRegex *regexp.Regexp, normalizedID string) bool {
 	return idFormatRegex.MatchString(normalizedID)
 }
 
-// isBucketValid return true if and only if all the following rules are satisfied. False otherwise.
+// isBucketValid returns true if and only if all the following rules are satisfied. False otherwise.
 // 1) Between 3 and 63 characters long.
 // 2) Consists only of lowercase letters, numbers and hyphens (-).
 // 3) Must begin and end with a letter or number.
@@ -49,15 +49,25 @@ func isBucketValid(bucketFormatRegex *regexp.Regexp, bucket string) bool {
 	return bucketFormatRegex.MatchString(bucket)
 }
 
-// validateItemPathVars returns a pertinent HTTP-coded error if any of the input variables
+// isOwnerValid returns true iff the owner is the string zero value (since the owner value is optional)
+// or it matches the configurable ownerFormat regex.
+func isOwnerValid(ownerFormatRegex *regexp.Regexp, owner string) bool {
+	return len(owner) < 1 || ownerFormatRegex.MatchString(owner)
+}
+
+// validateItemRequestVars returns a pertinent HTTP-coded error if any of the input variables
 // are invalid, nil otherwise.
-func validateItemPathVars(config *transportConfig, bucket, normalizedID string) error {
+func validateItemRequestVars(config *transportConfig, owner, bucket, normalizedID string) error {
 	if !isIDValid(config.IDFormatRegex, normalizedID) {
 		return errInvalidID
 	}
 
 	if !isBucketValid(config.BucketFormatRegex, bucket) {
 		return errInvalidBucket
+	}
+
+	if !isOwnerValid(config.OwnerFormatRegex, owner) {
+		return errInvalidOwner
 	}
 
 	return nil
