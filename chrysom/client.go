@@ -82,6 +82,11 @@ type ClientConfig struct {
 	Listener        Listener
 }
 
+type doResponse struct {
+	Body []byte
+	Code int
+}
+
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
@@ -195,11 +200,6 @@ func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.R
 	}
 
 	return r, nil
-}
-
-type doResponse struct {
-	Body []byte
-	Code int
 }
 
 func (c *Client) do(r *http.Request) (*doResponse, error) {
