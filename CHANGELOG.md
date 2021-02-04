@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update buildtime format in Makefile to match RPM spec file. [#95](https://github.com/xmidt-org/argus/pull/95)
 - Update configuration structure for inbound authn/z. [#101](https://github.com/xmidt-org/argus/pull/101)
 - Admin mode flag now originates from JWT claims instead of an HTTP header. [#112](https://github.com/xmidt-org/argus/pull/112)
-- Add bucket validation. [#114](https://github.com/xmidt-org/argus/pull/114)
 - Remove stored loggers. [#118](https://github.com/xmidt-org/argus/pull/118)
 - Drop use of admin token headers from client. [#118](https://github.com/xmidt-org/argus/pull/118)
 
@@ -21,6 +20,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Item ID is validated to have the format of a SHA256 message hex digest. [#106](https://github.com/xmidt-org/argus/pull/106)
+- Configurable item owner validation. [#121](https://github.com/xmidt-org/argus/pull/121)
+- Configurable item bucket validation. [#114](https://github.com/xmidt-org/argus/pull/114)
 
 ### Removed
 - Removed identifier as a field from the API. [#85](https://github.com/xmidt-org/argus/pull/85)
