@@ -38,6 +38,7 @@ This endpoint allows for clients to `PUT` an object into argus.  The placeholder
     - Bucket names must be between 3 and 63 characters long.
     - Bucket names can consist only of lowercase letters, numbers and hyphens (-).
     - Bucket names must begin and end with a letter or number. 
+
   If you'd like to define your own bucket validation format, check out the `userInputValidation.bucketFormatRegex` configuration option.
 * _id_ - The unique ID within the name space of the containing bucket.  It is recommended this value is the resulting value of a SHA256 calculation, using the unique attributes of the object being represented (e.g. `SHA256(<common_name>)`).  This will be used by argus to determine uniqueness of objects being stored or updated.  argus will not accept any values for this attribute that is not a 64 character hex string.
 
@@ -48,7 +49,9 @@ The body must be in JSON format with the following attributes:
 
 * _id_ - Required.  See above.
 * _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
-* _owner_ - Optional.  Free form string to identify the owner of this object.
+* _owner_ - Optional.  Free form string to identify the owner of this object. 
+
+By default, Argus validates the length of the owner string to be in the range `[10,60]`. If you'd like to define your own validation format, check out the `userInputValidation.ownerFormatRegex` configuration option.
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to the value of the server configuration option `itemMaxTTL`. If a configuration value is not specified, the value would be a day (~ 24*60^2 seconds).
 )
 
