@@ -19,19 +19,19 @@ import (
 	"github.com/xmidt-org/argus/store"
 )
 
-// func TestInterface(t *testing.T) {
-// 	assert := assert.New(t)
-// 	var (
-// 		client interface{}
-// 	)
-// 	client = &Client{}
-// 	_, ok := client.(Pusher)
-// 	assert.True(ok, "not a pusher")
-// 	_, ok = client.(Reader)
-// 	assert.True(ok, "not a reader")
-// 	_, ok = client.(PushReader)
-// 	assert.True(ok, "not a PushReader")
-// }
+func TestInterface(t *testing.T) {
+	assert := assert.New(t)
+	var (
+		client interface{}
+	)
+	client = &Client{}
+	_, ok := client.(Pusher)
+	assert.True(ok, "not a pusher")
+	_, ok = client.(Reader)
+	assert.True(ok, "not a reader")
+	_, ok = client.(PushReader)
+	assert.True(ok, "not a PushReader")
+}
 
 func TestValidateConfig(t *testing.T) {
 	type testCase struct {
