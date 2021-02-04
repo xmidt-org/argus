@@ -39,7 +39,8 @@ import (
 
 const storeAPIPath = "/api/v1/store"
 
-// errors that can be returned by this package
+// Errors that can be returned by this package. Since some of these errors are returned wrapped, it
+// is safest to use errors.Is() to check for them.
 var (
 	ErrAddressEmpty             = errors.New("argus address is required")
 	ErrBucketEmpty              = errors.New("bucket name is required")
