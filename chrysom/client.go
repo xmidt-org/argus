@@ -189,11 +189,11 @@ func validateGetItemsInput(input *GetItemsInput) error {
 func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.Request, error) {
 	r, err := http.NewRequest(method, URL, body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrNewRequestFailure, err)
+		return nil, fmt.Errorf("%w: %s", ErrNewRequestFailure, err.Error())
 	}
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAuthAcquirerFailure, err)
+		return nil, fmt.Errorf("%w: %s", ErrAuthAcquirerFailure, err.Error())
 	}
 
 	if len(owner) > 0 {
@@ -206,7 +206,7 @@ func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.R
 func (c *Client) do(r *http.Request) (*doResponse, error) {
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrDoRequestFailure, err)
+		return nil, fmt.Errorf("%w: %s", ErrDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
 
@@ -215,7 +215,7 @@ func (c *Client) do(r *http.Request) (*doResponse, error) {
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &dResp, fmt.Errorf("%w: %v", ErrReadingBodyFailure, err)
+		return &dResp, fmt.Errorf("%w: %s", ErrReadingBodyFailure, err.Error())
 	}
 	dResp.Body = bodyBytes
 	return &dResp, nil
@@ -248,7 +248,7 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 
 	err = json.Unmarshal(response.Body, &output.Items)
 	if err != nil {
-		return nil, fmt.Errorf("GetItems: %w: %v", ErrJSONUnmarshal, err)
+		return nil, fmt.Errorf("GetItems: %w: %s", ErrJSONUnmarshal, err.Error())
 	}
 
 	return &output, nil
@@ -267,7 +267,7 @@ func validatePushItemInput(input *PushItemInput) error {
 		return ErrItemIDEmpty
 	}
 
-	if strings.ToLower(input.ID) != strings.ToLower(input.Item.ID) {
+	if !strings.EqualFold(input.ID, input.Item.ID) {
 		return ErrItemIDMismatch
 	}
 
@@ -292,7 +292,7 @@ func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
 
 	data, err := json.Marshal(input.Item)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrJSONMarshal, err)
+		return nil, fmt.Errorf("%w: %s", ErrJSONMarshal, err.Error())
 	}
 
 	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
@@ -359,7 +359,7 @@ func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
 	var output RemoveItemOutput
 	err = json.Unmarshal(response.Body, &output.Item)
 	if err != nil {
-		return nil, fmt.Errorf("RemoveItem: %w: %v", ErrJSONUnmarshal, err)
+		return nil, fmt.Errorf("RemoveItem: %w: %s", ErrJSONUnmarshal, err.Error())
 	}
 	return &output, nil
 }

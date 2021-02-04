@@ -2,6 +2,7 @@ package chrysom
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -18,6 +19,8 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 )
+
+const failingURL = "nowhere://"
 
 func TestInterface(t *testing.T) {
 	assert := assert.New(t)
@@ -315,6 +318,7 @@ func TestGetItems(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				assert.Equal(http.MethodGet, r.Method)
 				assert.Equal(fmt.Sprintf("%s/%s", storeAPIPath, tc.Input.Bucket), r.URL.Path)
 				if tc.ShouldRespNonSuccess {
 					rw.WriteHeader(http.StatusBadRequest)
@@ -334,7 +338,7 @@ func TestGetItems(t *testing.T) {
 			}
 
 			if tc.ShouldDoRequestFail {
-				client.storeBaseURL = "wrong-URL"
+				client.storeBaseURL = failingURL
 			}
 
 			require.Nil(err)
@@ -367,7 +371,7 @@ func TestPushItem(t *testing.T) {
 		Item: model.Item{
 			ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
 			Data: map[string]interface{}{
-				"field0": 0,
+				"field0": float64(0),
 				"nested": map[string]interface{}{
 					"response": "wow",
 				},
@@ -451,6 +455,13 @@ func TestPushItem(t *testing.T) {
 				if tc.ShouldRespNonSuccess {
 					rw.WriteHeader(http.StatusBadRequest)
 				} else {
+					payload, err := ioutil.ReadAll(r.Body)
+					require.Nil(err)
+					var item model.Item
+					err = json.Unmarshal(payload, &item)
+					require.Nil(err)
+
+					assert.EqualValues(tc.Input.Item, item)
 					rw.WriteHeader(tc.SuccessResponseCode)
 				}
 			}))
@@ -466,7 +477,7 @@ func TestPushItem(t *testing.T) {
 			}
 
 			if tc.ShouldDoRequestFail {
-				client.storeBaseURL = "wrong-URL"
+				client.storeBaseURL = failingURL
 			}
 
 			require.Nil(err)
@@ -571,7 +582,7 @@ func TestRemoveItem(t *testing.T) {
 			}
 
 			if tc.ShouldDoRequestFail {
-				client.storeBaseURL = "wrong-URL"
+				client.storeBaseURL = failingURL
 			}
 
 			require.Nil(err)
