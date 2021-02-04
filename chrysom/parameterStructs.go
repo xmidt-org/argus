@@ -28,3 +28,13 @@ type PushItemInput struct {
 type PushItemOutput struct {
 	Result PushResult
 }
+
+type RemoveItemInput struct {
+	ID     string
+	Bucket string
+	Owner  string
+}
+
+type RemoveItemOutput struct {
+	Item model.Item
+}

@@ -32,7 +32,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/kit/metrics/provider"
-	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/themis/xlog"
@@ -50,8 +49,8 @@ var (
 	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
 	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
 	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
-	ErrDeleteItemFailure        = errors.New("failed delete item. Non-200 statuscode was received")
-	ErrPushItemFailure          = errors.New("failed push item. Non-success statuscode was received")
+	ErrRemoveItemFailure        = errors.New("failed to delete item. Non-200 statuscode was received")
+	ErrPushItemFailure          = errors.New("failed to push item. Non-success statuscode was received")
 
 	ErrUndefinedInput      = errors.New("input for operation was nil")
 	ErrNewRequestFailure   = errors.New("failed creating an HTTP request")
@@ -248,7 +247,7 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 
 	err = json.Unmarshal(response.Body, &output.Items)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrJSONUnmarshal, err)
+		return nil, fmt.Errorf("GetItems: %w: %v", ErrJSONUnmarshal, err)
 	}
 
 	return &output, nil
@@ -319,36 +318,49 @@ func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
 	return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
 }
 
-func (c *Client) Remove(id string, owner string) (model.Item, error) {
-	if id == "" {
-		return model.Item{}, ErrItemIDEmpty
-	}
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("%s/api/v1/store/%s/%s", c.remoteStoreAddress, c.bucketName, id), nil)
-	if err != nil {
-		return model.Item{}, err
-	}
-	err = acquire.AddAuth(request, c.auth)
-	if err != nil {
-		return model.Item{}, err
+func validateRemoveItemInput(input *RemoveItemInput) error {
+	if input == nil {
+		return ErrUndefinedInput
 	}
 
-	request.Header.Add(store.ItemOwnerHeaderKey, owner)
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
 
-	response, err := c.client.Do(request)
+	if len(input.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+	return nil
+}
+
+// RemoveItem removes the item if it exists and returns the data associated to it.
+func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
+	err := validateRemoveItemInput(input)
 	if err != nil {
-		return model.Item{}, err
+		return nil, err
 	}
-	if response.StatusCode != 200 {
-		return model.Item{}, ErrDeleteItemFailure
-	}
-	defer response.Body.Close()
-	responsePayload, _ := ioutil.ReadAll(response.Body)
-	item := model.Item{}
-	err = json.Unmarshal(responsePayload, &item)
+
+	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
+	request, err := c.makeRequest(input.Owner, http.MethodDelete, URL, nil)
 	if err != nil {
-		return model.Item{}, err
+		return nil, err
 	}
-	return item, nil
+
+	response, err := c.do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Code != http.StatusOK {
+		return nil, ErrRemoveItemFailure
+	}
+
+	var output RemoveItemOutput
+	err = json.Unmarshal(response.Body, &output.Item)
+	if err != nil {
+		return nil, fmt.Errorf("RemoveItem: %w: %v", ErrJSONUnmarshal, err)
+	}
+	return &output, nil
 }
 
 func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
