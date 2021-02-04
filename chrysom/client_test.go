@@ -593,8 +593,7 @@ func getItemsValidPayload() []byte {
     "id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
     "data": {
       "words": [
-        "Hello",
-        "World"
+        "Hello","World"
       ],
       "year": 2021
     },
@@ -614,13 +613,6 @@ func getItemsHappyOutput() *GetItemsOutput {
 				TTL: aws.Int64(255),
 			},
 		},
-	}
-}
-
-func getItemPayloadWithoutData() model.Item {
-	return model.Item{
-		ID:  "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
-		TTL: aws.Int64(5),
 	}
 }
 
@@ -686,8 +678,7 @@ func getRemoveItemValidPayload() []byte {
 		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
 		"data": {
 		  "words": [
-			"Hello",
-			"World"
+			"Hello","World"
 		  ],
 		  "year": 2021
 		},
