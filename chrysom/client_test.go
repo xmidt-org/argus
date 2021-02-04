@@ -70,6 +70,14 @@ func TestValidateConfig(t *testing.T) {
 			},
 			ExpectedConfig: allDefaultsCaseConfig,
 		},
+
+		{
+			Description: "No metrics provider",
+			Input: &ClientConfig{
+				Address: "http://awesome-argus-hostname.io",
+			},
+			ExpectedErr: ErrUndefinedMetricsProvider,
+		},
 		{
 			Description: "No address",
 			Input: &ClientConfig{
