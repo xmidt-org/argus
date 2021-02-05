@@ -156,6 +156,7 @@ func validateConfig(config *ClientConfig) error {
 	}
 	return nil
 }
+
 func shouldUseJWTAcquirer(options acquire.RemoteBearerTokenAcquirerOptions) bool {
 	return len(options.AuthURL) > 0 && options.Buffer != 0 && options.Timeout != 0
 }
