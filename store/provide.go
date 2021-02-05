@@ -75,6 +75,7 @@ func newAccessLevelAttributeKeyAnnotated() fx.Annotated {
 type userInputValidationConfig struct {
 	ItemMaxTTL        time.Duration
 	BucketFormatRegex string
+	OwnerFormatRegex  string
 }
 
 type transportConfigIn struct {
@@ -94,16 +95,38 @@ func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
 		userInputValidation.ItemMaxTTL = time.Hour * 24
 	}
 
+	config := &transportConfig{
+		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
+		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
+	}
+
+	buildInputRegexValidators(userInputValidation, config)
+	return config, nil
+}
+
+func buildInputRegexValidators(userInputValidation userInputValidationConfig, config *transportConfig) error {
 	if userInputValidation.BucketFormatRegex != "" {
 		bucketRegex, err := regexp.Compile(userInputValidation.BucketFormatRegex)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		bucketFormatRegex = bucketRegex
+		config.BucketFormatRegex = bucketRegex
 	}
 
-	return &transportConfig{
-		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
-		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
-	}, nil
+	if userInputValidation.OwnerFormatRegex != "" {
+		ownerRegex, err := regexp.Compile(userInputValidation.OwnerFormatRegex)
+		if err != nil {
+			return err
+		}
+		config.OwnerFormatRegex = ownerRegex
+	}
+
+	idFormatRegex, err := regexp.Compile(IDFormatRegexSource)
+
+	if err != nil {
+		return err
+	}
+
+	config.IDFormatRegex = idFormatRegex
+	return nil
 }

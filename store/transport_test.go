@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,15 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			ExpectedErr: errInvalidBucket,
 		},
 		{
+			Name: "Invalid Owner",
+			URLVars: map[string]string{
+				"bucket": "california",
+				"id":     sfID,
+			},
+			Owner:       "shortName",
+			ExpectedErr: errInvalidOwner,
+		},
+		{
 			Name: "Happy path. No owner. Normal mode",
 			URLVars: map[string]string{
 				"bucket": "california",
@@ -78,7 +88,7 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 				"id":     sfID,
 			},
 
-			Owner:          "SF Giants",
+			Owner:          "SFGiantsTeam",
 			ElevatedAccess: true,
 
 			ExpectedDecodedRequest: &getOrDeleteItemRequest{
@@ -86,12 +96,13 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 					Bucket: "california",
 					ID:     sfID,
 				},
-				owner:     "SF Giants",
+				owner:     "SFGiantsTeam",
 				adminMode: true,
 			},
 		},
 	}
 
+	decoder := getOrDeleteItemRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -102,18 +113,11 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
 
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Hour * 24,
-			}
-
 			ctx := context.Background()
-
 			if testCase.ElevatedAccess {
 				ctx = withElevatedAccess(ctx)
 			}
 
-			decoder := getOrDeleteItemRequestDecoder(config)
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
@@ -134,7 +138,7 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 		{
 			Name: "Happy path",
 			ItemResponse: &OwnableItem{
-				Owner: "xmidt",
+				Owner: "xmidtUSATeam",
 				Item: model.Item{
 					ID:  "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI",
 					TTL: aws.Int64(20),
@@ -158,7 +162,7 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 			err := encodeGetOrDeleteItemResponse(context.Background(), recorder, testCase.ItemResponse)
 			assert.Equal(testCase.ExpectedErr, err)
 			assert.Equal(testCase.ExpectedBody, recorder.Body.String())
-			assert.Equal(testCase.ExpectedHeaders, recorder.HeaderMap)
+			assert.Equal(testCase.ExpectedHeaders, recorder.Header())
 			assert.Equal(testCase.ExpectedCode, recorder.Code)
 		})
 	}
@@ -195,16 +199,17 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 				"bucket": "california",
 				"ID":     Sha256HexDigest("san francisco"),
 			},
-			Owner: "SF Giants",
+			Owner: "SFGiantsTeam",
 			ExpectedDecodedRequest: &getAllItemsRequest{
 				bucket:    "california",
-				owner:     "SF Giants",
+				owner:     "SFGiantsTeam",
 				adminMode: true,
 			},
 			ElevatedAccess: true,
 		},
 	}
 
+	decoder := getAllItemsRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -214,16 +219,10 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
 
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Hour * 24,
-			}
-
 			ctx := context.Background()
 			if testCase.ElevatedAccess {
 				ctx = withElevatedAccess(ctx)
 			}
-			decoder := getAllItemsRequestDecoder(config)
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
@@ -283,16 +282,16 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "Capped TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			Owner:       "math",
-			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
+			Owner:       "mathematics",
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 90000}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
 					Item: model.Item{
 						ID:   "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
-						TTL:  aws.Int64(int64((time.Minute * 5).Seconds())),
+						TTL:  aws.Int64(int64((time.Hour * 24).Seconds())),
 					},
-					Owner: "math",
+					Owner: "mathematics",
 				},
 				key: model.Key{
 					Bucket: "variables",
@@ -304,7 +303,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "TTL Not Provided",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			Owner:       "math",
+			Owner:       "mathematics",
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
@@ -313,9 +312,9 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						Data: map[string]interface{}{
 							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
-						TTL: aws.Int64(int64((time.Minute * 5).Seconds())),
+						TTL: aws.Int64(int64((time.Hour * 24).Seconds())),
 					},
-					Owner: "math",
+					Owner: "mathematics",
 				},
 				key: model.Key{
 					Bucket: "variables",
@@ -341,6 +340,12 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			ExpectedErr: errInvalidBucket,
 		},
 		{
+			Name:        "Invalid Owner",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Owner:       "tooShort",
+			ExpectedErr: errInvalidOwner,
+		},
+		{
 			Name:        "ID mismatch",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74a", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 3900}`,
@@ -349,7 +354,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:           "Happy Path. Admin mode",
 			URLVars:        map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
-			Owner:          "math",
+			Owner:          "mathematics",
 			ElevatedAccess: true,
 			RequestBody:    `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
@@ -361,7 +366,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						},
 						TTL: aws.Int64(39),
 					},
-					Owner: "math",
+					Owner: "mathematics",
 				},
 				key: model.Key{
 					Bucket: "variables",
@@ -373,7 +378,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		{
 			Name:        "Alternative ID format",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4B13653E5D6D611DE5999AB0E7C0AA67E1D83D4CBA8349A04DA0A431FB27F74B"},
-			Owner:       "math",
+			Owner:       "mathematics",
 			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"x": 0, "y": 1, "z": 2}, "ttl": 39}`,
 			ExpectedRequest: &setItemRequest{
 				item: OwnableItem{
@@ -382,7 +387,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
 						TTL:  aws.Int64(39),
 					},
-					Owner: "math",
+					Owner: "mathematics",
 				},
 				key: model.Key{
 					Bucket: "variables",
@@ -392,6 +397,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 		},
 	}
 
+	decoder := setItemRequestDecoder(getTestTransportConfig())
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
@@ -400,12 +406,6 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			if len(testCase.Owner) > 0 {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
 			}
-
-			config := &transportConfig{
-				AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
-				ItemMaxTTL:              time.Minute * 5,
-			}
-			decoder := setItemRequestDecoder(config)
 
 			ctx := context.Background()
 			if testCase.ElevatedAccess {
@@ -517,4 +517,14 @@ func withElevatedAccess(ctx context.Context) context.Context {
 		Token:         bascule.NewToken("Bearer", "testUser", attributes),
 	}
 	return bascule.WithAuthentication(ctx, basculeAuth)
+}
+
+func getTestTransportConfig() *transportConfig {
+	return &transportConfig{
+		AccessLevelAttributeKey: auth.DefaultAccessLevelAttributeKey,
+		ItemMaxTTL:              time.Hour * 24,
+		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
+		BucketFormatRegex:       regexp.MustCompile(BucketFormatRegexSource),
+		OwnerFormatRegex:        regexp.MustCompile(OwnerFormatRegexSource),
+	}
 }
