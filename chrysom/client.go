@@ -353,7 +353,7 @@ func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
 	}
 
 	if response.Code != http.StatusOK {
-		return nil, ErrRemoveItemFailure
+		return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrRemoveItemFailure)
 	}
 
 	var output RemoveItemOutput
