@@ -74,7 +74,6 @@ const (
 
 type ClientConfig struct {
 	HTTPClient      *http.Client
-	Bucket          string
 	PullInterval    time.Duration
 	Address         string
 	Auth            Auth
@@ -94,15 +93,13 @@ type Auth struct {
 }
 
 type Client struct {
-	client             *http.Client
-	ticker             *time.Ticker
-	auth               acquire.Acquirer
-	metrics            *measures
-	storeBaseURL       string
-	listener           Listener
-	bucketName         string
-	remoteStoreAddress string
-	logger             log.Logger
+	client       *http.Client
+	ticker       *time.Ticker
+	auth         acquire.Acquirer
+	metrics      *measures
+	storeBaseURL string
+	listener     Listener
+	logger       log.Logger
 }
 
 func initMetrics(p provider.Provider) *measures {
@@ -121,15 +118,13 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	clientStore := &Client{
-		client:             config.HTTPClient,
-		ticker:             time.NewTicker(config.PullInterval),
-		auth:               tokenAcquirer,
-		metrics:            initMetrics(config.MetricsProvider),
-		logger:             config.Logger,
-		listener:           config.Listener,
-		remoteStoreAddress: config.Address,
-		bucketName:         config.Bucket,
-		storeBaseURL:       config.Address + storeAPIPath,
+		client:       config.HTTPClient,
+		ticker:       time.NewTicker(config.PullInterval),
+		auth:         tokenAcquirer,
+		metrics:      initMetrics(config.MetricsProvider),
+		logger:       config.Logger,
+		listener:     config.Listener,
+		storeBaseURL: config.Address + storeAPIPath,
 	}
 
 	if config.PullInterval > 0 {
@@ -143,12 +138,11 @@ func validateConfig(config *ClientConfig) error {
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
 	}
+
 	if config.Address == "" {
 		return ErrAddressEmpty
 	}
-	if config.Bucket == "" {
-		config.Bucket = "testing"
-	}
+
 	if config.MetricsProvider == nil {
 		return ErrUndefinedMetricsProvider
 	}

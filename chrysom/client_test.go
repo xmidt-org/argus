@@ -46,7 +46,6 @@ func TestValidateConfig(t *testing.T) {
 
 	allDefaultsCaseConfig := &ClientConfig{
 		HTTPClient:      http.DefaultClient,
-		Bucket:          "testing",
 		PullInterval:    time.Second * 5,
 		Logger:          log.NewNopLogger(),
 		Address:         "http://awesome-argus-hostname.io",
@@ -56,7 +55,6 @@ func TestValidateConfig(t *testing.T) {
 	myAmazingClient := &http.Client{Timeout: time.Hour}
 	allDefinedCaseConfig := &ClientConfig{
 		HTTPClient:      myAmazingClient,
-		Bucket:          "argus-staging",
 		PullInterval:    time.Hour * 24,
 		Address:         "http://legit-argus-hostname.io",
 		Auth:            Auth{},
@@ -95,7 +93,6 @@ func TestValidateConfig(t *testing.T) {
 				MetricsProvider: provider.NewDiscardProvider(),
 				Address:         "http://legit-argus-hostname.io",
 				HTTPClient:      myAmazingClient,
-				Bucket:          "argus-staging",
 				PullInterval:    time.Hour * 24,
 				Logger:          log.NewJSONLogger(ioutil.Discard),
 			},
