@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.10]
 ### Changed
 - Migrate to github actions, normalize analysis tools, Dockerfiles and Makefiles. [#96](https://github.com/xmidt-org/argus/pull/96)
 - Bumped webpa-common to v1.11.2 and updated setup for capability check accordingly. [#74](https://github.com/xmidt-org/argus/pull/74)
@@ -109,7 +111,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.9...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.10...HEAD
+[v0.3.10]: https://github.com/xmidt-org/argus/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/xmidt-org/argus/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/xmidt-org/argus/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/xmidt-org/argus/compare/v0.3.6...v0.3.7
