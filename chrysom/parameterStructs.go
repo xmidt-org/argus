@@ -1,6 +1,10 @@
 package chrysom
 
-import "github.com/xmidt-org/argus/model"
+import (
+	"strings"
+
+	"github.com/xmidt-org/argus/model"
+)
 
 // GetItemsInput contains input parameters for GetItems.
 type GetItemsInput struct {
@@ -52,4 +56,79 @@ type RemoveItemInput struct {
 type RemoveItemOutput struct {
 	// Item is the data of the item which was deleted.
 	Item model.Item
+}
+
+func validateGetItemsInput(input *GetItemsInput) error {
+	if input == nil {
+		return ErrUndefinedInput
+	}
+
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
+	return nil
+}
+
+func validatePushItemInputByValue(input PushItemInput) error {
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
+
+	if len(input.ID) < 1 || len(input.Item.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+
+	if !strings.EqualFold(input.ID, input.Item.ID) {
+		return ErrItemIDMismatch
+	}
+
+	// TODO: we can also validate the ID format here
+	// we'll need to create an exporter validator in argus though
+
+	if len(input.Item.Data) < 1 {
+		return ErrItemDataEmpty
+	}
+
+	return nil
+}
+func validatePushItemInput(input *PushItemInput) error {
+	if input == nil {
+		return ErrUndefinedInput
+	}
+
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
+
+	if len(input.ID) < 1 || len(input.Item.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+
+	if !strings.EqualFold(input.ID, input.Item.ID) {
+		return ErrItemIDMismatch
+	}
+
+	// TODO: we can also validate the ID format here
+	// we'll need to create an exporter validator in argus though
+
+	if len(input.Item.Data) < 1 {
+		return ErrItemDataEmpty
+	}
+
+	return nil
+}
+
+func validateRemoveItemInput(input *RemoveItemInput) error {
+	if input == nil {
+		return ErrUndefinedInput
+	}
+
+	if len(input.Bucket) < 1 {
+		return ErrBucketEmpty
+	}
+
+	if len(input.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+	return nil
 }

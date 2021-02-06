@@ -26,7 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -156,28 +155,18 @@ func validateConfig(config *ClientConfig) error {
 	}
 	return nil
 }
-func shouldUseJWTAcquirer(options acquire.RemoteBearerTokenAcquirerOptions) bool {
-	return len(options.AuthURL) > 0 && options.Buffer != 0 && options.Timeout != 0
+
+func isEmpty(options acquire.RemoteBearerTokenAcquirerOptions) bool {
+	return len(options.AuthURL) < 1 || options.Buffer == 0 || options.Timeout == 0
 }
 
 func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
-	if shouldUseJWTAcquirer(auth.JWT) {
+	if !isEmpty(auth.JWT) {
 		return acquire.NewRemoteBearerTokenAcquirer(auth.JWT)
 	} else if len(auth.Basic) > 0 {
 		return acquire.NewFixedAuthAcquirer(auth.Basic)
 	}
 	return &acquire.DefaultAcquirer{}, nil
-}
-
-func validateGetItemsInput(input *GetItemsInput) error {
-	if input == nil {
-		return ErrUndefinedInput
-	}
-
-	if len(input.Bucket) < 1 {
-		return ErrBucketEmpty
-	}
-	return nil
 }
 
 func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.Request, error) {
@@ -248,33 +237,6 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 	return &output, nil
 }
 
-func validatePushItemInput(input *PushItemInput) error {
-	if input == nil {
-		return ErrUndefinedInput
-	}
-
-	if len(input.Bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
-	if len(input.ID) < 1 || len(input.Item.ID) < 1 {
-		return ErrItemIDEmpty
-	}
-
-	if !strings.EqualFold(input.ID, input.Item.ID) {
-		return ErrItemIDMismatch
-	}
-
-	// TODO: we can also validate the ID format here
-	// we'll need to create an exporter validator in argus though
-
-	if len(input.Item.Data) < 1 {
-		return ErrItemDataEmpty
-	}
-
-	return nil
-}
-
 // PushItem creates a new item if one doesn't already exist at
 // the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
 // the item is simply updated.
@@ -311,21 +273,6 @@ func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
 	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request", "code", response.Code)
 
 	return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
-}
-
-func validateRemoveItemInput(input *RemoveItemInput) error {
-	if input == nil {
-		return ErrUndefinedInput
-	}
-
-	if len(input.Bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
-	if len(input.ID) < 1 {
-		return ErrItemIDEmpty
-	}
-	return nil
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
