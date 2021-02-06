@@ -13,7 +13,7 @@ server: (( grab $HOSTNAME || "argus" ))
 # showing machine version information.  The build number SHOULD
 # match the scheme `version-build` but there is not a strict requirement.
 # (Optional)
-build: (( grab $BUILD || "unkown" ))
+build: (( grab $BUILD || "unknown" ))
 
 # stage is used for doing complex spruce manipulation
 # change this will only effect spruce and the vars referencing it
