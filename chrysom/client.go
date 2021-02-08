@@ -43,6 +43,8 @@ const storeAPIPath = "/api/v1/store"
 
 // Errors that can be returned by this package. Since some of these errors are returned wrapped, it
 // is safest to use errors.Is() to check for them.
+// Some internal errors might be unwrapped from output errors but unless these errors become exported,
+// they are not part of the library API and may change in future versions.
 var (
 	ErrAddressEmpty             = errors.New("argus address is required")
 	ErrBucketEmpty              = errors.New("bucket name is required")
@@ -54,14 +56,15 @@ var (
 	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
 	ErrRemoveItemFailure        = errors.New("failed to delete item. Non-200 statuscode was received")
 	ErrPushItemFailure          = errors.New("failed to push item. Non-success statuscode was received")
+	ErrAuthAcquirerFailure      = errors.New("failed acquiring auth token")
+)
 
-	ErrUndefinedInput      = errors.New("input for operation was nil")
-	ErrNewRequestFailure   = errors.New("failed creating an HTTP request")
-	ErrAuthAcquirerFailure = errors.New("failed acquiring auth token")
-	ErrDoRequestFailure    = errors.New("http client failed while sending request")
-	ErrReadingBodyFailure  = errors.New("failed while reading http response body")
-	ErrJSONUnmarshal       = errors.New("failed unmarshaling JSON response payload")
-	ErrJSONMarshal         = errors.New("failed marshaling item as JSON payload")
+var (
+	errNewRequestFailure  = errors.New("failed creating an HTTP request")
+	errDoRequestFailure   = errors.New("http client failed while sending request")
+	errReadingBodyFailure = errors.New("failed while reading http response body")
+	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
+	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -209,7 +212,7 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 func (c Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return response{}, fmt.Errorf("%w: %s", ErrNewRequestFailure, err.Error())
+		return response{}, fmt.Errorf("%w: %s", errNewRequestFailure, err.Error())
 	}
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
@@ -220,7 +223,7 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 	}
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return response{}, fmt.Errorf("%w: %s", ErrDoRequestFailure, err.Error())
+		return response{}, fmt.Errorf("%w: %s", errDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
 
@@ -229,7 +232,7 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return sqResp, fmt.Errorf("%w: %s", ErrReadingBodyFailure, err.Error())
+		return sqResp, fmt.Errorf("%w: %s", errReadingBodyFailure, err.Error())
 	}
 	sqResp.Body = bodyBytes
 	return sqResp, nil
@@ -255,7 +258,7 @@ func (c *Client) GetItems(bucket, owner string) (Items, error) {
 
 	err = json.Unmarshal(response.Body, &items)
 	if err != nil {
-		return nil, fmt.Errorf("GetItems: %w: %s", ErrJSONUnmarshal, err.Error())
+		return nil, fmt.Errorf("GetItems: %w: %s", errJSONUnmarshal, err.Error())
 	}
 
 	return items, nil
@@ -272,7 +275,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 
 	data, err := json.Marshal(item)
 	if err != nil {
-		return "", fmt.Errorf("%w: %s", ErrJSONMarshal, err.Error())
+		return "", fmt.Errorf("%w: %s", errJSONMarshal, err.Error())
 	}
 
 	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), bytes.NewReader(data))
@@ -312,7 +315,7 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	var item model.Item
 	err = json.Unmarshal(resp.Body, &item)
 	if err != nil {
-		return item, fmt.Errorf("RemoveItem: %w: %s", ErrJSONUnmarshal, err.Error())
+		return item, fmt.Errorf("RemoveItem: %w: %s", errJSONUnmarshal, err.Error())
 	}
 	return item, nil
 }

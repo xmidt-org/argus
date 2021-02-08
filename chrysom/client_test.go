@@ -128,7 +128,7 @@ func TestSendRequest(t *testing.T) {
 			Description: "New Request fails",
 			Method:      "what method?",
 			URL:         "http://argus-hostname.io",
-			ExpectedErr: ErrNewRequestFailure,
+			ExpectedErr: errNewRequestFailure,
 		},
 		{
 			Description:   "Auth acquirer fails",
@@ -141,7 +141,7 @@ func TestSendRequest(t *testing.T) {
 			Description:   "Client Do fails",
 			Method:        http.MethodPut,
 			ClientDoFails: true,
-			ExpectedErr:   ErrDoRequestFailure,
+			ExpectedErr:   errDoRequestFailure,
 		},
 		{
 			Description: "Happy path",
@@ -226,7 +226,7 @@ func TestGetItems(t *testing.T) {
 		{
 			Description:         "Do request fails",
 			ShouldDoRequestFail: true,
-			ExpectedErr:         ErrDoRequestFailure,
+			ExpectedErr:         errDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
@@ -236,7 +236,7 @@ func TestGetItems(t *testing.T) {
 		{
 			Description:     "Payload unmarshal error",
 			ResponsePayload: []byte("[{}"),
-			ExpectedErr:     ErrJSONUnmarshal,
+			ExpectedErr:     errJSONUnmarshal,
 		},
 		{
 			Description:     "Happy path",
@@ -358,7 +358,7 @@ func TestPushItem(t *testing.T) {
 			Description:         "Do request fails",
 			Item:                validItem,
 			ShouldDoRequestFail: true,
-			ExpectedErr:         ErrDoRequestFailure,
+			ExpectedErr:         errDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
@@ -483,7 +483,7 @@ func TestRemoveItem(t *testing.T) {
 		{
 			Description:         "Do request fails",
 			ShouldDoRequestFail: true,
-			ExpectedErr:         ErrDoRequestFailure,
+			ExpectedErr:         errDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
@@ -493,7 +493,7 @@ func TestRemoveItem(t *testing.T) {
 		{
 			Description:     "Unmarshal failure",
 			ResponsePayload: []byte("{{}"),
-			ExpectedErr:     ErrJSONUnmarshal,
+			ExpectedErr:     errJSONUnmarshal,
 		},
 		{
 			Description:     "Succcess",
