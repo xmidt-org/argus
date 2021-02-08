@@ -171,7 +171,7 @@ func TestSendRequest(t *testing.T) {
 			server := httptest.NewServer(echoHandler)
 			defer server.Close()
 
-			client, err := NewClient(&ClientConfig{
+			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         "http://argus-hostname.io",
 				MetricsProvider: provider.NewDiscardProvider(),
@@ -202,60 +202,44 @@ func TestSendRequest(t *testing.T) {
 func TestGetItems(t *testing.T) {
 	type testCase struct {
 		Description           string
-		Input                 *GetItemsInput
-		ExpectedOutput        *GetItemsOutput
 		ResponsePayload       []byte
 		ShouldRespNonSuccess  bool
+		ShouldEraseBucket     bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
 		ExpectedErr           error
-	}
-
-	validInput := &GetItemsInput{
-		Bucket: "bucket-name",
-		Owner:  "owner-name",
+		ExpectedOutput        Items
 	}
 
 	tcs := []testCase{
 		{
-			Description: "Input is nil",
-			ExpectedErr: ErrUndefinedInput,
-		},
-		{
-			Description: "Bucket is required",
-			Input: &GetItemsInput{
-				Owner: "owner-name",
-			},
-			ExpectedErr: ErrBucketEmpty,
+			Description:       "Bucket is required",
+			ShouldEraseBucket: true,
+			ExpectedErr:       ErrBucketEmpty,
 		},
 		{
 
 			Description:           "Make request fails",
-			Input:                 validInput,
 			ShouldMakeRequestFail: true,
 			ExpectedErr:           ErrAuthAcquirerFailure,
 		},
 		{
 			Description:         "Do request fails",
-			Input:               validInput,
 			ShouldDoRequestFail: true,
 			ExpectedErr:         ErrDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
-			Input:                validInput,
 			ShouldRespNonSuccess: true,
 			ExpectedErr:          ErrGetItemsFailure,
 		},
 		{
-			Description:     "Payload unmarhsal error",
-			Input:           validInput,
+			Description:     "Payload unmarshal error",
 			ResponsePayload: []byte("[{}"),
 			ExpectedErr:     ErrJSONUnmarshal,
 		},
 		{
 			Description:     "Happy path",
-			Input:           validInput,
 			ResponsePayload: getItemsValidPayload(),
 			ExpectedOutput:  getItemsHappyOutput(),
 		},
@@ -263,11 +247,22 @@ func TestGetItems(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
-			assert := assert.New(t)
-			require := require.New(t)
+			var (
+				assert  = assert.New(t)
+				require = require.New(t)
+				bucket  = "bucket-name"
+				owner   = "owner-name"
+			)
+
+			if tc.ShouldEraseBucket {
+				bucket = ""
+			}
+
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(http.MethodGet, r.Method)
-				assert.Equal(fmt.Sprintf("%s/%s", storeAPIPath, tc.Input.Bucket), r.URL.Path)
+				assert.Equal(owner, r.Header.Get(store.ItemOwnerHeaderKey))
+				assert.Equal(fmt.Sprintf("%s/%s", storeAPIPath, bucket), r.URL.Path)
+
 				if tc.ShouldRespNonSuccess {
 					rw.WriteHeader(http.StatusBadRequest)
 				}
@@ -275,11 +270,13 @@ func TestGetItems(t *testing.T) {
 				rw.Write(tc.ResponsePayload)
 			}))
 
-			client, err := NewClient(&ClientConfig{
+			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         server.URL,
 				MetricsProvider: provider.NewDiscardProvider(),
 			})
+
+			require.Nil(err)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -289,8 +286,7 @@ func TestGetItems(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			require.Nil(err)
-			output, err := client.GetItems(tc.Input)
+			output, err := client.GetItems(bucket, "owner-name")
 
 			assert.True(errors.Is(err, tc.ExpectedErr))
 			if tc.ExpectedErr == nil {
@@ -414,7 +410,7 @@ func TestPushItem(t *testing.T) {
 				}
 			}))
 
-			client, err := NewClient(&ClientConfig{
+			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         server.URL,
 				MetricsProvider: provider.NewDiscardProvider(),
@@ -519,7 +515,7 @@ func TestRemoveItem(t *testing.T) {
 				}
 			}))
 
-			client, err := NewClient(&ClientConfig{
+			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         server.URL,
 				MetricsProvider: provider.NewDiscardProvider(),
@@ -568,17 +564,15 @@ func getItemsValidPayload() []byte {
   }]`)
 }
 
-func getItemsHappyOutput() *GetItemsOutput {
-	return &GetItemsOutput{
-		Items: []model.Item{
-			{
-				ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-				Data: map[string]interface{}{
-					"words": []interface{}{"Hello", "World"},
-					"year":  float64(2021),
-				},
-				TTL: aws.Int64(255),
+func getItemsHappyOutput() Items {
+	return []model.Item{
+		{
+			ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+			Data: map[string]interface{}{
+				"words": []interface{}{"Hello", "World"},
+				"year":  float64(2021),
 			},
+			TTL: aws.Int64(255),
 		},
 	}
 }
