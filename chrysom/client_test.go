@@ -453,64 +453,50 @@ func TestPushItem(t *testing.T) {
 func TestRemoveItem(t *testing.T) {
 	type testCase struct {
 		Description           string
-		Input                 *RemoveItemInput
-		ExpectedOutput        *RemoveItemOutput
 		ResponsePayload       []byte
+		Owner                 string
+		ShouldEraseBucket     bool
+		ShouldEraseID         bool
 		ShouldRespNonSuccess  bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
 		ExpectedErr           error
-	}
-
-	validRemoveItemInput := &RemoveItemInput{
-		ID:     "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
-		Bucket: "bucket-name",
-		Owner:  "owner-name",
+		ExpectedOutput        model.Item
 	}
 
 	tcs := []testCase{
 		{
-			Description: "Input is nil",
-			Input:       nil,
-			ExpectedErr: ErrUndefinedInput,
+			Description:       "Bucket is required",
+			ShouldEraseBucket: true,
+			ExpectedErr:       ErrBucketEmpty,
 		},
 		{
-			Description: "Bucket is required",
-			Input:       &RemoveItemInput{Owner: "owner-name", ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111"},
-			ExpectedErr: ErrBucketEmpty,
-		},
-		{
-			Description: "Item ID Missing",
-			Input:       &RemoveItemInput{Owner: "owner-name", Bucket: "bucket-name"},
-			ExpectedErr: ErrItemIDEmpty,
+			Description:   "Item ID Missing",
+			ShouldEraseID: true,
+			ExpectedErr:   ErrItemIDEmpty,
 		},
 		{
 			Description:           "Make request fails",
-			Input:                 validRemoveItemInput,
 			ShouldMakeRequestFail: true,
 			ExpectedErr:           ErrAuthAcquirerFailure,
 		},
 		{
 			Description:         "Do request fails",
-			Input:               validRemoveItemInput,
 			ShouldDoRequestFail: true,
 			ExpectedErr:         ErrDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
-			Input:                validRemoveItemInput,
 			ShouldRespNonSuccess: true,
 			ExpectedErr:          ErrRemoveItemFailure,
 		},
 		{
 			Description:     "Unmarshal failure",
-			Input:           validRemoveItemInput,
 			ResponsePayload: []byte("{{}"),
 			ExpectedErr:     ErrJSONUnmarshal,
 		},
 		{
 			Description:     "Succcess",
-			Input:           validRemoveItemInput,
 			ResponsePayload: getRemoveItemValidPayload(),
 			ExpectedOutput:  getRemoveItemHappyOutput(),
 		},
@@ -518,10 +504,14 @@ func TestRemoveItem(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
-			assert := assert.New(t)
-			require := require.New(t)
+			var (
+				assert  = assert.New(t)
+				require = require.New(t)
+				bucket  = "bucket-name"
+				id      = "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7"
+			)
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, tc.Input.Bucket, tc.Input.ID), r.URL.Path)
+				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, bucket, id), r.URL.Path)
 				assert.Equal(http.MethodDelete, r.Method)
 				if tc.ShouldRespNonSuccess {
 					rw.WriteHeader(http.StatusBadRequest)
@@ -544,13 +534,21 @@ func TestRemoveItem(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			require.Nil(err)
-			output, err := client.RemoveItem(tc.Input)
+			if tc.ShouldEraseID {
+				id = ""
+			}
 
-			fmt.Println(err)
-			assert.True(errors.Is(err, tc.ExpectedErr))
+			if tc.ShouldEraseBucket {
+				bucket = ""
+			}
+
+			require.Nil(err)
+			output, err := client.RemoveItem(id, bucket, tc.Owner)
+
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
+			} else {
+				assert.True(errors.Is(err, tc.ExpectedErr))
 			}
 		})
 	}
@@ -592,17 +590,6 @@ func getItemsHappyOutput() Items {
 	}
 }
 
-func getPushItemInputBucketMissing(validPushItemInput *PushItemInput) *PushItemInput {
-	return &PushItemInput{
-		ID:    validPushItemInput.ID,
-		Owner: validPushItemInput.Owner,
-		Item: model.Item{
-			ID:   validPushItemInput.Item.ID,
-			Data: validPushItemInput.Item.Data,
-		},
-	}
-}
-
 func getRemoveItemValidPayload() []byte {
 	return []byte(`
 	{
@@ -617,15 +604,13 @@ func getRemoveItemValidPayload() []byte {
 	}`)
 }
 
-func getRemoveItemHappyOutput() *RemoveItemOutput {
-	return &RemoveItemOutput{
-		Item: model.Item{
-			ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-			Data: map[string]interface{}{
-				"words": []interface{}{"Hello", "World"},
-				"year":  float64(2021),
-			},
-			TTL: aws.Int64(100),
+func getRemoveItemHappyOutput() model.Item {
+	return model.Item{
+		ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		Data: map[string]interface{}{
+			"words": []interface{}{"Hello", "World"},
+			"year":  float64(2021),
 		},
+		TTL: aws.Int64(100),
 	}
 }

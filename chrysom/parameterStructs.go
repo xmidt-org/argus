@@ -114,16 +114,12 @@ func validatePushItemInput(bucket, owner, id string, item model.Item) error {
 	return nil
 }
 
-func validateRemoveItemInput(input *RemoveItemInput) error {
-	if input == nil {
-		return ErrUndefinedInput
-	}
-
-	if len(input.Bucket) < 1 {
+func validateRemoveItemInput(bucket, id string) error {
+	if len(bucket) < 1 {
 		return ErrBucketEmpty
 	}
 
-	if len(input.ID) < 1 {
+	if len(id) < 1 {
 		return ErrItemIDEmpty
 	}
 	return nil

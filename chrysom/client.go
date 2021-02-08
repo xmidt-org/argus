@@ -295,28 +295,28 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
-	err := validateRemoveItemInput(input)
+func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
+	err := validateRemoveItemInput(bucket, id)
 	if err != nil {
-		return nil, err
+		return model.Item{}, err
 	}
 
-	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
-	resp, err := c.sendRequest(input.Owner, http.MethodDelete, URL, nil)
+	url := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id)
+	resp, err := c.sendRequest(owner, http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, err
+		return model.Item{}, err
 	}
 
 	if resp.Code != http.StatusOK {
-		return nil, fmt.Errorf("statusCode %v: %w", resp.Code, ErrRemoveItemFailure)
+		return model.Item{}, fmt.Errorf("statusCode %v: %w", resp.Code, ErrRemoveItemFailure)
 	}
 
-	var output RemoveItemOutput
-	err = json.Unmarshal(resp.Body, &output.Item)
+	var item model.Item
+	err = json.Unmarshal(resp.Body, &item)
 	if err != nil {
-		return nil, fmt.Errorf("RemoveItem: %w: %s", ErrJSONUnmarshal, err.Error())
+		return item, fmt.Errorf("RemoveItem: %w: %s", ErrJSONUnmarshal, err.Error())
 	}
-	return &output, nil
+	return item, nil
 }
 
 func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
