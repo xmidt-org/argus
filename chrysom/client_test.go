@@ -203,7 +203,7 @@ func TestGetItems(t *testing.T) {
 	type testCase struct {
 		Description           string
 		ResponsePayload       []byte
-		ShouldRespNonSuccess  bool
+		ResponseCode          int
 		ShouldEraseBucket     bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
@@ -229,17 +229,29 @@ func TestGetItems(t *testing.T) {
 			ExpectedErr:         errDoRequestFailure,
 		},
 		{
-			Description:          "Non success code",
-			ShouldRespNonSuccess: true,
-			ExpectedErr:          ErrGetItemsFailure,
+			Description:  "Unauthorized",
+			ResponseCode: http.StatusForbidden,
+			ExpectedErr:  ErrFailedAuthentication,
+		},
+		{
+			Description:  "Bad request",
+			ResponseCode: http.StatusBadRequest,
+			ExpectedErr:  ErrBadRequest,
+		},
+		{
+			Description:  "Other non-success",
+			ResponseCode: http.StatusInternalServerError,
+			ExpectedErr:  errNonSuccessResponse,
 		},
 		{
 			Description:     "Payload unmarshal error",
+			ResponseCode:    http.StatusOK,
 			ResponsePayload: []byte("[{}"),
 			ExpectedErr:     errJSONUnmarshal,
 		},
 		{
 			Description:     "Happy path",
+			ResponseCode:    http.StatusOK,
 			ResponsePayload: getItemsValidPayload(),
 			ExpectedOutput:  getItemsHappyOutput(),
 		},
@@ -263,10 +275,7 @@ func TestGetItems(t *testing.T) {
 				assert.Equal(owner, r.Header.Get(store.ItemOwnerHeaderKey))
 				assert.Equal(fmt.Sprintf("%s/%s", storeAPIPath, bucket), r.URL.Path)
 
-				if tc.ShouldRespNonSuccess {
-					rw.WriteHeader(http.StatusBadRequest)
-				}
-
+				rw.WriteHeader(tc.ResponseCode)
 				rw.Write(tc.ResponsePayload)
 			}))
 
@@ -301,7 +310,7 @@ func TestPushItem(t *testing.T) {
 		Description           string
 		Item                  model.Item
 		Owner                 string
-		SuccessResponseCode   int
+		ResponseCode          int
 		ShouldEraseID         bool
 		ShouldEraseBucket     bool
 		ShouldRespNonSuccess  bool
@@ -361,30 +370,42 @@ func TestPushItem(t *testing.T) {
 			ExpectedErr:         errDoRequestFailure,
 		},
 		{
-			Description:          "Non success code",
-			Item:                 validItem,
-			ShouldRespNonSuccess: true,
-			ExpectedErr:          ErrPushItemFailure,
+			Description:  "Unauthorized",
+			Item:         validItem,
+			ResponseCode: http.StatusForbidden,
+			ExpectedErr:  ErrFailedAuthentication,
 		},
 		{
-			Description:         "Create success",
-			Item:                validItem,
-			SuccessResponseCode: http.StatusCreated,
-			ExpectedOutput:      CreatedPushResult,
+			Description:  "Bad request",
+			Item:         validItem,
+			ResponseCode: http.StatusBadRequest,
+			ExpectedErr:  ErrBadRequest,
 		},
 		{
-			Description:         "Update success",
-			Item:                validItem,
-			SuccessResponseCode: http.StatusOK,
-			ExpectedOutput:      UpdatedPushResult,
+			Description:  "Other non-success",
+			Item:         validItem,
+			ResponseCode: http.StatusInternalServerError,
+			ExpectedErr:  errNonSuccessResponse,
+		},
+		{
+			Description:    "Create success",
+			Item:           validItem,
+			ResponseCode:   http.StatusCreated,
+			ExpectedOutput: CreatedPushResult,
+		},
+		{
+			Description:    "Update success",
+			Item:           validItem,
+			ResponseCode:   http.StatusOK,
+			ExpectedOutput: UpdatedPushResult,
 		},
 
 		{
-			Description:         "Update success with owner",
-			Item:                validItem,
-			SuccessResponseCode: http.StatusOK,
-			Owner:               "owner-name",
-			ExpectedOutput:      UpdatedPushResult,
+			Description:    "Update success with owner",
+			Item:           validItem,
+			ResponseCode:   http.StatusOK,
+			Owner:          "owner-name",
+			ExpectedOutput: UpdatedPushResult,
 		},
 	}
 
@@ -400,18 +421,15 @@ func TestPushItem(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, bucket, id), r.URL.Path)
 				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
+				rw.WriteHeader(tc.ResponseCode)
 
-				if tc.ShouldRespNonSuccess {
-					rw.WriteHeader(http.StatusBadRequest)
-				} else {
+				if tc.ResponseCode == http.StatusCreated || tc.ResponseCode == http.StatusOK {
 					payload, err := ioutil.ReadAll(r.Body)
 					require.Nil(err)
 					var item model.Item
 					err = json.Unmarshal(payload, &item)
 					require.Nil(err)
-
 					assert.EqualValues(tc.Item, item)
-					rw.WriteHeader(tc.SuccessResponseCode)
 				}
 			}))
 
@@ -443,7 +461,6 @@ func TestPushItem(t *testing.T) {
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
 			} else {
-				fmt.Println(err)
 				assert.True(errors.Is(err, tc.ExpectedErr))
 			}
 		})
@@ -454,6 +471,7 @@ func TestRemoveItem(t *testing.T) {
 	type testCase struct {
 		Description           string
 		ResponsePayload       []byte
+		ResponseCode          int
 		Owner                 string
 		ShouldEraseBucket     bool
 		ShouldEraseID         bool
@@ -486,17 +504,29 @@ func TestRemoveItem(t *testing.T) {
 			ExpectedErr:         errDoRequestFailure,
 		},
 		{
-			Description:          "Non success code",
-			ShouldRespNonSuccess: true,
-			ExpectedErr:          ErrRemoveItemFailure,
+			Description:  "Unauthorized",
+			ResponseCode: http.StatusForbidden,
+			ExpectedErr:  ErrFailedAuthentication,
+		},
+		{
+			Description:  "Bad request",
+			ResponseCode: http.StatusBadRequest,
+			ExpectedErr:  ErrBadRequest,
+		},
+		{
+			Description:  "Other non-success",
+			ResponseCode: http.StatusInternalServerError,
+			ExpectedErr:  errNonSuccessResponse,
 		},
 		{
 			Description:     "Unmarshal failure",
+			ResponseCode:    http.StatusOK,
 			ResponsePayload: []byte("{{}"),
 			ExpectedErr:     errJSONUnmarshal,
 		},
 		{
 			Description:     "Succcess",
+			ResponseCode:    http.StatusOK,
 			ResponsePayload: getRemoveItemValidPayload(),
 			ExpectedOutput:  getRemoveItemHappyOutput(),
 		},
@@ -513,11 +543,8 @@ func TestRemoveItem(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, bucket, id), r.URL.Path)
 				assert.Equal(http.MethodDelete, r.Method)
-				if tc.ShouldRespNonSuccess {
-					rw.WriteHeader(http.StatusBadRequest)
-				} else {
-					rw.Write(tc.ResponsePayload)
-				}
+				rw.WriteHeader(tc.ResponseCode)
+				rw.Write(tc.ResponsePayload)
 			}))
 
 			client, err := NewClient(ClientConfig{
@@ -554,6 +581,39 @@ func TestRemoveItem(t *testing.T) {
 	}
 }
 
+func TestTranslateStatusCode(t *testing.T) {
+	type testCase struct {
+		Description string
+		Code        int
+		ExpectedErr error
+	}
+
+	tcs := []testCase{
+		{
+			Code:        http.StatusForbidden,
+			ExpectedErr: ErrFailedAuthentication,
+		},
+		{
+			Code:        http.StatusUnauthorized,
+			ExpectedErr: ErrFailedAuthentication,
+		},
+		{
+			Code:        http.StatusBadRequest,
+			ExpectedErr: ErrBadRequest,
+		},
+		{
+			Code:        http.StatusInternalServerError,
+			ExpectedErr: errNonSuccessResponse,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			assert.Equal(tc.ExpectedErr, translateNonSuccessStatusCode(tc.Code))
+		})
+	}
+}
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }

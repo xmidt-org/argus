@@ -53,13 +53,14 @@ var (
 	ErrItemDataEmpty            = errors.New("data field in item is required")
 	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
 	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
-	ErrGetItemsFailure          = errors.New("failed to get items. Non-200 statuscode was received")
-	ErrRemoveItemFailure        = errors.New("failed to delete item. Non-200 statuscode was received")
-	ErrPushItemFailure          = errors.New("failed to push item. Non-success statuscode was received")
 	ErrAuthAcquirerFailure      = errors.New("failed acquiring auth token")
+
+	ErrFailedAuthentication = errors.New("failed to authentication with argus")
+	ErrBadRequest           = errors.New("argus rejected the request as invalid")
 )
 
 var (
+	errNonSuccessResponse = errors.New("argus responded with a non-success status code")
 	errNewRequestFailure  = errors.New("failed creating an HTTP request")
 	errDoRequestFailure   = errors.New("http client failed while sending request")
 	errReadingBodyFailure = errors.New("failed while reading http response body")
@@ -112,8 +113,9 @@ type ClientConfig struct {
 }
 
 type response struct {
-	Body []byte
-	Code int
+	Body             []byte
+	ArgusErrorHeader string
+	Code             int
 }
 
 type Auth struct {
@@ -158,6 +160,19 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 
 	return clientStore, nil
+}
+
+// translateNonSuccessStatusCode returns as specific error
+// for known Argus status codes.
+func translateNonSuccessStatusCode(code int) error {
+	switch code {
+	case http.StatusBadRequest:
+		return ErrBadRequest
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return ErrFailedAuthentication
+	default:
+		return errNonSuccessResponse
+	}
 }
 
 func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
@@ -228,7 +243,8 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 	defer resp.Body.Close()
 
 	var sqResp = response{
-		Code: resp.StatusCode,
+		Code:             resp.StatusCode,
+		ArgusErrorHeader: resp.Header.Get(store.XmidtErrorHeaderKey),
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -250,8 +266,9 @@ func (c *Client) GetItems(bucket, owner string) (Items, error) {
 	}
 
 	if response.Code != http.StatusOK {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request", "code", response.Code)
-		return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrGetItemsFailure)
+		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
+			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+		return nil, fmt.Errorf("statusCode %v: %w", response.Code, translateNonSuccessStatusCode(response.Code))
 	}
 
 	var items Items
@@ -291,9 +308,10 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 		return UpdatedPushResult, nil
 	}
 
-	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request", "code", response.Code)
+	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
+		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
-	return "", fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
+	return "", fmt.Errorf("statusCode %v: %w", response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
@@ -309,7 +327,9 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	}
 
 	if resp.Code != http.StatusOK {
-		return model.Item{}, fmt.Errorf("statusCode %v: %w", resp.Code, ErrRemoveItemFailure)
+		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
+			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
+		return model.Item{}, fmt.Errorf("statusCode %v: %w", resp.Code, translateNonSuccessStatusCode(resp.Code))
 	}
 
 	var item model.Item
