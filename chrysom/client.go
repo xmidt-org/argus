@@ -319,7 +319,7 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	return item, nil
 }
 
-func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
+func (c *Client) Start(ctx context.Context) error {
 	if c.observer == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
