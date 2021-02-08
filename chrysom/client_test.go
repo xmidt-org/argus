@@ -24,9 +24,7 @@ const failingURL = "nowhere://"
 
 func TestInterface(t *testing.T) {
 	assert := assert.New(t)
-	var (
-		client interface{}
-	)
+	var client interface{}
 	client = &Client{}
 	_, ok := client.(Pusher)
 	assert.True(ok, "not a pusher")
@@ -112,83 +110,17 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestDo(t *testing.T) {
+func TestSendRequest(t *testing.T) {
 	type testCase struct {
 		Description      string
+		Owner            string
+		Method           string
+		URL              string
+		Body             []byte
+		AcquirerFails    bool
 		ClientDoFails    bool
-		ExpectedResponse *doResponse
+		ExpectedResponse response
 		ExpectedErr      error
-	}
-
-	tcs := []testCase{
-		{
-			Description:   "Client Do fails",
-			ClientDoFails: true,
-			ExpectedErr:   ErrDoRequestFailure,
-		},
-		{
-			Description: "Success",
-			ExpectedResponse: &doResponse{
-				Code: 200,
-				Body: []byte("testing"),
-			},
-		},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.Description, func(t *testing.T) {
-			var (
-				assert  = assert.New(t)
-				require = require.New(t)
-			)
-
-			echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-				rw.WriteHeader(http.StatusOK)
-				bodyBytes, err := ioutil.ReadAll(r.Body)
-				require.Nil(err)
-				rw.Write(bodyBytes)
-			})
-
-			server := httptest.NewServer(echoHandler)
-			defer server.Close()
-			client, err := NewClient(&ClientConfig{
-				HTTPClient:      server.Client(),
-				MetricsProvider: provider.NewDiscardProvider(),
-				Address:         server.URL,
-			})
-			require.Nil(err)
-
-			var URL = server.URL
-
-			if tc.ClientDoFails {
-				URL = "http://should-definitely-fail.net"
-			}
-
-			request, err := http.NewRequest(http.MethodPut, URL, bytes.NewBufferString("testing"))
-			require.Nil(err)
-
-			resp, err := client.do(request)
-
-			if tc.ExpectedErr == nil {
-				assert.Equal(http.StatusOK, resp.Code)
-				assert.Equal(tc.ExpectedResponse, resp)
-			} else {
-				assert.True(errors.Is(err, tc.ExpectedErr))
-			}
-		})
-	}
-
-}
-
-func TestMakeRequest(t *testing.T) {
-	type testCase struct {
-		Description   string
-		Owner         string
-		Method        string
-		URL           string
-		Body          []byte
-		AcquirerFails bool
-		ExpectedErr   error
 	}
 
 	tcs := []testCase{
@@ -206,24 +138,41 @@ func TestMakeRequest(t *testing.T) {
 			ExpectedErr:   ErrAuthAcquirerFailure,
 		},
 		{
+			Description:   "Client Do fails",
+			Method:        http.MethodPut,
+			ClientDoFails: true,
+			ExpectedErr:   ErrDoRequestFailure,
+		},
+		{
 			Description: "Happy path",
 			Method:      http.MethodPut,
 			URL:         "http://argus-hostname.io",
 			Body:        []byte("testing"),
-		},
-
-		{
-			Description: "Happy path with owner",
-			Method:      http.MethodPut,
-			URL:         "http://argus-hostname.io",
-			Owner:       "xmidt",
+			Owner:       "HappyCaseOwner",
+			ExpectedResponse: response{
+				Code: http.StatusOK,
+				Body: []byte("testing"),
+			},
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
+			require := require.New(t)
+
+			echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
+				rw.WriteHeader(http.StatusOK)
+				bodyBytes, err := ioutil.ReadAll(r.Body)
+				require.Nil(err)
+				rw.Write(bodyBytes)
+			})
+
+			server := httptest.NewServer(echoHandler)
+			defer server.Close()
 
 			client, err := NewClient(&ClientConfig{
+				HTTPClient:      server.Client(),
 				Address:         "http://argus-hostname.io",
 				MetricsProvider: provider.NewDiscardProvider(),
 			})
@@ -232,15 +181,17 @@ func TestMakeRequest(t *testing.T) {
 				client.auth = acquirerFunc(failAcquirer)
 			}
 
+			var URL = server.URL
+			if tc.ClientDoFails {
+				URL = "http://should-definitely-fail.net"
+			}
+
 			assert.Nil(err)
-			r, err := client.makeRequest(tc.Owner, tc.Method, tc.URL, bytes.NewBuffer(tc.Body))
+			resp, err := client.sendRequest(tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body))
 
 			if tc.ExpectedErr == nil {
-				assert.Nil(err)
-				assert.Equal(tc.URL, r.URL.String())
-				assert.Equal(tc.Method, r.Method)
-				assert.EqualValues(len(tc.Body), r.ContentLength)
-				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
+				assert.Equal(http.StatusOK, resp.Code)
+				assert.Equal(tc.ExpectedResponse, resp)
 			} else {
 				assert.True(errors.Is(err, tc.ExpectedErr))
 			}

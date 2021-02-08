@@ -81,7 +81,7 @@ type ClientConfig struct {
 	Listener        Listener
 }
 
-type doResponse struct {
+type response struct {
 	Body []byte
 	Code int
 }
@@ -169,39 +169,33 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c *Client) makeRequest(owner, method, URL string, body io.Reader) (*http.Request, error) {
+func (c Client) sendRequest(owner, method, URL string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, URL, body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrNewRequestFailure, err.Error())
+		return response{}, fmt.Errorf("%w: %s", ErrNewRequestFailure, err.Error())
 	}
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrAuthAcquirerFailure, err.Error())
+		return response{}, fmt.Errorf("%w: %s", ErrAuthAcquirerFailure, err.Error())
 	}
-
 	if len(owner) > 0 {
 		r.Header.Set(store.ItemOwnerHeaderKey, owner)
 	}
-
-	return r, nil
-}
-
-func (c *Client) do(r *http.Request) (*doResponse, error) {
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDoRequestFailure, err.Error())
+		return response{}, fmt.Errorf("%w: %s", ErrDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
 
-	var dResp = doResponse{
+	var sqResp = response{
 		Code: resp.StatusCode,
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &dResp, fmt.Errorf("%w: %s", ErrReadingBodyFailure, err.Error())
+		return sqResp, fmt.Errorf("%w: %s", ErrReadingBodyFailure, err.Error())
 	}
-	dResp.Body = bodyBytes
-	return &dResp, nil
+	sqResp.Body = bodyBytes
+	return sqResp, nil
 }
 
 // GetItems fetches all items in a bucket that belong to a given owner.
@@ -212,12 +206,7 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 	}
 
 	URL := fmt.Sprintf("%s/%s", c.storeBaseURL, input.Bucket)
-	request, err := c.makeRequest(input.Owner, http.MethodGet, URL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := c.do(request)
+	response, err := c.sendRequest(input.Owner, http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -252,12 +241,7 @@ func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
 	}
 
 	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
-	request, err := c.makeRequest(input.Owner, http.MethodPut, URL, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := c.do(request)
+	response, err := c.sendRequest(input.Owner, http.MethodPut, URL, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -283,22 +267,17 @@ func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
 	}
 
 	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
-	request, err := c.makeRequest(input.Owner, http.MethodDelete, URL, nil)
+	resp, err := c.sendRequest(input.Owner, http.MethodDelete, URL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := c.do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.Code != http.StatusOK {
-		return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrRemoveItemFailure)
+	if resp.Code != http.StatusOK {
+		return nil, fmt.Errorf("statusCode %v: %w", resp.Code, ErrRemoveItemFailure)
 	}
 
 	var output RemoveItemOutput
-	err = json.Unmarshal(response.Body, &output.Item)
+	err = json.Unmarshal(resp.Body, &output.Item)
 	if err != nil {
 		return nil, fmt.Errorf("RemoveItem: %w: %s", ErrJSONUnmarshal, err.Error())
 	}
