@@ -32,10 +32,10 @@ type PushReader interface {
 type Pusher interface {
 	// Push applies user configurable for registering an item returning the id
 	// i.e. updated the storage with said item.
-	PushItem(*PushItemInput) (*PushItemOutput, error)
+	PushItem(id, bucket, owner string, item model.Item) (PushResult, error)
 
 	// Remove will remove the item from the store
-	RemoveItem(*RemoveItemInput) (*RemoveItemOutput, error)
+	RemoveItem(id, bucket string, owner string) (model.Item, error)
 }
 
 type Listener interface {
@@ -43,7 +43,7 @@ type Listener interface {
 	// additions, or updates.
 	//
 	// The list of hooks must contain only the current items.
-	Update(items []model.Item)
+	Update(items Items)
 }
 
 type ListenerFunc func(items []model.Item)
@@ -54,9 +54,9 @@ func (listener ListenerFunc) Update(items []model.Item) {
 
 type Reader interface {
 	// GeItems will return all the current items or an error.
-	GetItems(*GetItemsInput) (*GetItemsOutput, error)
+	GetItems(bucket, owner string) (Items, error)
 
-	Start(ctx context.Context, input *GetItemsInput) error
+	Start(ctx context.Context) error
 
 	// Stop will stop all threads and cleanup any necessary resources
 	Stop(ctx context.Context) error

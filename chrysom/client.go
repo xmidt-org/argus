@@ -26,6 +26,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -116,6 +117,8 @@ type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
 }
+
+type Items []model.Item
 
 type Client struct {
 	client       *http.Client
@@ -231,8 +234,6 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 	sqResp.Body = bodyBytes
 	return sqResp, nil
 }
-
-type Items []model.Item
 
 // GetItems fetches all items in a bucket that belong to a given owner.
 func (c *Client) GetItems(Bucket, Owner string) (Items, error) {
@@ -350,6 +351,40 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) Stop(ctx context.Context) error {
 	if c.observer != nil && c.observer.ticker != nil {
 		c.observer.ticker.Stop()
+	}
+	return nil
+}
+
+func validatePushItemInput(bucket, owner, id string, item model.Item) error {
+	if len(bucket) < 1 {
+		return ErrBucketEmpty
+	}
+
+	if len(id) < 1 || len(item.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+
+	if !strings.EqualFold(id, item.ID) {
+		return ErrItemIDMismatch
+	}
+
+	// TODO: we can also validate the ID format here
+	// we'll need to create an exporter validator in argus though
+
+	if len(item.Data) < 1 {
+		return ErrItemDataEmpty
+	}
+
+	return nil
+}
+
+func validateRemoveItemInput(bucket, id string) error {
+	if len(bucket) < 1 {
+		return ErrBucketEmpty
+	}
+
+	if len(id) < 1 {
+		return ErrItemIDEmpty
 	}
 	return nil
 }
