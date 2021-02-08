@@ -203,8 +203,8 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c Client) sendRequest(owner, method, URL string, body io.Reader) (response, error) {
-	r, err := http.NewRequest(method, URL, body)
+func (c Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
+	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf("%w: %s", ErrNewRequestFailure, err.Error())
 	}
@@ -264,34 +264,34 @@ func (c *Client) GetItems(Bucket, Owner string) (Items, error) {
 // PushItem creates a new item if one doesn't already exist at
 // the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
 // the item is simply updated.
-func (c *Client) PushItem(input *PushItemInput) (*PushItemOutput, error) {
-	err := validatePushItemInput(input)
+func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult, error) {
+	err := validatePushItemInput(bucket, owner, id, item)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	data, err := json.Marshal(input.Item)
+	data, err := json.Marshal(item)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrJSONMarshal, err.Error())
+		return "", fmt.Errorf("%w: %s", ErrJSONMarshal, err.Error())
 	}
 
-	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, input.Bucket, input.ID)
-	response, err := c.sendRequest(input.Owner, http.MethodPut, URL, bytes.NewReader(data))
+	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id)
+	response, err := c.sendRequest(owner, http.MethodPut, URL, bytes.NewReader(data))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if response.Code == http.StatusCreated {
-		return &PushItemOutput{Result: CreatedPushResult}, nil
+		return CreatedPushResult, nil
 	}
 
 	if response.Code == http.StatusOK {
-		return &PushItemOutput{Result: UpdatedPushResult}, nil
+		return UpdatedPushResult, nil
 	}
 
 	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request", "code", response.Code)
 
-	return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
+	return "", fmt.Errorf("statusCode %v: %w", response.Code, ErrPushItemFailure)
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.

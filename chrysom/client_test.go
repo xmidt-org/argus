@@ -299,103 +299,108 @@ func TestGetItems(t *testing.T) {
 func TestPushItem(t *testing.T) {
 	type testCase struct {
 		Description           string
-		Input                 *PushItemInput
-		ExpectedOutput        *PushItemOutput
+		Item                  model.Item
+		Owner                 string
 		SuccessResponseCode   int
+		ShouldEraseID         bool
+		ShouldEraseBucket     bool
 		ShouldRespNonSuccess  bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
 		ExpectedErr           error
+		ExpectedOutput        PushResult
 	}
 
-	validPushItemInput := &PushItemInput{
-		ID:     "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
-		Bucket: "bucket-name",
-		Owner:  "owner-name",
-		Item: model.Item{
-			ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
-			Data: map[string]interface{}{
-				"field0": float64(0),
-				"nested": map[string]interface{}{
-					"response": "wow",
-				},
+	validItem := model.Item{
+		ID: "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111",
+		Data: map[string]interface{}{
+			"field0": float64(0),
+			"nested": map[string]interface{}{
+				"response": "wow",
 			},
-		},
-	}
+		}}
 
 	tcs := []testCase{
 		{
-			Description: "Input is nil",
-			Input:       nil,
-			ExpectedErr: ErrUndefinedInput,
+			Description:       "Bucket is required",
+			Item:              validItem,
+			ShouldEraseBucket: true,
+			ExpectedErr:       ErrBucketEmpty,
 		},
 		{
-			Description: "Bucket is required",
-			Input:       getPushItemInputBucketMissing(validPushItemInput),
-			ExpectedErr: ErrBucketEmpty,
-		},
-		{
-			Description: "Item ID Missing",
-			Input:       getPushItemInputIDMissing(validPushItemInput),
-			ExpectedErr: ErrItemIDEmpty,
+			Description:   "Item ID Missing",
+			Item:          validItem,
+			ShouldEraseID: true,
+			ExpectedErr:   ErrItemIDEmpty,
 		},
 		{
 			Description: "Item ID Missing from payload",
-			Input:       getPushItemInputIDMissingFromPayload(validPushItemInput),
+			Item:        model.Item{Data: validItem.Data},
 			ExpectedErr: ErrItemIDEmpty,
 		},
 		{
 			Description: "Item ID Mismatch",
-			Input:       getPushItemInputIDMismatch(validPushItemInput),
+			Item:        model.Item{ID: "752f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f119", Data: validItem.Data},
 			ExpectedErr: ErrItemIDMismatch,
 		},
 		{
 			Description: "Item Data missing",
-			Input:       getPushItemInputDataMissing(validPushItemInput),
+			Item:        model.Item{ID: validItem.ID},
 			ExpectedErr: ErrItemDataEmpty,
 		},
 		{
 			Description:           "Make request fails",
-			Input:                 validPushItemInput,
+			Item:                  validItem,
 			ShouldMakeRequestFail: true,
 			ExpectedErr:           ErrAuthAcquirerFailure,
 		},
 		{
 			Description:         "Do request fails",
-			Input:               validPushItemInput,
+			Item:                validItem,
 			ShouldDoRequestFail: true,
 			ExpectedErr:         ErrDoRequestFailure,
 		},
 		{
 			Description:          "Non success code",
-			Input:                validPushItemInput,
+			Item:                 validItem,
 			ShouldRespNonSuccess: true,
 			ExpectedErr:          ErrPushItemFailure,
 		},
 		{
 			Description:         "Create success",
-			Input:               validPushItemInput,
+			Item:                validItem,
 			SuccessResponseCode: http.StatusCreated,
-			ExpectedOutput: &PushItemOutput{
-				Result: CreatedPushResult,
-			},
+			ExpectedOutput:      CreatedPushResult,
 		},
 		{
 			Description:         "Update success",
-			Input:               validPushItemInput,
+			Item:                validItem,
 			SuccessResponseCode: http.StatusOK,
-			ExpectedOutput: &PushItemOutput{
-				Result: UpdatedPushResult,
-			},
+			ExpectedOutput:      UpdatedPushResult,
+		},
+
+		{
+			Description:         "Update success with owner",
+			Item:                validItem,
+			SuccessResponseCode: http.StatusOK,
+			Owner:               "owner-name",
+			ExpectedOutput:      UpdatedPushResult,
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
-			assert := assert.New(t)
-			require := require.New(t)
+			var (
+				assert  = assert.New(t)
+				require = require.New(t)
+				bucket  = "bucket-name"
+				id      = "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111"
+			)
+
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, tc.Input.Bucket, tc.Input.ID), r.URL.Path)
+				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, bucket, id), r.URL.Path)
+				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
+
 				if tc.ShouldRespNonSuccess {
 					rw.WriteHeader(http.StatusBadRequest)
 				} else {
@@ -405,7 +410,7 @@ func TestPushItem(t *testing.T) {
 					err = json.Unmarshal(payload, &item)
 					require.Nil(err)
 
-					assert.EqualValues(tc.Input.Item, item)
+					assert.EqualValues(tc.Item, item)
 					rw.WriteHeader(tc.SuccessResponseCode)
 				}
 			}))
@@ -424,12 +429,22 @@ func TestPushItem(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			require.Nil(err)
-			output, err := client.PushItem(tc.Input)
+			if tc.ShouldEraseBucket {
+				bucket = ""
+			}
 
-			assert.True(errors.Is(err, tc.ExpectedErr))
+			if tc.ShouldEraseID {
+				id = ""
+			}
+
+			require.Nil(err)
+			output, err := client.PushItem(id, bucket, tc.Owner, tc.Item)
+
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
+			} else {
+				fmt.Println(err)
+				assert.True(errors.Is(err, tc.ExpectedErr))
 			}
 		})
 	}
@@ -584,51 +599,6 @@ func getPushItemInputBucketMissing(validPushItemInput *PushItemInput) *PushItemI
 		Item: model.Item{
 			ID:   validPushItemInput.Item.ID,
 			Data: validPushItemInput.Item.Data,
-		},
-	}
-}
-
-func getPushItemInputIDMissing(validPushItemInput *PushItemInput) *PushItemInput {
-	return &PushItemInput{
-		Bucket: validPushItemInput.Bucket,
-		Owner:  validPushItemInput.Owner,
-		Item: model.Item{
-			ID:   validPushItemInput.Item.ID,
-			Data: validPushItemInput.Item.Data,
-		},
-	}
-}
-
-func getPushItemInputIDMissingFromPayload(validPushItemInput *PushItemInput) *PushItemInput {
-	return &PushItemInput{
-		ID:     validPushItemInput.ID,
-		Bucket: validPushItemInput.Bucket,
-		Owner:  validPushItemInput.Owner,
-		Item: model.Item{
-			Data: validPushItemInput.Item.Data,
-		},
-	}
-}
-
-func getPushItemInputIDMismatch(validPushItemInput *PushItemInput) *PushItemInput {
-	return &PushItemInput{
-		ID:     validPushItemInput.ID,
-		Bucket: validPushItemInput.Bucket,
-		Owner:  validPushItemInput.Owner,
-		Item: model.Item{
-			ID:   "9e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-			Data: validPushItemInput.Item.Data,
-		},
-	}
-}
-
-func getPushItemInputDataMissing(validPushItemInput *PushItemInput) *PushItemInput {
-	return &PushItemInput{
-		ID:     validPushItemInput.ID,
-		Bucket: validPushItemInput.Bucket,
-		Owner:  validPushItemInput.Owner,
-		Item: model.Item{
-			ID: validPushItemInput.Item.ID,
 		},
 	}
 }

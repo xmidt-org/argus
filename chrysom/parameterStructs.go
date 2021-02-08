@@ -91,27 +91,23 @@ func validatePushItemInputByValue(input PushItemInput) error {
 
 	return nil
 }
-func validatePushItemInput(input *PushItemInput) error {
-	if input == nil {
-		return ErrUndefinedInput
-	}
-
-	if len(input.Bucket) < 1 {
+func validatePushItemInput(bucket, owner, id string, item model.Item) error {
+	if len(bucket) < 1 {
 		return ErrBucketEmpty
 	}
 
-	if len(input.ID) < 1 || len(input.Item.ID) < 1 {
+	if len(id) < 1 || len(item.ID) < 1 {
 		return ErrItemIDEmpty
 	}
 
-	if !strings.EqualFold(input.ID, input.Item.ID) {
+	if !strings.EqualFold(id, item.ID) {
 		return ErrItemIDMismatch
 	}
 
 	// TODO: we can also validate the ID format here
 	// we'll need to create an exporter validator in argus though
 
-	if len(input.Item.Data) < 1 {
+	if len(item.Data) < 1 {
 		return ErrItemDataEmpty
 	}
 
