@@ -236,13 +236,12 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 }
 
 // GetItems fetches all items in a bucket that belong to a given owner.
-func (c *Client) GetItems(Bucket, Owner string) (Items, error) {
-	if len(Bucket) < 1 {
+func (c *Client) GetItems(bucket, owner string) (Items, error) {
+	if len(bucket) < 1 {
 		return nil, ErrBucketEmpty
 	}
 
-	URL := fmt.Sprintf("%s/%s", c.storeBaseURL, Bucket)
-	response, err := c.sendRequest(Owner, http.MethodGet, URL, nil)
+	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, bucket), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -276,8 +275,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 		return "", fmt.Errorf("%w: %s", ErrJSONMarshal, err.Error())
 	}
 
-	URL := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id)
-	response, err := c.sendRequest(owner, http.MethodPut, URL, bytes.NewReader(data))
+	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -302,8 +300,7 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 		return model.Item{}, err
 	}
 
-	url := fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id)
-	resp, err := c.sendRequest(owner, http.MethodDelete, url, nil)
+	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
