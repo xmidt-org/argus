@@ -30,7 +30,9 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/provider"
+	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/themis/xlog"
@@ -72,13 +74,37 @@ const (
 )
 
 type ClientConfig struct {
-	HTTPClient      *http.Client
-	PullInterval    time.Duration
-	Address         string
-	Auth            Auth
+	// HTTPClient refers to the client that will be used to send
+	// HTTP requests.
+	// (Optional) http.DefaultClient is used if left empty.
+	HTTPClient *http.Client
+
+	// Address is the Argus URL (i.e. https://example-argus.io:8090)
+	Address string
+
+	// Auth provides the mechanism to add auth headers to outgoing
+	// requests
+	// (Optional) If not provided, no auth headers are added.
+	Auth Auth
+
+	// MetricsProvider allows measures updated by the client to be collected.
 	MetricsProvider provider.Provider
-	Logger          log.Logger
-	Listener        Listener
+
+	Logger log.Logger
+
+	// Listener is the component that consumes the latest list of owned items in a
+	// bucket.
+	Listener Listener
+
+	// PullInterval is how often listeners should get updates.
+	PullInterval time.Duration
+
+	// Bucket to be used in listener requests.
+	Bucket string
+
+	// Owner to be used in listener requests.
+	// (Optional) If left empty, items without an owner will be watched.
+	Owner string
 }
 
 type response struct {
@@ -93,22 +119,22 @@ type Auth struct {
 
 type Client struct {
 	client       *http.Client
-	ticker       *time.Ticker
 	auth         acquire.Acquirer
-	metrics      *measures
 	storeBaseURL string
-	listener     Listener
 	logger       log.Logger
+	observer     *listenerConfig
 }
 
-func initMetrics(p provider.Provider) *measures {
-	return &measures{
-		pollCount: p.NewCounter(PollCounter),
-	}
+type listenerConfig struct {
+	listener  Listener
+	ticker    *time.Ticker
+	pollCount metrics.Counter
+	bucket    string
+	owner     string
 }
 
-func NewClient(config *ClientConfig) (*Client, error) {
-	err := validateConfig(config)
+func NewClient(config ClientConfig) (*Client, error) {
+	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -116,21 +142,29 @@ func NewClient(config *ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	clientStore := &Client{
 		client:       config.HTTPClient,
-		ticker:       time.NewTicker(config.PullInterval),
 		auth:         tokenAcquirer,
-		metrics:      initMetrics(config.MetricsProvider),
 		logger:       config.Logger,
-		listener:     config.Listener,
+		observer:     createObserver(config.Logger, config),
 		storeBaseURL: config.Address + storeAPIPath,
 	}
 
-	if config.PullInterval > 0 {
-		clientStore.ticker = time.NewTicker(config.PullInterval)
-	}
-
 	return clientStore, nil
+}
+
+func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
+	if config.Listener == nil {
+		return nil
+	}
+	return &listenerConfig{
+		listener:  config.Listener,
+		ticker:    time.NewTicker(config.PullInterval),
+		pollCount: config.MetricsProvider.NewCounter(PollCounter),
+		bucket:    config.Bucket,
+		owner:     config.Owner,
+	}
 }
 
 func validateConfig(config *ClientConfig) error {
@@ -198,15 +232,16 @@ func (c Client) sendRequest(owner, method, URL string, body io.Reader) (response
 	return sqResp, nil
 }
 
+type Items []model.Item
+
 // GetItems fetches all items in a bucket that belong to a given owner.
-func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
-	err := validateGetItemsInput(input)
-	if err != nil {
-		return nil, err
+func (c *Client) GetItems(Bucket, Owner string) (Items, error) {
+	if len(Bucket) < 1 {
+		return nil, ErrBucketEmpty
 	}
 
-	URL := fmt.Sprintf("%s/%s", c.storeBaseURL, input.Bucket)
-	response, err := c.sendRequest(input.Owner, http.MethodGet, URL, nil)
+	URL := fmt.Sprintf("%s/%s", c.storeBaseURL, Bucket)
+	response, err := c.sendRequest(Owner, http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -216,14 +251,14 @@ func (c *Client) GetItems(input *GetItemsInput) (*GetItemsOutput, error) {
 		return nil, fmt.Errorf("statusCode %v: %w", response.Code, ErrGetItemsFailure)
 	}
 
-	var output GetItemsOutput
+	var items Items
 
-	err = json.Unmarshal(response.Body, &output.Items)
+	err = json.Unmarshal(response.Body, &items)
 	if err != nil {
 		return nil, fmt.Errorf("GetItems: %w: %s", ErrJSONUnmarshal, err.Error())
 	}
 
-	return &output, nil
+	return items, nil
 }
 
 // PushItem creates a new item if one doesn't already exist at
@@ -285,31 +320,27 @@ func (c *Client) RemoveItem(input *RemoveItemInput) (*RemoveItemOutput, error) {
 }
 
 func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
-	if c.ticker == nil {
-		return ErrUndefinedIntervalTicker
-	}
-
-	err := validateGetItemsInput(input)
-	if err != nil {
-		return err
-	}
-
-	if c.listener == nil {
+	if c.observer == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
 
+	if c.observer.ticker == nil {
+		return ErrUndefinedIntervalTicker
+	}
+
 	go func() {
-		for range c.ticker.C {
+		observer := c.observer
+		for range observer.ticker.C {
 			outcome := SuccessOutcome
-			output, err := c.GetItems(input)
+			items, err := c.GetItems(observer.bucket, observer.owner)
 			if err == nil {
-				c.listener.Update(output.Items)
+				observer.listener.Update(items)
 			} else {
 				outcome = FailureOutcome
 				level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
 			}
-			c.metrics.pollCount.With(OutcomeLabel, outcome).Add(1)
+			observer.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
 	}()
 
@@ -317,8 +348,8 @@ func (c *Client) Start(ctx context.Context, input *GetItemsInput) error {
 }
 
 func (c *Client) Stop(ctx context.Context) error {
-	if c.ticker != nil {
-		c.ticker.Stop()
+	if c.observer != nil && c.observer.ticker != nil {
+		c.observer.ticker.Stop()
 	}
 	return nil
 }
