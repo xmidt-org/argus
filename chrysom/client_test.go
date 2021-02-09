@@ -24,8 +24,7 @@ const failingURL = "nowhere://"
 
 func TestInterface(t *testing.T) {
 	assert := assert.New(t)
-	var client interface{}
-	client = &Client{}
+	var client interface{} = &Client{}
 	_, ok := client.(Pusher)
 	assert.True(ok, "not a pusher")
 	_, ok = client.(Reader)
