@@ -39,7 +39,11 @@ import (
 	"github.com/xmidt-org/themis/xlog"
 )
 
-const storeAPIPath = "/api/v1/store"
+const (
+	storeAPIPath     = "/api/v1/store"
+	errWrappedFmt    = "%w: %s"
+	errStatusCodeFmt = "statusCode %v: %w"
+)
 
 // Errors that can be returned by this package. Since some of these errors are returned wrapped, it
 // is safest to use errors.Is() to check for them.
@@ -227,18 +231,18 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 func (c Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return response{}, fmt.Errorf("%w: %s", errNewRequestFailure, err.Error())
+		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
-		return response{}, fmt.Errorf("%w: %s", ErrAuthAcquirerFailure, err.Error())
+		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
 	}
 	if len(owner) > 0 {
 		r.Header.Set(store.ItemOwnerHeaderKey, owner)
 	}
 	resp, err := c.client.Do(r)
 	if err != nil {
-		return response{}, fmt.Errorf("%w: %s", errDoRequestFailure, err.Error())
+		return response{}, fmt.Errorf(errWrappedFmt, errDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
 
@@ -248,7 +252,7 @@ func (c Client) sendRequest(owner, method, url string, body io.Reader) (response
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return sqResp, fmt.Errorf("%w: %s", errReadingBodyFailure, err.Error())
+		return sqResp, fmt.Errorf(errWrappedFmt, errReadingBodyFailure, err.Error())
 	}
 	sqResp.Body = bodyBytes
 	return sqResp, nil
@@ -268,7 +272,7 @@ func (c *Client) GetItems(bucket, owner string) (Items, error) {
 	if response.Code != http.StatusOK {
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
 			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
-		return nil, fmt.Errorf("statusCode %v: %w", response.Code, translateNonSuccessStatusCode(response.Code))
+		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 	}
 
 	var items Items
@@ -292,7 +296,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 
 	data, err := json.Marshal(item)
 	if err != nil {
-		return "", fmt.Errorf("%w: %s", errJSONMarshal, err.Error())
+		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
 	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), bytes.NewReader(data))
@@ -311,7 +315,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
 		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
-	return "", fmt.Errorf("statusCode %v: %w", response.Code, translateNonSuccessStatusCode(response.Code))
+	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
@@ -329,7 +333,7 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	if resp.Code != http.StatusOK {
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
 			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
-		return model.Item{}, fmt.Errorf("statusCode %v: %w", resp.Code, translateNonSuccessStatusCode(resp.Code))
+		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
 	}
 
 	var item model.Item
@@ -387,9 +391,6 @@ func validatePushItemInput(bucket, owner, id string, item model.Item) error {
 	if !strings.EqualFold(id, item.ID) {
 		return ErrItemIDMismatch
 	}
-
-	// TODO: we can also validate the ID format here
-	// we'll need to create an exporter validator in argus though
 
 	if len(item.Data) < 1 {
 		return ErrItemDataEmpty
