@@ -228,7 +228,7 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
+func (c *Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
