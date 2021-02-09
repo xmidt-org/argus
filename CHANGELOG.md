@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Admin mode flag now originates from JWT claims instead of an HTTP header. [#112](https://github.com/xmidt-org/argus/pull/112)
 - Remove stored loggers. [#118](https://github.com/xmidt-org/argus/pull/118)
 - Drop use of admin token headers from client. [#118](https://github.com/xmidt-org/argus/pull/118)
+- Refactor client code and add unit tests around item CRUD operations [#119](https://github.com/xmidt-org/argus/pull/119)
 
 ### Fixed
 - Fix behavior in which the owner of an existing item was overwritten in super user mode. [#116](https://github.com/xmidt-org/argus/pull/116)
