@@ -50,12 +50,10 @@ The body must be in JSON format with the following attributes:
 * _id_ - Required.  See above.
 * _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
 * _owner_ - Optional.  Free form string to identify the owner of this object. 
-
-By default, Argus validates the length of the owner string to be in the range `[10,60]`. If you'd like to define your own validation format, check out the `userInputValidation.ownerFormatRegex` configuration option.
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to the value of the server configuration option `itemMaxTTL`. If a configuration value is not specified, the value would be a day (~ 24*60^2 seconds).
 )
 
-An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records.
+An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records. When provided, Argus validates the length of the owner string to be in the range `[10,60]`. If you'd like to define your own validation format, check out the `userInputValidation.ownerFormatRegex` configuration option.
 
 The exception to the above would be an authorized request.  The authorization method is not specified and is up to the implementation to decide.  Authorized requests shall be allowed to update all attributes except the `X-Midt-Owner` meta attribute.
 
@@ -80,12 +78,14 @@ HTTP/1.1 201 Created
 ```
 The above response would indicate a new object has been created (no existing object with the given ID was found).
 
+Note: If your service must send JSON data with duplicate fields, see [this](https://github.com/xmidt-org/argus/issues/60) issue.
+
 ```
 HTTP/1.1 200 OK
 ```
 The above response would indicate an existing object has been updated (existing object with the given ID was found).  Note that a PUT operation on an existing record may also result in "403 Forbidden" error.
 
-
+**Note:** If a service using Argus must submit JSON data with duplicate fields, please see [this](https://github.com/xmidt-org/argus/issues/60) issue for details on expected behavior.
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
