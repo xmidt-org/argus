@@ -18,6 +18,8 @@
 package store
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -25,6 +27,8 @@ import (
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 )
+
+var errRegexCompilation = errors.New("regex could not be compiled")
 
 type handlerIn struct {
 	fx.In
@@ -104,29 +108,29 @@ func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
 	return config, nil
 }
 
+// useOrDefault returns the value if it's not the empty string. Otherwise, it returns the defaultValue.
+func useOrDefault(value, defaultValue string) string {
+	if len(value) > 0 {
+		return value
+	}
+	return defaultValue
+}
+
 func buildInputRegexValidators(userInputValidation userInputValidationConfig, config *transportConfig) error {
-	if userInputValidation.BucketFormatRegex != "" {
-		bucketRegex, err := regexp.Compile(userInputValidation.BucketFormatRegex)
-		if err != nil {
-			return err
-		}
-		config.BucketFormatRegex = bucketRegex
-	}
-
-	if userInputValidation.OwnerFormatRegex != "" {
-		ownerRegex, err := regexp.Compile(userInputValidation.OwnerFormatRegex)
-		if err != nil {
-			return err
-		}
-		config.OwnerFormatRegex = ownerRegex
-	}
-
-	idFormatRegex, err := regexp.Compile(IDFormatRegexSource)
-
+	bucketFormatRegex := useOrDefault(userInputValidation.BucketFormatRegex, BucketFormatRegexSource)
+	bucketRegex, err := regexp.Compile(bucketFormatRegex)
 	if err != nil {
-		return err
+		return fmt.Errorf("Bucket %w: %v", errRegexCompilation, err)
 	}
+	config.BucketFormatRegex = bucketRegex
 
-	config.IDFormatRegex = idFormatRegex
+	ownerFormatRegex := useOrDefault(userInputValidation.OwnerFormatRegex, OwnerFormatRegexSource)
+	ownerRegex, err := regexp.Compile(ownerFormatRegex)
+	if err != nil {
+		return fmt.Errorf("Owner %w: %v", errRegexCompilation, err)
+	}
+	config.OwnerFormatRegex = ownerRegex
+
+	config.IDFormatRegex = regexp.MustCompile(IDFormatRegexSource)
 	return nil
 }
