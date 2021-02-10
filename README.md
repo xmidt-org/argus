@@ -78,8 +78,6 @@ HTTP/1.1 201 Created
 ```
 The above response would indicate a new object has been created (no existing object with the given ID was found).
 
-Note: If your service must send JSON data with duplicate fields, see [this](https://github.com/xmidt-org/argus/issues/60) issue.
-
 ```
 HTTP/1.1 200 OK
 ```
