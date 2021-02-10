@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -137,12 +138,22 @@ type Client struct {
 	observer     *listenerConfig
 }
 
+// listening states
+const (
+	stopped int32 = iota
+	running
+)
+
 type listenerConfig struct {
-	listener  Listener
-	ticker    *time.Ticker
-	pollCount metrics.Counter
-	bucket    string
-	owner     string
+	listener     Listener
+	ticker       *time.Ticker
+	pullInterval time.Duration
+	pollCount    metrics.Counter
+	bucket       string
+	owner        string
+	state        int32
+	mu           sync.Mutex
+	shutdown     chan struct{}
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -184,11 +195,13 @@ func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		return nil
 	}
 	return &listenerConfig{
-		listener:  config.Listener,
-		ticker:    time.NewTicker(config.PullInterval),
-		pollCount: config.MetricsProvider.NewCounter(PollCounter),
-		bucket:    config.Bucket,
-		owner:     config.Owner,
+		listener:     config.Listener,
+		ticker:       time.NewTicker(config.PullInterval),
+		pullInterval: config.PullInterval,
+		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
+		bucket:       config.Bucket,
+		owner:        config.Owner,
+		shutdown:     make(chan struct{}),
 	}
 }
 
@@ -344,8 +357,11 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	return item, nil
 }
 
+// Start begins listening for updates on an interval given that client configuration
+// is setup correctly. If a listener process is already in progress, calling Start()
+// is a NoOp. If you want to restart the current listener process, call Stop() first.
 func (c *Client) Start(ctx context.Context) error {
-	if c.observer == nil {
+	if c.observer == nil || c.observer.listener == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
@@ -354,28 +370,56 @@ func (c *Client) Start(ctx context.Context) error {
 		return ErrUndefinedIntervalTicker
 	}
 
+	c.observer.mu.Lock()
+	defer c.observer.mu.Unlock()
+
+	if c.observer.state == running {
+		level.Warn(c.logger).Log(xlog.MessageKey(), "Start called when a listener was still running")
+		return nil
+	}
+
+	c.observer.ticker.Reset(c.observer.pullInterval)
 	go func() {
-		observer := c.observer
-		for range observer.ticker.C {
-			outcome := SuccessOutcome
-			items, err := c.GetItems(observer.bucket, observer.owner)
-			if err == nil {
-				observer.listener.Update(items)
-			} else {
-				outcome = FailureOutcome
-				level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
+		for {
+			select {
+			case <-c.observer.shutdown:
+				return
+			case <-c.observer.ticker.C:
+				outcome := SuccessOutcome
+				items, err := c.GetItems(c.observer.bucket, c.observer.owner)
+				if err == nil {
+					c.observer.listener.Update(items)
+				} else {
+					outcome = FailureOutcome
+					level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
+				}
+				c.observer.pollCount.With(OutcomeLabel, outcome).Add(1)
 			}
-			observer.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
 	}()
+
+	c.observer.state = running
 
 	return nil
 }
 
+// Stop requests the current listener process to start and waits for its goroutine to complete.
+// Calling Stop() when no process is running is a NoOp.
 func (c *Client) Stop(ctx context.Context) error {
-	if c.observer != nil && c.observer.ticker != nil {
-		c.observer.ticker.Stop()
+	if c.observer == nil || c.observer.ticker == nil {
+		return nil
 	}
+
+	c.observer.mu.Lock()
+	defer c.observer.mu.Unlock()
+
+	if c.observer.state == stopped {
+		return nil
+	}
+
+	c.observer.ticker.Stop()
+	c.observer.shutdown <- struct{}{}
+	c.observer.state = stopped
 	return nil
 }
 
