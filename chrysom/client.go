@@ -26,8 +26,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -65,12 +66,13 @@ var (
 )
 
 var (
-	errNonSuccessResponse = errors.New("argus responded with a non-success status code")
-	errNewRequestFailure  = errors.New("failed creating an HTTP request")
-	errDoRequestFailure   = errors.New("http client failed while sending request")
-	errReadingBodyFailure = errors.New("failed while reading http response body")
-	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
-	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
+	errNonSuccessResponse     = errors.New("argus responded with a non-success status code")
+	errNewRequestFailure      = errors.New("failed creating an HTTP request")
+	errDoRequestFailure       = errors.New("http client failed while sending request")
+	errReadingBodyFailure     = errors.New("failed while reading http response body")
+	errJSONUnmarshal          = errors.New("failed unmarshaling JSON response payload")
+	errJSONMarshal            = errors.New("failed marshaling item as JSON payload")
+	errListenerAlreadyStarted = errors.New("listener already started")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -151,9 +153,7 @@ type listenerConfig struct {
 	pollCount    metrics.Counter
 	bucket       string
 	owner        string
-	state        int32
-	mu           sync.Mutex
-	shutdown     chan struct{}
+	shutdown     atomic.Value
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -201,7 +201,6 @@ func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
 		bucket:       config.Bucket,
 		owner:        config.Owner,
-		shutdown:     make(chan struct{}),
 	}
 }
 
@@ -365,24 +364,23 @@ func (c *Client) Start(ctx context.Context) error {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
-
 	if c.observer.ticker == nil {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was already started")
 		return ErrUndefinedIntervalTicker
 	}
 
-	c.observer.mu.Lock()
-	defer c.observer.mu.Unlock()
-
-	if c.observer.state == running {
-		level.Warn(c.logger).Log(xlog.MessageKey(), "Start called when a listener was still running")
-		return nil
+	stopVal := c.observer.shutdown.Load()
+	if stopVal != nil && !reflect.ValueOf(stopVal).IsNil() {
+		return errListenerAlreadyStarted
 	}
 
+	stop := make(chan struct{})
+	c.observer.shutdown.Store(stop)
 	c.observer.ticker.Reset(c.observer.pullInterval)
 	go func() {
 		for {
 			select {
-			case <-c.observer.shutdown:
+			case <-stop:
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
@@ -398,8 +396,6 @@ func (c *Client) Start(ctx context.Context) error {
 		}
 	}()
 
-	c.observer.state = running
-
 	return nil
 }
 
@@ -410,16 +406,16 @@ func (c *Client) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	c.observer.mu.Lock()
-	defer c.observer.mu.Unlock()
-
-	if c.observer.state == stopped {
+	stopVal := c.observer.shutdown.Load()
+	if stopVal == nil || reflect.ValueOf(stopVal).IsNil() {
 		return nil
 	}
+	stop := stopVal.(chan struct{})
 
 	c.observer.ticker.Stop()
-	c.observer.shutdown <- struct{}{}
-	c.observer.state = stopped
+	stop <- struct{}{}
+	stop = nil
+	c.observer.shutdown.Store(stop)
 	return nil
 }
 
