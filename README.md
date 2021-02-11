@@ -49,7 +49,6 @@ The body must be in JSON format with the following attributes:
 
 * _id_ - Required.  See above.
 * _data_ - Required.  RAW JSON to be stored.  Opaque to argus.
-* _owner_ - Optional.  Free form string to identify the owner of this object. 
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to the value of the server configuration option `itemMaxTTL`. If a configuration value is not specified, the value would be a day (~ 24*60^2 seconds).
 )
 
