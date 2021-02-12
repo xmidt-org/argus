@@ -656,15 +656,8 @@ func TestListenerStartStopPairsSerial(t *testing.T) {
 		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
 			assert := assert.New(t)
 			fmt.Printf("%d: Start\n", testNumber)
-			errStart := client.Start(context.Background())
-			if errStart != nil {
-				assert.Equal(errListenerNotStopped, errStart)
-			}
-			time.Sleep(time.Millisecond * 400)
-			errStop := client.Stop(context.Background())
-			if errStop != nil {
-				assert.Equal(errListenerNotRunning, errStop)
-			}
+			assert.Nil(client.Start(context.Background()))
+			assert.Nil(client.Stop(context.Background()))
 			fmt.Printf("%d: Done\n", testNumber)
 		})
 	}
