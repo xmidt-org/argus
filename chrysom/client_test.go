@@ -7,10 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/themis/xlog"
 )
 
 const failingURL = "nowhere://"
@@ -618,45 +617,83 @@ func TestTranslateStatusCode(t *testing.T) {
 	}
 }
 
-func TestListenerStartStopPairs(t *testing.T) {
+func TestListenerStartStopPairsParallel(t *testing.T) {
 	require := require.New(t)
+	client, close := getStartStopClient()
+	defer close()
+
+	t.Run("ParallelGroup", func(t *testing.T) {
+		for i := 0; i < 20; i++ {
+			testNumber := i
+			t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+				t.Parallel()
+				assert := assert.New(t)
+				fmt.Printf("%d: Start\n", testNumber)
+				errStart := client.Start(context.Background())
+				if errStart != nil {
+					assert.Equal(errListenerNotStopped, errStart)
+				}
+				time.Sleep(time.Millisecond * 400)
+				errStop := client.Stop(context.Background())
+				if errStop != nil {
+					assert.Equal(errListenerNotRunning, errStop)
+				}
+				fmt.Printf("%d: Done\n", testNumber)
+			})
+		}
+	})
+
+	require.Equal(stopped, client.observer.state)
+}
+
+func TestListenerStartStopPairsSerial(t *testing.T) {
+	require := require.New(t)
+	client, close := getStartStopClient()
+	defer close()
+
+	for i := 0; i < 5; i++ {
+		testNumber := i
+		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+			assert := assert.New(t)
+			fmt.Printf("%d: Start\n", testNumber)
+			errStart := client.Start(context.Background())
+			if errStart != nil {
+				assert.Equal(errListenerNotStopped, errStart)
+			}
+			time.Sleep(time.Millisecond * 400)
+			errStop := client.Stop(context.Background())
+			if errStop != nil {
+				assert.Equal(errListenerNotRunning, errStop)
+			}
+			fmt.Printf("%d: Done\n", testNumber)
+		})
+	}
+	require.Equal(stopped, client.observer.state)
+}
+
+func getStartStopClient() (*Client, func()) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Write(getItemsValidPayload())
 	}))
-	listener := ListenerFunc(func(items []model.Item) {
-	})
 
 	client, err := NewClient(ClientConfig{
 		Address:         server.URL,
 		HTTPClient:      server.Client(),
 		MetricsProvider: provider.NewDiscardProvider(),
-		Listener:        listener,
+		PullInterval:    time.Millisecond * 200,
+		Listener: ListenerFunc(func(_ []model.Item) {
+			fmt.Println("Doing amazing work for 100ms")
+			time.Sleep(time.Millisecond * 100)
+		}),
+		Bucket: "parallel-test-bucket",
+		Logger: xlog.Default(),
 	})
 
-	require.Nil(err)
-	grCount := runtime.NumGoroutine()
-	t.Run("ParallelGroup", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				t.Parallel()
+	if err != nil {
+		panic(err)
+	}
 
-				// assert := assert.New(t)
-				client.Start(context.Background())
-				// assert.Nil(client.Stop(context.Background()))
-			})
-		}
-	})
-
-	// assert := assert.New(t)
-	// assert.Nil(client.Start(context.Background()))
-	// assert.Nil(client.Stop(context.Background()))
-
-	// assert.Nil(client.Start(context.Background()))
-	require.Nil(client.Stop(context.Background()))
-
-	require.Nil(client.observer.shutdown.Load())
-	grCountDelta := math.Abs(float64(runtime.NumGoroutine() - grCount))
-	require.LessOrEqual(grCountDelta, float64(1))
+	return client, server.Close
 }
 
 func failAcquirer() (string, error) {
