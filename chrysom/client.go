@@ -155,7 +155,7 @@ type listenerConfig struct {
 	pollCount    metrics.Counter
 	bucket       string
 	owner        string
-	shutdown     atomic.Value
+	shutdown     chan struct{}
 	state        int32
 }
 
@@ -204,6 +204,7 @@ func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
 		bucket:       config.Bucket,
 		owner:        config.Owner,
+		shutdown:     make(chan struct{}),
 	}
 }
 
@@ -377,13 +378,11 @@ func (c *Client) Start(ctx context.Context) error {
 		return errListenerNotStopped
 	}
 
-	stop := make(chan struct{})
-	c.observer.shutdown.Store(stop)
 	c.observer.ticker.Reset(c.observer.pullInterval)
 	go func() {
 		for {
 			select {
-			case <-stop:
+			case <-c.observer.shutdown:
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
@@ -417,10 +416,7 @@ func (c *Client) Stop(ctx context.Context) error {
 	}
 
 	c.observer.ticker.Stop()
-	stop := c.observer.shutdown.Load().(chan struct{})
-	stop <- struct{}{}
-	stop = nil
-	c.observer.shutdown.Store(stop)
+	c.observer.shutdown <- struct{}{}
 	atomic.SwapInt32(&c.observer.state, stopped)
 	return nil
 }
