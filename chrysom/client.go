@@ -65,15 +65,14 @@ var (
 )
 
 var (
-	errNonSuccessResponse     = errors.New("argus responded with a non-success status code")
-	errNewRequestFailure      = errors.New("failed creating an HTTP request")
-	errDoRequestFailure       = errors.New("http client failed while sending request")
-	errReadingBodyFailure     = errors.New("failed while reading http response body")
-	errJSONUnmarshal          = errors.New("failed unmarshaling JSON response payload")
-	errJSONMarshal            = errors.New("failed marshaling item as JSON payload")
-	errListenerAlreadyStarted = errors.New("listener already started")
-	errListenerNotStopped     = errors.New("listener is either running or being started")
-	errListenerNotRunning     = errors.New("listener is either stopped or being stopped")
+	errNonSuccessResponse = errors.New("argus responded with a non-success status code")
+	errNewRequestFailure  = errors.New("failed creating an HTTP request")
+	errDoRequestFailure   = errors.New("http client failed while sending request")
+	errReadingBodyFailure = errors.New("failed while reading http response body")
+	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
+	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
+	errListenerNotStopped = errors.New("listener is either running or being started")
+	errListenerNotRunning = errors.New("listener is either stopped or being stopped")
 )
 
 // PushResult is a simple type to indicate the result type for the

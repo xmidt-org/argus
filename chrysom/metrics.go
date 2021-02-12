@@ -1,7 +1,6 @@
 package chrysom
 
 import (
-	"github.com/go-kit/kit/metrics"
 	"github.com/xmidt-org/webpa-common/xmetrics"
 )
 
@@ -31,8 +30,4 @@ func Metrics() []xmetrics.Metric {
 			LabelNames: []string{OutcomeLabel},
 		},
 	}
-}
-
-type measures struct {
-	pollCount metrics.Counter
 }
