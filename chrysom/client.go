@@ -26,7 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -73,6 +72,8 @@ var (
 	errJSONUnmarshal          = errors.New("failed unmarshaling JSON response payload")
 	errJSONMarshal            = errors.New("failed marshaling item as JSON payload")
 	errListenerAlreadyStarted = errors.New("listener already started")
+	errListenerNotStopped     = errors.New("listener is either running or being started")
+	errListenerNotRunning     = errors.New("listener is either stopped or being stopped")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -144,6 +145,7 @@ type Client struct {
 const (
 	stopped int32 = iota
 	running
+	transitioning
 )
 
 type listenerConfig struct {
@@ -154,6 +156,7 @@ type listenerConfig struct {
 	bucket       string
 	owner        string
 	shutdown     atomic.Value
+	state        int32
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -365,13 +368,13 @@ func (c *Client) Start(ctx context.Context) error {
 		return nil
 	}
 	if c.observer.ticker == nil {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was already started")
+		level.Error(c.logger).Log(xlog.MessageKey(), "Observer ticker is nil")
 		return ErrUndefinedIntervalTicker
 	}
 
-	stopVal := c.observer.shutdown.Load()
-	if stopVal != nil && !reflect.ValueOf(stopVal).IsNil() {
-		return errListenerAlreadyStarted
+	if !atomic.CompareAndSwapInt32(&c.observer.state, stopped, transitioning) {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was not in stopped state", "err", errListenerNotStopped)
+		return errListenerNotStopped
 	}
 
 	stop := make(chan struct{})
@@ -396,26 +399,29 @@ func (c *Client) Start(ctx context.Context) error {
 		}
 	}()
 
+	atomic.SwapInt32(&c.observer.state, running)
 	return nil
 }
 
-// Stop requests the current listener process to start and waits for its goroutine to complete.
-// Calling Stop() when no process is running is a NoOp.
+// Stop requests the current listener process to stop and waits for its goroutine to complete.
+// Calling Stop() when a listener is not running (or while one is getting stopped) returns an
+// error.
 func (c *Client) Stop(ctx context.Context) error {
 	if c.observer == nil || c.observer.ticker == nil {
 		return nil
 	}
 
-	stopVal := c.observer.shutdown.Load()
-	if stopVal == nil || reflect.ValueOf(stopVal).IsNil() {
-		return nil
+	if !atomic.CompareAndSwapInt32(&c.observer.state, running, transitioning) {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Stop called when a listener was not in running state", "err", errListenerNotStopped)
+		return errListenerNotRunning
 	}
-	stop := stopVal.(chan struct{})
 
 	c.observer.ticker.Stop()
+	stop := c.observer.shutdown.Load().(chan struct{})
 	stop <- struct{}{}
 	stop = nil
 	c.observer.shutdown.Store(stop)
+	atomic.SwapInt32(&c.observer.state, stopped)
 	return nil
 }
 
