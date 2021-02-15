@@ -225,7 +225,6 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		item := new(storableItem)
 		err = dynamodbattribute.UnmarshalMap(i, item)
 		if err != nil {
-			//logging.Error(d.logger).Log(logging.MessageKey(), "failed to unmarshal item", logging.ErrorKey(), err)
 			continue
 		}
 		if itemNotFound(item) {

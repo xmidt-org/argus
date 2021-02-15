@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Refactor client code and add unit tests around item CRUD operations [#119](https://github.com/xmidt-org/argus/pull/119)
 
 ### Fixed
+- Fix logging to use `xlog` instead of deprecated `webpa-common/logging` package. [#132](https://github.com/xmidt-org/argus/pull/132)
 - Fix behavior in which the owner of an existing item was overwritten in super user mode. [#116](https://github.com/xmidt-org/argus/pull/116)
 
 ### Added

@@ -22,11 +22,12 @@ import (
 	"errors"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/webpa-common/logging"
+	"github.com/xmidt-org/themis/xlog"
 )
 
 type dbStore interface {
@@ -73,7 +74,7 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 	defer func() {
 		err := iter.Close()
 		if err != nil {
-			logging.Error(s.logger).Log(logging.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
+			level.Error(s.logger).Log(xlog.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
 		}
 	}()
 	for iter.Scan(&data, &ttl) {
@@ -106,7 +107,7 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem,
 		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
 		if err != nil {
-			logging.Error(s.logger).Log(logging.MessageKey(), "failed to unmarshal data", "bucket", bucket, "id", key)
+			level.Error(s.logger).Log(xlog.MessageKey(), "failed to unmarshal data", "bucket", bucket, "id", key)
 			data = []byte{}
 			key = ""
 			continue
