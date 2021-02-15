@@ -46,9 +46,9 @@ type Listener interface {
 	Update(items Items)
 }
 
-type ListenerFunc func(items []model.Item)
+type ListenerFunc func(items Items)
 
-func (listener ListenerFunc) Update(items []model.Item) {
+func (listener ListenerFunc) Update(items Items) {
 	listener(items)
 }
 
