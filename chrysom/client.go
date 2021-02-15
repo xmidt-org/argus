@@ -71,8 +71,8 @@ var (
 	errReadingBodyFailure = errors.New("failed while reading http response body")
 	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
 	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
-	errListenerNotStopped = errors.New("listener is either running or being started")
-	errListenerNotRunning = errors.New("listener is either stopped or being stopped")
+	errListenerNotStopped = errors.New("listener is either running or starting")
+	errListenerNotRunning = errors.New("listener is either stopped or stopping")
 )
 
 // PushResult is a simple type to indicate the result type for the
