@@ -22,16 +22,18 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-kit/kit/log/level"
+
 	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	dbmetric "github.com/xmidt-org/argus/store/db/metric"
-	"github.com/xmidt-org/webpa-common/logging"
 
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/themis/config"
+	"github.com/xmidt-org/themis/xlog"
 	"go.uber.org/fx"
 )
 
@@ -98,7 +100,7 @@ func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measure
 	ticker := doEvery(time.Second*5, func(_ time.Time) {
 		err := client.Ping()
 		if err != nil {
-			logging.Error(logger).Log(logging.MessageKey(), "ping failed", logging.ErrorKey(), err)
+			level.Error(logger).Log(xlog.MessageKey(), "ping failed", xlog.ErrorKey(), err)
 		}
 	})
 	if err != nil {
