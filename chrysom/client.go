@@ -172,7 +172,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
-		observer:     createObserver(config.Logger, config),
+		observer:     newObserver(config.Logger, config),
 		storeBaseURL: config.Address + storeAPIPath,
 	}
 
@@ -192,7 +192,7 @@ func translateNonSuccessStatusCode(code int) error {
 	}
 }
 
-func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
+func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 	if config.Listener == nil {
 		return nil
 	}
