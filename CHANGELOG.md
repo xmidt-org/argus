@@ -5,8 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Make client listener thread-safe and friendlier to uber/fx hooks. [#128](https://github.com/xmidt-org/argus/pull/128)
 ### Fixed
 - Bug in which the userInputValidation config section was required even when it should've been optional. [#129](https://github.com/xmidt-org/argus/pull/129)
+- Fix logging to use `xlog` instead of deprecated `webpa-common/logging` package. [#132](https://github.com/xmidt-org/argus/pull/132)
+- Fix ListenerFunc interface. [#133](https://github.com/xmidt-org/argus/pull/133)
+
 
 ## [v0.3.10]
 ### Changed
@@ -21,9 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Refactor client code and add unit tests around item CRUD operations [#119](https://github.com/xmidt-org/argus/pull/119)
 
 ### Fixed
-- Fix logging to use `xlog` instead of deprecated `webpa-common/logging` package. [#132](https://github.com/xmidt-org/argus/pull/132)
 - Fix behavior in which the owner of an existing item was overwritten in super user mode. [#116](https://github.com/xmidt-org/argus/pull/116)
-- Fix ListenerFunc interface. [#133](https://github.com/xmidt-org/argus/pull/133)
 
 ### Added
 - Item ID is validated to have the format of a SHA256 message hex digest. [#106](https://github.com/xmidt-org/argus/pull/106)
