@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -61,6 +62,9 @@ var (
 
 	ErrFailedAuthentication = errors.New("failed to authentication with argus")
 	ErrBadRequest           = errors.New("argus rejected the request as invalid")
+
+	ErrListenerNotStopped = errors.New("listener is either running or starting")
+	ErrListenerNotRunning = errors.New("listener is either stopped or stopping")
 )
 
 var (
@@ -137,12 +141,22 @@ type Client struct {
 	observer     *listenerConfig
 }
 
+// listening states
+const (
+	stopped int32 = iota
+	running
+	transitioning
+)
+
 type listenerConfig struct {
-	listener  Listener
-	ticker    *time.Ticker
-	pollCount metrics.Counter
-	bucket    string
-	owner     string
+	listener     Listener
+	ticker       *time.Ticker
+	pullInterval time.Duration
+	pollCount    metrics.Counter
+	bucket       string
+	owner        string
+	shutdown     chan struct{}
+	state        int32
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -159,7 +173,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
-		observer:     createObserver(config.Logger, config),
+		observer:     newObserver(config.Logger, config),
 		storeBaseURL: config.Address + storeAPIPath,
 	}
 
@@ -179,16 +193,18 @@ func translateNonSuccessStatusCode(code int) error {
 	}
 }
 
-func createObserver(logger log.Logger, config ClientConfig) *listenerConfig {
+func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 	if config.Listener == nil {
 		return nil
 	}
 	return &listenerConfig{
-		listener:  config.Listener,
-		ticker:    time.NewTicker(config.PullInterval),
-		pollCount: config.MetricsProvider.NewCounter(PollCounter),
-		bucket:    config.Bucket,
-		owner:     config.Owner,
+		listener:     config.Listener,
+		ticker:       time.NewTicker(config.PullInterval),
+		pullInterval: config.PullInterval,
+		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
+		bucket:       config.Bucket,
+		owner:        config.Owner,
+		shutdown:     make(chan struct{}),
 	}
 }
 
@@ -228,7 +244,7 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
+func (c *Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
@@ -344,38 +360,64 @@ func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
 	return item, nil
 }
 
+// Start begins listening for updates on an interval given that client configuration
+// is setup correctly. If a listener process is already in progress, calling Start()
+// is a NoOp. If you want to restart the current listener process, call Stop() first.
 func (c *Client) Start(ctx context.Context) error {
-	if c.observer == nil {
+	if c.observer == nil || c.observer.listener == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
 	}
-
 	if c.observer.ticker == nil {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Observer ticker is nil")
 		return ErrUndefinedIntervalTicker
 	}
 
+	if !atomic.CompareAndSwapInt32(&c.observer.state, stopped, transitioning) {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was not in stopped state", "err", ErrListenerNotStopped)
+		return ErrListenerNotStopped
+	}
+
+	c.observer.ticker.Reset(c.observer.pullInterval)
 	go func() {
-		observer := c.observer
-		for range observer.ticker.C {
-			outcome := SuccessOutcome
-			items, err := c.GetItems(observer.bucket, observer.owner)
-			if err == nil {
-				observer.listener.Update(items)
-			} else {
-				outcome = FailureOutcome
-				level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
+		for {
+			select {
+			case <-c.observer.shutdown:
+				return
+			case <-c.observer.ticker.C:
+				outcome := SuccessOutcome
+				items, err := c.GetItems(c.observer.bucket, c.observer.owner)
+				if err == nil {
+					c.observer.listener.Update(items)
+				} else {
+					outcome = FailureOutcome
+					level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
+				}
+				c.observer.pollCount.With(OutcomeLabel, outcome).Add(1)
 			}
-			observer.pollCount.With(OutcomeLabel, outcome).Add(1)
 		}
 	}()
 
+	atomic.SwapInt32(&c.observer.state, running)
 	return nil
 }
 
+// Stop requests the current listener process to stop and waits for its goroutine to complete.
+// Calling Stop() when a listener is not running (or while one is getting stopped) returns an
+// error.
 func (c *Client) Stop(ctx context.Context) error {
-	if c.observer != nil && c.observer.ticker != nil {
-		c.observer.ticker.Stop()
+	if c.observer == nil || c.observer.ticker == nil {
+		return nil
 	}
+
+	if !atomic.CompareAndSwapInt32(&c.observer.state, running, transitioning) {
+		level.Error(c.logger).Log(xlog.MessageKey(), "Stop called when a listener was not in running state", "err", ErrListenerNotStopped)
+		return ErrListenerNotRunning
+	}
+
+	c.observer.ticker.Stop()
+	c.observer.shutdown <- struct{}{}
+	atomic.SwapInt32(&c.observer.state, stopped)
 	return nil
 }
 

@@ -2,12 +2,14 @@ package chrysom
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/themis/xlog"
 )
 
 const failingURL = "nowhere://"
@@ -613,6 +616,149 @@ func TestTranslateStatusCode(t *testing.T) {
 		})
 	}
 }
+
+func TestListenerStartStopPairsParallel(t *testing.T) {
+	require := require.New(t)
+	client, close := newStartStopClient(true)
+	defer close()
+
+	t.Run("ParallelGroup", func(t *testing.T) {
+		for i := 0; i < 20; i++ {
+			testNumber := i
+			t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+				t.Parallel()
+				assert := assert.New(t)
+				fmt.Printf("%d: Start\n", testNumber)
+				errStart := client.Start(context.Background())
+				if errStart != nil {
+					assert.Equal(ErrListenerNotStopped, errStart)
+				}
+				time.Sleep(time.Millisecond * 400)
+				errStop := client.Stop(context.Background())
+				if errStop != nil {
+					assert.Equal(ErrListenerNotRunning, errStop)
+				}
+				fmt.Printf("%d: Done\n", testNumber)
+			})
+		}
+	})
+
+	require.Equal(stopped, client.observer.state)
+}
+
+func TestListenerStartStopPairsSerial(t *testing.T) {
+	require := require.New(t)
+	client, close := newStartStopClient(true)
+	defer close()
+
+	for i := 0; i < 5; i++ {
+		testNumber := i
+		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+			assert := assert.New(t)
+			fmt.Printf("%d: Start\n", testNumber)
+			assert.Nil(client.Start(context.Background()))
+			assert.Nil(client.Stop(context.Background()))
+			fmt.Printf("%d: Done\n", testNumber)
+		})
+	}
+	require.Equal(stopped, client.observer.state)
+}
+
+func TestListenerEdgeCases(t *testing.T) {
+	t.Run("NoListener", func(t *testing.T) {
+		client, stopServer := newStartStopClient(false)
+		defer stopServer()
+		assert := assert.New(t)
+		assert.Nil(client.Start(context.Background()))
+		assert.Nil(client.Stop(context.Background()))
+	})
+
+	t.Run("NilTicker", func(t *testing.T) {
+		assert := assert.New(t)
+		client, stopServer := newStartStopClient(true)
+		defer stopServer()
+		client.observer.ticker = nil
+		assert.Equal(ErrUndefinedIntervalTicker, client.Start(context.Background()))
+	})
+
+	t.Run("PartialUpdateFailures", func(t *testing.T) {
+		assert := assert.New(t)
+		tester := &getItemsStartStopTester{}
+		client, stopServer := tester.newSpecialStartStopClient()
+		defer stopServer()
+
+		assert.Nil(client.Start(context.Background()))
+
+		time.Sleep(time.Millisecond * 500)
+		assert.Nil(client.Stop(context.Background()))
+		assert.Len(tester.items, 1)
+	})
+}
+
+func newStartStopClient(includeListener bool) (*Client, func()) {
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write(getItemsValidPayload())
+	}))
+	config := ClientConfig{
+		Address:         server.URL,
+		HTTPClient:      server.Client(),
+		MetricsProvider: provider.NewDiscardProvider(),
+		PullInterval:    time.Millisecond * 200,
+		Bucket:          "parallel-test-bucket",
+		Logger:          xlog.Default(),
+	}
+	if includeListener {
+		config.Listener = ListenerFunc((func(_ Items) {
+			fmt.Println("Doing amazing work for 100ms")
+			time.Sleep(time.Millisecond * 100)
+		}))
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		panic(err)
+	}
+
+	return client, server.Close
+}
+
+type getItemsStartStopTester struct {
+	items Items
+}
+
+func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) {
+	succeed := true
+	succeedFirstTimeOnlyServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if succeed {
+			rw.Write(getItemsValidPayload())
+			succeed = false
+		} else {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+
+	config := ClientConfig{
+		Address:         succeedFirstTimeOnlyServer.URL,
+		HTTPClient:      succeedFirstTimeOnlyServer.Client(),
+		MetricsProvider: provider.NewDiscardProvider(),
+		PullInterval:    time.Millisecond * 200,
+		Bucket:          "parallel-test-bucket",
+		Logger:          xlog.Default(),
+		Listener: ListenerFunc((func(items Items) {
+			fmt.Println("Capturing all items")
+			g.items = append(g.items, items...)
+		})),
+	}
+
+	client, err := NewClient(config)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return client, succeedFirstTimeOnlyServer.Close
+}
+
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }
