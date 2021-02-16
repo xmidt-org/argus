@@ -674,7 +674,7 @@ func getStartStopClient() (*Client, func()) {
 		HTTPClient:      server.Client(),
 		MetricsProvider: provider.NewDiscardProvider(),
 		PullInterval:    time.Millisecond * 200,
-		Listener: ListenerFunc(func(_ []model.Item) {
+		Listener: ListenerFunc(func(_ Items) {
 			fmt.Println("Doing amazing work for 100ms")
 			time.Sleep(time.Millisecond * 100)
 		}),
