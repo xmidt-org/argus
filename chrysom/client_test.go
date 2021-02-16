@@ -690,8 +690,8 @@ func TestListenerEdgeCases(t *testing.T) {
 		assert.Nil(client.Start(context.Background()))
 
 		time.Sleep(time.Millisecond * 500)
-		assert.Len(tester.items, 1)
 		assert.Nil(client.Stop(context.Background()))
+		assert.Len(tester.items, 1)
 	})
 }
 
