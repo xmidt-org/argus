@@ -631,12 +631,12 @@ func TestListenerStartStopPairsParallel(t *testing.T) {
 				fmt.Printf("%d: Start\n", testNumber)
 				errStart := client.Start(context.Background())
 				if errStart != nil {
-					assert.Equal(errListenerNotStopped, errStart)
+					assert.Equal(ErrListenerNotStopped, errStart)
 				}
 				time.Sleep(time.Millisecond * 400)
 				errStop := client.Stop(context.Background())
 				if errStop != nil {
-					assert.Equal(errListenerNotRunning, errStop)
+					assert.Equal(ErrListenerNotRunning, errStop)
 				}
 				fmt.Printf("%d: Done\n", testNumber)
 			})

@@ -62,6 +62,9 @@ var (
 
 	ErrFailedAuthentication = errors.New("failed to authentication with argus")
 	ErrBadRequest           = errors.New("argus rejected the request as invalid")
+
+	ErrListenerNotStopped = errors.New("listener is either running or starting")
+	ErrListenerNotRunning = errors.New("listener is either stopped or stopping")
 )
 
 var (
@@ -71,8 +74,6 @@ var (
 	errReadingBodyFailure = errors.New("failed while reading http response body")
 	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
 	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
-	errListenerNotStopped = errors.New("listener is either running or starting")
-	errListenerNotRunning = errors.New("listener is either stopped or stopping")
 )
 
 // PushResult is a simple type to indicate the result type for the
@@ -373,8 +374,8 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&c.observer.state, stopped, transitioning) {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was not in stopped state", "err", errListenerNotStopped)
-		return errListenerNotStopped
+		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was not in stopped state", "err", ErrListenerNotStopped)
+		return ErrListenerNotStopped
 	}
 
 	c.observer.ticker.Reset(c.observer.pullInterval)
@@ -410,8 +411,8 @@ func (c *Client) Stop(ctx context.Context) error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&c.observer.state, running, transitioning) {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Stop called when a listener was not in running state", "err", errListenerNotStopped)
-		return errListenerNotRunning
+		level.Error(c.logger).Log(xlog.MessageKey(), "Stop called when a listener was not in running state", "err", ErrListenerNotStopped)
+		return ErrListenerNotRunning
 	}
 
 	c.observer.ticker.Stop()
