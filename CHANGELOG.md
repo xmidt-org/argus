@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [v0.3.11]
 ### Changed
 - Make client listener thread-safe and friendlier to uber/fx hooks. [#128](https://github.com/xmidt-org/argus/pull/128)
 ### Fixed
@@ -119,7 +122,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.10...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.11...HEAD
+[v0.3.11]: https://github.com/xmidt-org/argus/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/xmidt-org/argus/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/xmidt-org/argus/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/xmidt-org/argus/compare/v0.3.7...v0.3.8
