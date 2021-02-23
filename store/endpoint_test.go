@@ -396,10 +396,42 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 		},
 
 		{
-			Name: "Admin mode",
+			Name: "Filtered admin mode",
 			ItemRequest: &getAllItemsRequest{
 				bucket:    "sports-cars",
 				owner:     "alfa-romeo",
+				adminMode: true,
+			},
+			GetAllDAOResponse: map[string]OwnableItem{
+				"mustang": {
+					Owner: "ford",
+				},
+				"4c-spider": {
+					Owner: "alfa-romeo",
+				},
+				"gtr": {
+					Owner: "nissan",
+				},
+				"giulia": {
+					Owner: "alfa-romeo",
+				},
+			},
+
+			ExpectedResponse: map[string]OwnableItem{
+				"4c-spider": {
+					Owner: "alfa-romeo",
+				},
+				"giulia": {
+					Owner: "alfa-romeo",
+				},
+			},
+		},
+
+		{
+			Name: "Unfiltered Admin mode",
+			ItemRequest: &getAllItemsRequest{
+				bucket:    "sports-cars",
+				owner:     "",
 				adminMode: true,
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
