@@ -68,7 +68,7 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		if itemsRequest.adminMode {
+		if itemsRequest.adminMode && itemsRequest.owner == "" {
 			return items, nil
 		}
 		return FilterOwner(items, itemsRequest.owner), nil

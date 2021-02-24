@@ -75,7 +75,7 @@ func TestGetItemEndpoint(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.DAOResponse, error(testCase.DAOResponseErr)).Once()
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.DAOResponse, testCase.DAOResponseErr).Once()
 			endpoint := newGetItemEndpoint(m)
 
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
@@ -173,7 +173,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
-			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, error(testCase.GetDAOResponseErr)).Once()
+			m.On("Get", testCase.ItemRequest.key).Return(testCase.GetDAOResponse, testCase.GetDAOResponseErr).Once()
 
 			// verify item is not deleted by user who doesn't own it
 			allowDelete := testCase.ItemRequest.adminMode || testCase.ItemRequest.owner == testCase.GetDAOResponse.Owner
@@ -181,7 +181,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			if testCase.GetDAOResponseErr != nil || !allowDelete {
 				m.AssertNotCalled(t, "Delete", testCase.ItemRequest)
 			} else {
-				m.On("Delete", testCase.ItemRequest.key).Return(testCase.DeleteDAOResponse, error(testCase.DeleteDAOResponseErr)).Once()
+				m.On("Delete", testCase.ItemRequest.key).Return(testCase.DeleteDAOResponse, testCase.DeleteDAOResponseErr).Once()
 			}
 
 			deleteEndpoint := newDeleteItemEndpoint(m)
@@ -396,10 +396,42 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 		},
 
 		{
-			Name: "Admin mode",
+			Name: "Filtered admin mode",
 			ItemRequest: &getAllItemsRequest{
 				bucket:    "sports-cars",
 				owner:     "alfa-romeo",
+				adminMode: true,
+			},
+			GetAllDAOResponse: map[string]OwnableItem{
+				"mustang": {
+					Owner: "ford",
+				},
+				"4c-spider": {
+					Owner: "alfa-romeo",
+				},
+				"gtr": {
+					Owner: "nissan",
+				},
+				"giulia": {
+					Owner: "alfa-romeo",
+				},
+			},
+
+			ExpectedResponse: map[string]OwnableItem{
+				"4c-spider": {
+					Owner: "alfa-romeo",
+				},
+				"giulia": {
+					Owner: "alfa-romeo",
+				},
+			},
+		},
+
+		{
+			Name: "Unfiltered Admin mode",
+			ItemRequest: &getAllItemsRequest{
+				bucket:    "sports-cars",
+				owner:     "",
 				adminMode: true,
 			},
 			GetAllDAOResponse: map[string]OwnableItem{
@@ -457,7 +489,7 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 			assert := assert.New(t)
 			m := new(MockDAO)
 
-			m.On("GetAll", testCase.ItemRequest.bucket).Return(testCase.GetAllDAOResponse, error(testCase.GetAllDAOResponseErr))
+			m.On("GetAll", testCase.ItemRequest.bucket).Return(testCase.GetAllDAOResponse, testCase.GetAllDAOResponseErr)
 
 			endpoint := newGetAllItemsEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
