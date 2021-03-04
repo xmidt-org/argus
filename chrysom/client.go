@@ -86,12 +86,15 @@ const (
 )
 
 type ClientConfig struct {
+	// Address is the Argus URL (i.e. https://example-argus.io:8090)
+	Address string
+
+	// Bucket partition to be used by this client.
+	Bucket string
+
 	// HTTPClient refers to the client that will be used to send requests.
 	// (Optional) Defaults to http.DefaultClient.
 	HTTPClient *http.Client
-
-	// Address is the Argus URL (i.e. https://example-argus.io:8090)
-	Address string
 
 	// Auth provides the mechanism to add auth headers to outgoing requests.
 	// (Optional) If not provided, no auth headers are added.
@@ -113,14 +116,6 @@ type ClientConfig struct {
 	// PullInterval is how often listeners should get updates.
 	// (Optional). Defaults to 5 seconds.
 	PullInterval time.Duration
-
-	// Bucket partition to be used by this client.
-	// (Optional). Defaults to "webhooks"
-	Bucket string
-
-	// Owner to be used in listener requests.
-	// (Optional) If left empty, items without an owner will be watched.
-	Owner string
 }
 
 type response struct {
@@ -157,7 +152,6 @@ type listenerConfig struct {
 	ticker       *time.Ticker
 	pullInterval time.Duration
 	pollCount    metrics.Counter
-	owner        string
 	shutdown     chan struct{}
 	state        int32
 }
@@ -206,22 +200,21 @@ func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		ticker:       time.NewTicker(config.PullInterval),
 		pullInterval: config.PullInterval,
 		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
-		owner:        config.Owner,
 		shutdown:     make(chan struct{}),
 	}
 }
 
 func validateConfig(config *ClientConfig) error {
-	if config.HTTPClient == nil {
-		config.HTTPClient = http.DefaultClient
-	}
-
 	if config.Address == "" {
 		return ErrAddressEmpty
 	}
 
 	if config.Bucket == "" {
-		config.Bucket = "webhooks"
+		return ErrBucketEmpty
+	}
+
+	if config.HTTPClient == nil {
+		config.HTTPClient = http.DefaultClient
 	}
 
 	if config.MetricsProvider == nil {

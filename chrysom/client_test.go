@@ -49,7 +49,7 @@ func TestValidateConfig(t *testing.T) {
 		PullInterval:    time.Second * 5,
 		Logger:          log.NewNopLogger(),
 		Address:         "http://awesome-argus-hostname.io",
-		Bucket:          "webhooks",
+		Bucket:          "bucket-name",
 		MetricsProvider: provider.NewDiscardProvider(),
 	}
 
@@ -66,20 +66,27 @@ func TestValidateConfig(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			Description: "All default values",
-			Input: &ClientConfig{
-				Address: "http://awesome-argus-hostname.io",
-			},
-			ExpectedConfig: allDefaultsCaseConfig,
-		},
-		{
 			Description: "No address",
 			Input: &ClientConfig{
-				MetricsProvider: provider.NewDiscardProvider(),
+				Bucket: "bucket-name",
 			},
 			ExpectedErr: ErrAddressEmpty,
 		},
-
+		{
+			Description: "No bucket",
+			Input: &ClientConfig{
+				Address: "http://awesome-argus-hostname.io",
+			},
+			ExpectedErr: ErrBucketEmpty,
+		},
+		{
+			Description: "All default values",
+			Input: &ClientConfig{
+				Address: "http://awesome-argus-hostname.io",
+				Bucket:  "bucket-name",
+			},
+			ExpectedConfig: allDefaultsCaseConfig,
+		},
 		{
 			Description: "All defined",
 			Input: &ClientConfig{
@@ -170,6 +177,7 @@ func TestSendRequest(t *testing.T) {
 			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         "http://argus-hostname.io",
+				Bucket:          "bucket-name",
 				MetricsProvider: provider.NewDiscardProvider(),
 			})
 
