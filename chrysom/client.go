@@ -431,10 +431,3 @@ func validatePushItemInput(owner, id string, item model.Item) error {
 
 	return nil
 }
-
-func validateRemoveItemInput(id string) error {
-	if len(id) < 1 {
-		return ErrItemIDEmpty
-	}
-	return nil
-}
