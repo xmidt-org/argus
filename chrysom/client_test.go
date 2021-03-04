@@ -45,23 +45,27 @@ func TestValidateConfig(t *testing.T) {
 	}
 
 	allDefaultsCaseConfig := &ClientConfig{
-		HTTPClient:      http.DefaultClient,
-		PullInterval:    time.Second * 5,
-		Logger:          log.NewNopLogger(),
-		Address:         "http://awesome-argus-hostname.io",
-		Bucket:          "bucket-name",
-		MetricsProvider: provider.NewDiscardProvider(),
+		HTTPClient: http.DefaultClient,
+		Listen: ListenerConfig{
+			MetricsProvider: provider.NewDiscardProvider(),
+			PullInterval:    time.Second * 5,
+		},
+		Logger:  log.NewNopLogger(),
+		Address: "http://awesome-argus-hostname.io",
+		Bucket:  "bucket-name",
 	}
 
 	myAmazingClient := &http.Client{Timeout: time.Hour}
 	allDefinedCaseConfig := &ClientConfig{
-		HTTPClient:      myAmazingClient,
-		PullInterval:    time.Hour * 24,
-		Address:         "http://legit-argus-hostname.io",
-		Auth:            Auth{},
-		MetricsProvider: provider.NewExpvarProvider(),
-		Bucket:          "amazing-bucket",
-		Logger:          log.NewJSONLogger(ioutil.Discard),
+		HTTPClient: myAmazingClient,
+		Listen: ListenerConfig{
+			PullInterval:    time.Hour * 24,
+			MetricsProvider: provider.NewExpvarProvider(),
+		},
+		Address: "http://legit-argus-hostname.io",
+		Auth:    Auth{},
+		Bucket:  "amazing-bucket",
+		Logger:  log.NewJSONLogger(ioutil.Discard),
 	}
 
 	tcs := []testCase{
@@ -90,12 +94,14 @@ func TestValidateConfig(t *testing.T) {
 		{
 			Description: "All defined",
 			Input: &ClientConfig{
-				MetricsProvider: provider.NewExpvarProvider(),
-				Address:         "http://legit-argus-hostname.io",
-				Bucket:          "amazing-bucket",
-				HTTPClient:      myAmazingClient,
-				PullInterval:    time.Hour * 24,
-				Logger:          log.NewJSONLogger(ioutil.Discard),
+				Listen: ListenerConfig{
+					PullInterval:    time.Hour * 24,
+					MetricsProvider: provider.NewExpvarProvider(),
+				},
+				Address:    "http://legit-argus-hostname.io",
+				Bucket:     "amazing-bucket",
+				HTTPClient: myAmazingClient,
+				Logger:     log.NewJSONLogger(ioutil.Discard),
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},
@@ -175,10 +181,9 @@ func TestSendRequest(t *testing.T) {
 			defer server.Close()
 
 			client, err := NewClient(ClientConfig{
-				HTTPClient:      server.Client(),
-				Address:         "http://argus-hostname.io",
-				Bucket:          "bucket-name",
-				MetricsProvider: provider.NewDiscardProvider(),
+				HTTPClient: server.Client(),
+				Address:    "http://argus-hostname.io",
+				Bucket:     "bucket-name",
 			})
 
 			if tc.AcquirerFails {
@@ -274,10 +279,9 @@ func TestGetItems(t *testing.T) {
 			}))
 
 			client, err := NewClient(ClientConfig{
-				HTTPClient:      server.Client(),
-				Address:         server.URL,
-				Bucket:          bucket,
-				MetricsProvider: provider.NewDiscardProvider(),
+				HTTPClient: server.Client(),
+				Address:    server.URL,
+				Bucket:     bucket,
 			})
 
 			require.Nil(err)
@@ -411,10 +415,9 @@ func TestPushItem(t *testing.T) {
 			}))
 
 			client, err := NewClient(ClientConfig{
-				HTTPClient:      server.Client(),
-				Address:         server.URL,
-				Bucket:          bucket,
-				MetricsProvider: provider.NewDiscardProvider(),
+				HTTPClient: server.Client(),
+				Address:    server.URL,
+				Bucket:     bucket,
 			})
 
 			if tc.ShouldMakeRequestFail {
@@ -510,10 +513,9 @@ func TestRemoveItem(t *testing.T) {
 			}))
 
 			client, err := NewClient(ClientConfig{
-				HTTPClient:      server.Client(),
-				Address:         server.URL,
-				Bucket:          bucket,
-				MetricsProvider: provider.NewDiscardProvider(),
+				HTTPClient: server.Client(),
+				Address:    server.URL,
+				Bucket:     bucket,
 			})
 
 			if tc.ShouldMakeRequestFail {
@@ -653,15 +655,17 @@ func newStartStopClient(includeListener bool) (*Client, func()) {
 		rw.Write(getItemsValidPayload())
 	}))
 	config := ClientConfig{
-		Address:         server.URL,
-		HTTPClient:      server.Client(),
-		MetricsProvider: provider.NewDiscardProvider(),
-		PullInterval:    time.Millisecond * 200,
-		Bucket:          "parallel-test-bucket",
-		Logger:          xlog.Default(),
+		Address:    server.URL,
+		HTTPClient: server.Client(),
+		Bucket:     "parallel-test-bucket",
+		Logger:     xlog.Default(),
+		Listen: ListenerConfig{
+			MetricsProvider: provider.NewDiscardProvider(),
+			PullInterval:    time.Millisecond * 200,
+		},
 	}
 	if includeListener {
-		config.Listener = ListenerFunc((func(_ Items) {
+		config.Listen.Listener = ListenerFunc((func(_ Items) {
 			fmt.Println("Doing amazing work for 100ms")
 			time.Sleep(time.Millisecond * 100)
 		}))
@@ -691,16 +695,18 @@ func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) 
 	}))
 
 	config := ClientConfig{
-		Address:         succeedFirstTimeOnlyServer.URL,
-		HTTPClient:      succeedFirstTimeOnlyServer.Client(),
-		MetricsProvider: provider.NewDiscardProvider(),
-		PullInterval:    time.Millisecond * 200,
-		Bucket:          "parallel-test-bucket",
-		Logger:          xlog.Default(),
-		Listener: ListenerFunc((func(items Items) {
-			fmt.Println("Capturing all items")
-			g.items = append(g.items, items...)
-		})),
+		Address:    succeedFirstTimeOnlyServer.URL,
+		HTTPClient: succeedFirstTimeOnlyServer.Client(),
+		Listen: ListenerConfig{
+			Listener: ListenerFunc((func(items Items) {
+				fmt.Println("Capturing all items")
+				g.items = append(g.items, items...)
+			})),
+			MetricsProvider: provider.NewDiscardProvider(),
+			PullInterval:    time.Millisecond * 200,
+		},
+		Bucket: "parallel-test-bucket",
+		Logger: xlog.Default(),
 	}
 
 	client, err := NewClient(config)
