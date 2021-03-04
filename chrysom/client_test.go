@@ -209,11 +209,6 @@ func TestGetItems(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			Description:       "Bucket is required",
-			ShouldEraseBucket: true,
-			ExpectedErr:       ErrBucketEmpty,
-		},
-		{
 
 			Description:           "Make request fails",
 			ShouldMakeRequestFail: true,
@@ -278,6 +273,7 @@ func TestGetItems(t *testing.T) {
 			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         server.URL,
+				Bucket:          bucket,
 				MetricsProvider: provider.NewDiscardProvider(),
 			})
 
@@ -291,7 +287,7 @@ func TestGetItems(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			output, err := client.GetItems(bucket, "owner-name")
+			output, err := client.GetItems(owner)
 
 			assert.True(errors.Is(err, tc.ExpectedErr))
 			if tc.ExpectedErr == nil {

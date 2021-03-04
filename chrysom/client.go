@@ -281,13 +281,9 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 	return sqResp, nil
 }
 
-// GetItems fetches all items in a bucket that belong to a given owner.
-func (c *Client) GetItems(bucket, owner string) (Items, error) {
-	if len(bucket) < 1 {
-		return nil, ErrBucketEmpty
-	}
-
-	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, bucket), nil)
+// GetItems fetches all items that belong to a given owner.
+func (c *Client) GetItems(owner string) (Items, error) {
+	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +388,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems(c.bucket, c.observer.owner)
+				items, err := c.GetItems("")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
