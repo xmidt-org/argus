@@ -311,8 +311,8 @@ func (c *Client) GetItems(bucket, owner string) (Items, error) {
 // PushItem creates a new item if one doesn't already exist at
 // the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
 // the item is simply updated.
-func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult, error) {
-	err := validatePushItemInput(bucket, owner, id, item)
+func (c *Client) PushItem(id, owner string, item model.Item) (PushResult, error) {
+	err := validatePushItemInput(owner, id, item)
 	if err != nil {
 		return "", err
 	}
@@ -322,7 +322,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), bytes.NewReader(data))
+	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -427,11 +427,7 @@ func (c *Client) Stop(ctx context.Context) error {
 	return nil
 }
 
-func validatePushItemInput(bucket, owner, id string, item model.Item) error {
-	if len(bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
+func validatePushItemInput(owner, id string, item model.Item) error {
 	if len(id) < 1 || len(item.ID) < 1 {
 		return ErrItemIDEmpty
 	}

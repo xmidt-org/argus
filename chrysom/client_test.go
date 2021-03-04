@@ -327,12 +327,6 @@ func TestPushItem(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			Description:       "Bucket is required",
-			Item:              validItem,
-			ShouldEraseBucket: true,
-			ExpectedErr:       ErrBucketEmpty,
-		},
-		{
 			Description:   "Item ID Missing",
 			Item:          validItem,
 			ShouldEraseID: true,
@@ -432,6 +426,7 @@ func TestPushItem(t *testing.T) {
 			client, err := NewClient(ClientConfig{
 				HTTPClient:      server.Client(),
 				Address:         server.URL,
+				Bucket:          bucket,
 				MetricsProvider: provider.NewDiscardProvider(),
 			})
 
@@ -452,7 +447,7 @@ func TestPushItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.PushItem(id, bucket, tc.Owner, tc.Item)
+			output, err := client.PushItem(id, tc.Owner, tc.Item)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
