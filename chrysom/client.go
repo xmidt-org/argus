@@ -53,7 +53,6 @@ var (
 	ErrAddressEmpty            = errors.New("argus address is required")
 	ErrBucketEmpty             = errors.New("bucket name is required")
 	ErrItemIDEmpty             = errors.New("item ID is required")
-	ErrItemIDMismatch          = errors.New("item ID must match that in payload")
 	ErrItemDataEmpty           = errors.New("data field in item is required")
 	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
 	ErrAuthAcquirerFailure     = errors.New("failed acquiring auth token")
