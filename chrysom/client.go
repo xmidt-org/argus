@@ -141,6 +141,7 @@ type Client struct {
 	auth         acquire.Acquirer
 	storeBaseURL string
 	logger       log.Logger
+	bucket       string
 	observer     *listenerConfig
 }
 
@@ -156,7 +157,6 @@ type listenerConfig struct {
 	ticker       *time.Ticker
 	pullInterval time.Duration
 	pollCount    metrics.Counter
-	bucket       string
 	owner        string
 	shutdown     chan struct{}
 	state        int32
@@ -177,6 +177,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
 		observer:     newObserver(config.Logger, config),
+		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 	}
 
@@ -205,7 +206,6 @@ func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		ticker:       time.NewTicker(config.PullInterval),
 		pullInterval: config.PullInterval,
 		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
-		bucket:       config.Bucket,
 		owner:        config.Owner,
 		shutdown:     make(chan struct{}),
 	}
@@ -342,13 +342,12 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
-	err := validateRemoveItemInput(bucket, id)
-	if err != nil {
-		return model.Item{}, err
+func (c *Client) RemoveItem(id, owner string) (model.Item, error) {
+	if len(id) < 1 {
+		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), nil)
+	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -393,7 +392,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems(c.observer.bucket, c.observer.owner)
+				items, err := c.GetItems(c.bucket, c.observer.owner)
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -448,11 +447,7 @@ func validatePushItemInput(bucket, owner, id string, item model.Item) error {
 	return nil
 }
 
-func validateRemoveItemInput(bucket, id string) error {
-	if len(bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
+func validateRemoveItemInput(id string) error {
 	if len(id) < 1 {
 		return ErrItemIDEmpty
 	}
