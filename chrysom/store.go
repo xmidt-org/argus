@@ -32,7 +32,7 @@ type PushReader interface {
 type Pusher interface {
 	// Push applies user configurable for registering an item returning the id
 	// i.e. updated the storage with said item.
-	PushItem(id, owner string, item model.Item) (PushResult, error)
+	PushItem(owner string, item model.Item) (PushResult, error)
 
 	// Remove will remove the item from the store
 	RemoveItem(id, owner string) (model.Item, error)

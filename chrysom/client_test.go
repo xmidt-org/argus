@@ -208,7 +208,6 @@ func TestGetItems(t *testing.T) {
 		Description           string
 		ResponsePayload       []byte
 		ResponseCode          int
-		ShouldEraseBucket     bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
 		ExpectedErr           error
@@ -265,10 +264,6 @@ func TestGetItems(t *testing.T) {
 				owner   = "owner-name"
 			)
 
-			if tc.ShouldEraseBucket {
-				bucket = ""
-			}
-
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(http.MethodGet, r.Method)
 				assert.Equal(owner, r.Header.Get(store.ItemOwnerHeaderKey))
@@ -311,7 +306,6 @@ func TestPushItem(t *testing.T) {
 		Item                  model.Item
 		Owner                 string
 		ResponseCode          int
-		ShouldEraseID         bool
 		ShouldEraseBucket     bool
 		ShouldRespNonSuccess  bool
 		ShouldMakeRequestFail bool
@@ -331,20 +325,9 @@ func TestPushItem(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			Description:   "Item ID Missing",
-			Item:          validItem,
-			ShouldEraseID: true,
-			ExpectedErr:   ErrItemIDEmpty,
-		},
-		{
-			Description: "Item ID Missing from payload",
-			Item:        model.Item{Data: validItem.Data},
+			Description: "Item ID Missing",
+			Item:        model.Item{Data: map[string]interface{}{}},
 			ExpectedErr: ErrItemIDEmpty,
-		},
-		{
-			Description: "Item ID Mismatch",
-			Item:        model.Item{ID: "752f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f119", Data: validItem.Data},
-			ExpectedErr: ErrItemIDMismatch,
 		},
 		{
 			Description: "Item Data missing",
@@ -446,12 +429,8 @@ func TestPushItem(t *testing.T) {
 				bucket = ""
 			}
 
-			if tc.ShouldEraseID {
-				id = ""
-			}
-
 			require.Nil(err)
-			output, err := client.PushItem(id, tc.Owner, tc.Item)
+			output, err := client.PushItem(tc.Owner, tc.Item)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -468,8 +447,6 @@ func TestRemoveItem(t *testing.T) {
 		ResponsePayload       []byte
 		ResponseCode          int
 		Owner                 string
-		ShouldEraseBucket     bool
-		ShouldEraseID         bool
 		ShouldRespNonSuccess  bool
 		ShouldMakeRequestFail bool
 		ShouldDoRequestFail   bool
@@ -478,11 +455,6 @@ func TestRemoveItem(t *testing.T) {
 	}
 
 	tcs := []testCase{
-		{
-			Description:   "Item ID Missing",
-			ShouldEraseID: true,
-			ExpectedErr:   ErrItemIDEmpty,
-		},
 		{
 			Description:           "Make request fails",
 			ShouldMakeRequestFail: true,
@@ -550,14 +522,6 @@ func TestRemoveItem(t *testing.T) {
 
 			if tc.ShouldDoRequestFail {
 				client.storeBaseURL = failingURL
-			}
-
-			if tc.ShouldEraseID {
-				id = ""
-			}
-
-			if tc.ShouldEraseBucket {
-				bucket = ""
 			}
 
 			require.Nil(err)

@@ -26,7 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -297,11 +296,10 @@ func (c *Client) GetItems(owner string) (Items, error) {
 	return items, nil
 }
 
-// PushItem creates a new item if one doesn't already exist at
-// the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
-// the item is simply updated.
-func (c *Client) PushItem(id, owner string, item model.Item) (PushResult, error) {
-	err := validatePushItemInput(owner, id, item)
+// PushItem creates a new item if one doesn't already exist. If an item exists
+// and the ownership matches, the item is simply updated.
+func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
+	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
 	}
@@ -311,7 +309,7 @@ func (c *Client) PushItem(id, owner string, item model.Item) (PushResult, error)
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), bytes.NewReader(data))
+	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -416,13 +414,9 @@ func (c *Client) Stop(ctx context.Context) error {
 	return nil
 }
 
-func validatePushItemInput(owner, id string, item model.Item) error {
-	if len(id) < 1 || len(item.ID) < 1 {
+func validatePushItemInput(owner string, item model.Item) error {
+	if len(item.ID) < 1 {
 		return ErrItemIDEmpty
-	}
-
-	if !strings.EqualFold(id, item.ID) {
-		return ErrItemIDMismatch
 	}
 
 	if len(item.Data) < 1 {
