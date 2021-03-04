@@ -51,14 +51,13 @@ const (
 // Some internal errors might be unwrapped from output errors but unless these errors become exported,
 // they are not part of the library API and may change in future versions.
 var (
-	ErrAddressEmpty             = errors.New("argus address is required")
-	ErrBucketEmpty              = errors.New("bucket name is required")
-	ErrItemIDEmpty              = errors.New("item ID is required")
-	ErrItemIDMismatch           = errors.New("item ID must match that in payload")
-	ErrItemDataEmpty            = errors.New("data field in item is required")
-	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
-	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
-	ErrAuthAcquirerFailure      = errors.New("failed acquiring auth token")
+	ErrAddressEmpty            = errors.New("argus address is required")
+	ErrBucketEmpty             = errors.New("bucket name is required")
+	ErrItemIDEmpty             = errors.New("item ID is required")
+	ErrItemIDMismatch          = errors.New("item ID must match that in payload")
+	ErrItemDataEmpty           = errors.New("data field in item is required")
+	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
+	ErrAuthAcquirerFailure     = errors.New("failed acquiring auth token")
 
 	ErrFailedAuthentication = errors.New("failed to authentication with argus")
 	ErrBadRequest           = errors.New("argus rejected the request as invalid")
@@ -87,32 +86,36 @@ const (
 )
 
 type ClientConfig struct {
-	// HTTPClient refers to the client that will be used to send
-	// HTTP requests.
-	// (Optional) http.DefaultClient is used if left empty.
+	// HTTPClient refers to the client that will be used to send requests.
+	// (Optional) Defaults to http.DefaultClient.
 	HTTPClient *http.Client
 
 	// Address is the Argus URL (i.e. https://example-argus.io:8090)
 	Address string
 
-	// Auth provides the mechanism to add auth headers to outgoing
-	// requests
+	// Auth provides the mechanism to add auth headers to outgoing requests.
 	// (Optional) If not provided, no auth headers are added.
 	Auth Auth
 
-	// MetricsProvider allows measures updated by the client to be collected.
+	// MetricsProvider helps initialize metrics collectors.
+	// (Optional). By default a discard provider will be used.
 	MetricsProvider provider.Provider
 
+	// Logger to be used by the client.
+	// (Optional). By default a no op logger will be used.
 	Logger log.Logger
 
-	// Listener is the component that consumes the latest list of owned items in a
-	// bucket.
+	// Listener provides a mechanism to fetch a copy of all items within a bucket on
+	// an interval.
+	// (Optional). If not provided, listening won't be enabled for this client.
 	Listener Listener
 
 	// PullInterval is how often listeners should get updates.
+	// (Optional). Defaults to 5 seconds.
 	PullInterval time.Duration
 
-	// Bucket to be used in listener requests.
+	// Bucket partition to be used by this client.
+	// (Optional). Defaults to "webhooks"
 	Bucket string
 
 	// Owner to be used in listener requests.
@@ -217,8 +220,12 @@ func validateConfig(config *ClientConfig) error {
 		return ErrAddressEmpty
 	}
 
+	if config.Bucket == "" {
+		config.Bucket = "webhooks"
+	}
+
 	if config.MetricsProvider == nil {
-		return ErrUndefinedMetricsProvider
+		config.MetricsProvider = provider.NewDiscardProvider()
 	}
 
 	if config.PullInterval == 0 {

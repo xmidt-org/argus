@@ -49,6 +49,7 @@ func TestValidateConfig(t *testing.T) {
 		PullInterval:    time.Second * 5,
 		Logger:          log.NewNopLogger(),
 		Address:         "http://awesome-argus-hostname.io",
+		Bucket:          "webhooks",
 		MetricsProvider: provider.NewDiscardProvider(),
 	}
 
@@ -58,7 +59,8 @@ func TestValidateConfig(t *testing.T) {
 		PullInterval:    time.Hour * 24,
 		Address:         "http://legit-argus-hostname.io",
 		Auth:            Auth{},
-		MetricsProvider: provider.NewDiscardProvider(),
+		MetricsProvider: provider.NewExpvarProvider(),
+		Bucket:          "amazing-bucket",
 		Logger:          log.NewJSONLogger(ioutil.Discard),
 	}
 
@@ -66,18 +68,9 @@ func TestValidateConfig(t *testing.T) {
 		{
 			Description: "All default values",
 			Input: &ClientConfig{
-				Address:         "http://awesome-argus-hostname.io",
-				MetricsProvider: provider.NewDiscardProvider(),
-			},
-			ExpectedConfig: allDefaultsCaseConfig,
-		},
-
-		{
-			Description: "No metrics provider",
-			Input: &ClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 			},
-			ExpectedErr: ErrUndefinedMetricsProvider,
+			ExpectedConfig: allDefaultsCaseConfig,
 		},
 		{
 			Description: "No address",
@@ -90,8 +83,9 @@ func TestValidateConfig(t *testing.T) {
 		{
 			Description: "All defined",
 			Input: &ClientConfig{
-				MetricsProvider: provider.NewDiscardProvider(),
+				MetricsProvider: provider.NewExpvarProvider(),
 				Address:         "http://legit-argus-hostname.io",
+				Bucket:          "amazing-bucket",
 				HTTPClient:      myAmazingClient,
 				PullInterval:    time.Hour * 24,
 				Logger:          log.NewJSONLogger(ioutil.Discard),
