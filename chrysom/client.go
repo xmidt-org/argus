@@ -102,7 +102,7 @@ type ClientConfig struct {
 	// (Optional). By default a no op logger will be used.
 	Logger log.Logger
 
-	// Listen contains data to configure
+	// Listen helps enable and configure the listener feature of the client.
 	// (Optional) If section is not provided with Listener, this
 	// feature will be disabled for the client.
 	Listen ListenerConfig
