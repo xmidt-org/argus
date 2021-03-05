@@ -6,10 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+
+## [v0.3.12]
 ### Changed
 - Better validation and documentation for Argus config. [#141](https://github.com/xmidt-org/argus/pull/141)
 - Make bucket a required field for the client not just the listener. [#141](https://github.com/xmidt-org/argus/pull/141)
-- Group listener-only config for client. [#142] (https://github.com/xmidt-org/argus/pull/142)
+- Group listener-only config for client. [#142](https://github.com/xmidt-org/argus/pull/142)
 
 ### Fixed
 - Super user getAll requests should be filtered by owner when one is provided. [#136](https://github.com/xmidt-org/argus/pull/136)
@@ -129,7 +131,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.11...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.12...HEAD
+[v0.3.12]: https://github.com/xmidt-org/argus/compare/v0.3.11...v0.3.12
 [v0.3.11]: https://github.com/xmidt-org/argus/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/xmidt-org/argus/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/xmidt-org/argus/compare/v0.3.8...v0.3.9
