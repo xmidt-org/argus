@@ -30,11 +30,10 @@ type PushReader interface {
 }
 
 type Pusher interface {
-	// Push applies user configurable for registering an item returning the id
-	// i.e. updated the storage with said item.
+	// PushItem adds the item and establishes its link to the given owner in the store.
 	PushItem(owner string, item model.Item) (PushResult, error)
 
-	// Remove will remove the item from the store
+	// Remove will remove the matching item from the store and return it.
 	RemoveItem(id, owner string) (model.Item, error)
 }
 
@@ -53,12 +52,13 @@ func (listener ListenerFunc) Update(items Items) {
 }
 
 type Reader interface {
-	// GeItems will return all the current items or an error.
+	// GeItems returns all the items that belong to this owner.
 	GetItems(owner string) (Items, error)
 
+	// Start kicks off listening for snapshots of all items in the store.
 	Start(ctx context.Context) error
 
-	// Stop will stop all threads and cleanup any necessary resources
+	// Stop will stop the listener provided there was an active one.
 	Stop(ctx context.Context) error
 }
 

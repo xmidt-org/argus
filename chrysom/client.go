@@ -98,22 +98,14 @@ type ClientConfig struct {
 	// (Optional) If not provided, no auth headers are added.
 	Auth Auth
 
-	// MetricsProvider helps initialize metrics collectors.
-	// (Optional). By default a discard provider will be used.
-	MetricsProvider provider.Provider
-
 	// Logger to be used by the client.
 	// (Optional). By default a no op logger will be used.
 	Logger log.Logger
 
-	// Listener provides a mechanism to fetch a copy of all items within a bucket on
-	// an interval.
-	// (Optional). If not provided, listening won't be enabled for this client.
-	Listener Listener
-
-	// PullInterval is how often listeners should get updates.
-	// (Optional). Defaults to 5 seconds.
-	PullInterval time.Duration
+	// Listen helps enable and configure the listener feature of the client.
+	// (Optional) If section is not provided with Listener, this
+	// feature will be disabled for the client.
+	Listen ListenerConfig
 }
 
 type response struct {
@@ -135,7 +127,7 @@ type Client struct {
 	storeBaseURL string
 	logger       log.Logger
 	bucket       string
-	observer     *listenerConfig
+	observer     *observerConfig
 }
 
 // listening states
@@ -145,7 +137,23 @@ const (
 	transitioning
 )
 
-type listenerConfig struct {
+// ListenerConfig contains config data to enable listening for the Argus client.
+type ListenerConfig struct {
+	// Listener provides a mechanism to fetch a copy of all items within a bucket on
+	// an interval.
+	// (Optional). If not provided, listening won't be enabled for this client.
+	Listener Listener
+
+	// PullInterval is how often listeners should get updates.
+	// (Optional). Defaults to 5 seconds.
+	PullInterval time.Duration
+
+	// MetricsProvider helps initialize metrics collectors.
+	// (Optional). By default a discard provider will be used.
+	MetricsProvider provider.Provider
+}
+
+type observerConfig struct {
 	listener     Listener
 	ticker       *time.Ticker
 	pullInterval time.Duration
@@ -168,7 +176,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
-		observer:     newObserver(config.Logger, config),
+		observer:     newObserver(config.Logger, config.Listen),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 	}
@@ -189,11 +197,11 @@ func translateNonSuccessStatusCode(code int) error {
 	}
 }
 
-func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
+func newObserver(logger log.Logger, config ListenerConfig) *observerConfig {
 	if config.Listener == nil {
 		return nil
 	}
-	return &listenerConfig{
+	return &observerConfig{
 		listener:     config.Listener,
 		ticker:       time.NewTicker(config.PullInterval),
 		pullInterval: config.PullInterval,
@@ -215,12 +223,12 @@ func validateConfig(config *ClientConfig) error {
 		config.HTTPClient = http.DefaultClient
 	}
 
-	if config.MetricsProvider == nil {
-		config.MetricsProvider = provider.NewDiscardProvider()
+	if config.Listen.MetricsProvider == nil {
+		config.Listen.MetricsProvider = provider.NewDiscardProvider()
 	}
 
-	if config.PullInterval == 0 {
-		config.PullInterval = time.Second * 5
+	if config.Listen.PullInterval == 0 {
+		config.Listen.PullInterval = time.Second * 5
 	}
 
 	if config.Logger == nil {
