@@ -26,7 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -51,14 +50,12 @@ const (
 // Some internal errors might be unwrapped from output errors but unless these errors become exported,
 // they are not part of the library API and may change in future versions.
 var (
-	ErrAddressEmpty             = errors.New("argus address is required")
-	ErrBucketEmpty              = errors.New("bucket name is required")
-	ErrItemIDEmpty              = errors.New("item ID is required")
-	ErrItemIDMismatch           = errors.New("item ID must match that in payload")
-	ErrItemDataEmpty            = errors.New("data field in item is required")
-	ErrUndefinedMetricsProvider = errors.New("a metrics provider is required")
-	ErrUndefinedIntervalTicker  = errors.New("interval ticker is nil. Can't listen for updates")
-	ErrAuthAcquirerFailure      = errors.New("failed acquiring auth token")
+	ErrAddressEmpty            = errors.New("argus address is required")
+	ErrBucketEmpty             = errors.New("bucket name is required")
+	ErrItemIDEmpty             = errors.New("item ID is required")
+	ErrItemDataEmpty           = errors.New("data field in item is required")
+	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
+	ErrAuthAcquirerFailure     = errors.New("failed acquiring auth token")
 
 	ErrFailedAuthentication = errors.New("failed to authentication with argus")
 	ErrBadRequest           = errors.New("argus rejected the request as invalid")
@@ -87,37 +84,36 @@ const (
 )
 
 type ClientConfig struct {
-	// HTTPClient refers to the client that will be used to send
-	// HTTP requests.
-	// (Optional) http.DefaultClient is used if left empty.
-	HTTPClient *http.Client
-
 	// Address is the Argus URL (i.e. https://example-argus.io:8090)
 	Address string
 
-	// Auth provides the mechanism to add auth headers to outgoing
-	// requests
+	// Bucket partition to be used by this client.
+	Bucket string
+
+	// HTTPClient refers to the client that will be used to send requests.
+	// (Optional) Defaults to http.DefaultClient.
+	HTTPClient *http.Client
+
+	// Auth provides the mechanism to add auth headers to outgoing requests.
 	// (Optional) If not provided, no auth headers are added.
 	Auth Auth
 
-	// MetricsProvider allows measures updated by the client to be collected.
+	// MetricsProvider helps initialize metrics collectors.
+	// (Optional). By default a discard provider will be used.
 	MetricsProvider provider.Provider
 
+	// Logger to be used by the client.
+	// (Optional). By default a no op logger will be used.
 	Logger log.Logger
 
-	// Listener is the component that consumes the latest list of owned items in a
-	// bucket.
+	// Listener provides a mechanism to fetch a copy of all items within a bucket on
+	// an interval.
+	// (Optional). If not provided, listening won't be enabled for this client.
 	Listener Listener
 
 	// PullInterval is how often listeners should get updates.
+	// (Optional). Defaults to 5 seconds.
 	PullInterval time.Duration
-
-	// Bucket to be used in listener requests.
-	Bucket string
-
-	// Owner to be used in listener requests.
-	// (Optional) If left empty, items without an owner will be watched.
-	Owner string
 }
 
 type response struct {
@@ -138,6 +134,7 @@ type Client struct {
 	auth         acquire.Acquirer
 	storeBaseURL string
 	logger       log.Logger
+	bucket       string
 	observer     *listenerConfig
 }
 
@@ -153,8 +150,6 @@ type listenerConfig struct {
 	ticker       *time.Ticker
 	pullInterval time.Duration
 	pollCount    metrics.Counter
-	bucket       string
-	owner        string
 	shutdown     chan struct{}
 	state        int32
 }
@@ -174,6 +169,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
 		observer:     newObserver(config.Logger, config),
+		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 	}
 
@@ -202,23 +198,25 @@ func newObserver(logger log.Logger, config ClientConfig) *listenerConfig {
 		ticker:       time.NewTicker(config.PullInterval),
 		pullInterval: config.PullInterval,
 		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
-		bucket:       config.Bucket,
-		owner:        config.Owner,
 		shutdown:     make(chan struct{}),
 	}
 }
 
 func validateConfig(config *ClientConfig) error {
-	if config.HTTPClient == nil {
-		config.HTTPClient = http.DefaultClient
-	}
-
 	if config.Address == "" {
 		return ErrAddressEmpty
 	}
 
+	if config.Bucket == "" {
+		return ErrBucketEmpty
+	}
+
+	if config.HTTPClient == nil {
+		config.HTTPClient = http.DefaultClient
+	}
+
 	if config.MetricsProvider == nil {
-		return ErrUndefinedMetricsProvider
+		config.MetricsProvider = provider.NewDiscardProvider()
 	}
 
 	if config.PullInterval == 0 {
@@ -274,13 +272,9 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 	return sqResp, nil
 }
 
-// GetItems fetches all items in a bucket that belong to a given owner.
-func (c *Client) GetItems(bucket, owner string) (Items, error) {
-	if len(bucket) < 1 {
-		return nil, ErrBucketEmpty
-	}
-
-	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, bucket), nil)
+// GetItems fetches all items that belong to a given owner.
+func (c *Client) GetItems(owner string) (Items, error) {
+	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -301,11 +295,10 @@ func (c *Client) GetItems(bucket, owner string) (Items, error) {
 	return items, nil
 }
 
-// PushItem creates a new item if one doesn't already exist at
-// the resource path '{BUCKET}/{ID}'. If an item exists and the ownership matches,
-// the item is simply updated.
-func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult, error) {
-	err := validatePushItemInput(bucket, owner, id, item)
+// PushItem creates a new item if one doesn't already exist. If an item exists
+// and the ownership matches, the item is simply updated.
+func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
+	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
 	}
@@ -315,7 +308,7 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), bytes.NewReader(data))
+	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -335,13 +328,12 @@ func (c *Client) PushItem(id, bucket, owner string, item model.Item) (PushResult
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(id, bucket, owner string) (model.Item, error) {
-	err := validateRemoveItemInput(bucket, id)
-	if err != nil {
-		return model.Item{}, err
+func (c *Client) RemoveItem(id, owner string) (model.Item, error) {
+	if len(id) < 1 {
+		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, bucket, id), nil)
+	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -386,7 +378,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems(c.observer.bucket, c.observer.owner)
+				items, err := c.GetItems("")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -421,33 +413,14 @@ func (c *Client) Stop(ctx context.Context) error {
 	return nil
 }
 
-func validatePushItemInput(bucket, owner, id string, item model.Item) error {
-	if len(bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
-	if len(id) < 1 || len(item.ID) < 1 {
+func validatePushItemInput(owner string, item model.Item) error {
+	if len(item.ID) < 1 {
 		return ErrItemIDEmpty
-	}
-
-	if !strings.EqualFold(id, item.ID) {
-		return ErrItemIDMismatch
 	}
 
 	if len(item.Data) < 1 {
 		return ErrItemDataEmpty
 	}
 
-	return nil
-}
-
-func validateRemoveItemInput(bucket, id string) error {
-	if len(bucket) < 1 {
-		return ErrBucketEmpty
-	}
-
-	if len(id) < 1 {
-		return ErrItemIDEmpty
-	}
 	return nil
 }
