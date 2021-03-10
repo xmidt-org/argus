@@ -37,6 +37,7 @@ import (
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
 	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/candlelight"
 )
 
 const (
@@ -106,6 +107,10 @@ type ClientConfig struct {
 	// (Optional) If section is not provided with Listener, this
 	// feature will be disabled for the client.
 	Listen ListenerConfig
+
+	// HeaderConfig provides the placeholder names to be used in logger for traceID
+	// and spanID. (Optional) If HeaderConfig is not provided the defaults will be used.
+	HeaderConfig candlelight.HeaderConfig
 }
 
 type response struct {
@@ -128,6 +133,7 @@ type Client struct {
 	logger       log.Logger
 	bucket       string
 	observer     *observerConfig
+	headerConfig candlelight.HeaderConfig
 }
 
 // listening states
@@ -179,6 +185,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		observer:     newObserver(config.Logger, config.Listen),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
+		headerConfig: config.HeaderConfig,
 	}
 
 	return clientStore, nil
@@ -234,6 +241,12 @@ func validateConfig(config *ClientConfig) error {
 	if config.Logger == nil {
 		config.Logger = log.NewNopLogger()
 	}
+	if len(config.HeaderConfig.TraceIDHeaderName) == 0 {
+		config.HeaderConfig.TraceIDHeaderName = candlelight.DefaultTraceIDHeaderName
+	}
+	if len(config.HeaderConfig.SpanIDHeaderName) == 0 {
+		config.HeaderConfig.SpanIDHeaderName = candlelight.DefaultSpanIDHeaderName
+	}
 	return nil
 }
 
@@ -250,11 +263,12 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c *Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
+func (c *Client) sendRequest(owner, method, url string, body io.Reader,ctx context.Context) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
+	candlelight.InjectTraceInformation(ctx,r.Header)
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
@@ -267,7 +281,6 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 		return response{}, fmt.Errorf(errWrappedFmt, errDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
-
 	var sqResp = response{
 		Code:             resp.StatusCode,
 		ArgusErrorHeader: resp.Header.Get(store.XmidtErrorHeaderKey),
@@ -281,15 +294,16 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 }
 
 // GetItems fetches all items that belong to a given owner.
-func (c *Client) GetItems(owner string) (Items, error) {
-	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
+func (c *Client) GetItems(owner string,ctx context.Context) (Items, error) {
+	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil,ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.Code != http.StatusOK {
+		spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
-			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
 		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 	}
 
@@ -305,7 +319,7 @@ func (c *Client) GetItems(owner string) (Items, error) {
 
 // PushItem creates a new item if one doesn't already exist. If an item exists
 // and the ownership matches, the item is simply updated.
-func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
+func (c *Client) PushItem(owner string, item model.Item,ctx context.Context) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
@@ -316,7 +330,7 @@ func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
+	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data),ctx)
 	if err != nil {
 		return "", err
 	}
@@ -328,27 +342,29 @@ func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
 	if response.Code == http.StatusOK {
 		return UpdatedPushResult, nil
 	}
+	spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
 
 	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
-		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
 
 	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(id, owner string) (model.Item, error) {
+func (c *Client) RemoveItem(id, owner string,ctx context.Context) (model.Item, error) {
 	if len(id) < 1 {
 		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
+	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil,ctx)
 	if err != nil {
 		return model.Item{}, err
 	}
 
 	if resp.Code != http.StatusOK {
+		spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
 		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
-			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
+			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
 	}
 
@@ -386,7 +402,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems("")
+				items, err := c.GetItems("",context.TODO())
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -431,4 +447,10 @@ func validatePushItemInput(owner string, item model.Item) error {
 	}
 
 	return nil
+}
+
+func extractTraceInformation(ctx context.Context,headerConfig candlelight.HeaderConfig) (spanIDHeaderName,spanID,traceIDHeaderName,traceID string) {
+	spanIDHeaderName, traceIDHeaderName = candlelight.ExtractSpanIDAndTraceIDHeaderName(headerConfig)
+	traceID, spanID = candlelight.ExtractTraceInformation(ctx)
+	return
 }

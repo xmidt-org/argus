@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xmidt-org/candlelight"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -53,6 +54,10 @@ func TestValidateConfig(t *testing.T) {
 		Logger:  log.NewNopLogger(),
 		Address: "http://awesome-argus-hostname.io",
 		Bucket:  "bucket-name",
+		HeaderConfig: candlelight.HeaderConfig{
+			TraceIDHeaderName:  candlelight.DefaultTraceIDHeaderName,
+			SpanIDHeaderName: candlelight.DefaultSpanIDHeaderName,
+		},
 	}
 
 	myAmazingClient := &http.Client{Timeout: time.Hour}
@@ -66,6 +71,10 @@ func TestValidateConfig(t *testing.T) {
 		Auth:    Auth{},
 		Bucket:  "amazing-bucket",
 		Logger:  log.NewJSONLogger(ioutil.Discard),
+		HeaderConfig: candlelight.HeaderConfig{
+			TraceIDHeaderName:  "emptyTraceID",
+			SpanIDHeaderName: "emptySpanID",
+		},
 	}
 
 	tcs := []testCase{
@@ -102,6 +111,10 @@ func TestValidateConfig(t *testing.T) {
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
 				Logger:     log.NewJSONLogger(ioutil.Discard),
+				HeaderConfig: candlelight.HeaderConfig{
+					TraceIDHeaderName:  "emptyTraceID",
+					SpanIDHeaderName: "emptySpanID",
+				},
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},
@@ -196,7 +209,7 @@ func TestSendRequest(t *testing.T) {
 			}
 
 			assert.Nil(err)
-			resp, err := client.sendRequest(tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body))
+			resp, err := client.sendRequest(tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body),context.TODO())
 
 			if tc.ExpectedErr == nil {
 				assert.Equal(http.StatusOK, resp.Code)
@@ -294,7 +307,7 @@ func TestGetItems(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			output, err := client.GetItems(owner)
+			output, err := client.GetItems(owner,context.TODO())
 
 			assert.True(errors.Is(err, tc.ExpectedErr))
 			if tc.ExpectedErr == nil {
@@ -433,7 +446,7 @@ func TestPushItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.PushItem(tc.Owner, tc.Item)
+			output, err := client.PushItem(tc.Owner, tc.Item,context.TODO())
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -527,7 +540,7 @@ func TestRemoveItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.RemoveItem(id, tc.Owner)
+			output, err := client.RemoveItem(id, tc.Owner,context.TODO())
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -663,6 +676,12 @@ func newStartStopClient(includeListener bool) (*Client, func()) {
 			MetricsProvider: provider.NewDiscardProvider(),
 			PullInterval:    time.Millisecond * 200,
 		},
+		HeaderConfig: candlelight.HeaderConfig{
+			SpanIDHeaderName: candlelight.DefaultSpanIDHeaderName,
+			TraceIDHeaderName: candlelight.DefaultTraceIDHeaderName,
+		},
+
+
 	}
 	if includeListener {
 		config.Listen.Listener = ListenerFunc((func(_ Items) {
@@ -707,6 +726,11 @@ func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) 
 		},
 		Bucket: "parallel-test-bucket",
 		Logger: xlog.Default(),
+		HeaderConfig: candlelight.HeaderConfig{
+			SpanIDHeaderName: candlelight.DefaultSpanIDHeaderName,
+			TraceIDHeaderName: candlelight.DefaultTraceIDHeaderName,
+
+		},
 	}
 
 	client, err := NewClient(config)

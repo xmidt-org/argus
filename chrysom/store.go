@@ -31,10 +31,10 @@ type PushReader interface {
 
 type Pusher interface {
 	// PushItem adds the item and establishes its link to the given owner in the store.
-	PushItem(owner string, item model.Item) (PushResult, error)
+	PushItem(owner string, item model.Item,ctx context.Context) (PushResult, error)
 
 	// Remove will remove the matching item from the store and return it.
-	RemoveItem(id, owner string) (model.Item, error)
+	RemoveItem(id, owner string,ctx context.Context) (model.Item, error)
 }
 
 type Listener interface {
@@ -53,7 +53,7 @@ func (listener ListenerFunc) Update(items Items) {
 
 type Reader interface {
 	// GeItems returns all the items that belong to this owner.
-	GetItems(owner string) (Items, error)
+	GetItems(owner string,ctx context.Context) (Items, error)
 
 	// Start kicks off listening for snapshots of all items in the store.
 	Start(ctx context.Context) error
