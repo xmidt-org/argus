@@ -280,6 +280,13 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			ExpectedErr: errDataFieldMissing,
 		},
 		{
+			Name:        "Invalid item data depth",
+			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
+			Owner:       "mathematics",
+			RequestBody: `{"id":"4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b", "data": {"nestedKey": {"depth":"unsupported"}}, "ttl": 100}`,
+			ExpectedErr: errInvalidItemDataDepth,
+		},
+		{
 			Name:        "Capped TTL",
 			URLVars:     map[string]string{bucketVarKey: "variables", idVarKey: "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b"},
 			Owner:       "mathematics",

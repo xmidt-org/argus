@@ -22,11 +22,12 @@ const (
 )
 
 var (
-	errInvalidID        = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
-	errIDMismatch       = BadRequestErr{Message: "IDs must match between the URL and payload."}
-	errDataFieldMissing = BadRequestErr{Message: "Data field must be set in payload."}
-	errInvalidBucket    = BadRequestErr{Message: "Invalid bucket format."}
-	errInvalidOwner     = BadRequestErr{Message: "Invalid Owner format."}
+	errInvalidID            = BadRequestErr{Message: "Invalid ID format. Expecting the format of a SHA-256 message digest."}
+	errIDMismatch           = BadRequestErr{Message: "IDs must match between the URL and payload."}
+	errDataFieldMissing     = BadRequestErr{Message: "Data field must be set in payload."}
+	errInvalidBucket        = BadRequestErr{Message: "Invalid bucket format."}
+	errInvalidOwner         = BadRequestErr{Message: "Invalid Owner format."}
+	errInvalidItemDataDepth = BadRequestErr{Message: "Depth of item data JSON is too large."}
 )
 
 func validateItemTTL(item *model.Item, maxTTL time.Duration) {
@@ -102,6 +103,10 @@ func (v *validItemUnmarshaler) UnmarshalJSON(data []byte) error {
 	}
 
 	validateItemTTL(&v.item, v.config.ItemMaxTTL)
+
+	if !validDepth(v.item.Data, v.config.ItemDataMaxDepth) {
+		return errInvalidItemDataDepth
+	}
 
 	return nil
 }

@@ -22,6 +22,8 @@ func TestNewTransportConfig(t *testing.T) {
 		ExpectedErr             error
 	}
 
+	var itemDataMaxDepth uint = 5
+
 	tcs := []testCase{
 		{
 			Description:         "Unmarshal fails",
@@ -55,6 +57,7 @@ func TestNewTransportConfig(t *testing.T) {
 				ItemMaxTTL:        48 * time.Hour,
 				BucketFormatRegex: ".+",
 				OwnerFormatRegex:  ".*",
+				ItemDataMaxDepth:  &itemDataMaxDepth,
 			},
 			ExpectedTransportConfig: getCheckValuesExpectedConfig(),
 		},
@@ -92,6 +95,7 @@ func getDefaultValuesExpectedConfig() transportConfig {
 		OwnerFormatRegex:        regexp.MustCompile(OwnerFormatRegexSource),
 		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
 		BucketFormatRegex:       regexp.MustCompile(BucketFormatRegexSource),
+		ItemDataMaxDepth:        defaultItemDataMaxDepth,
 	}
 }
 
@@ -102,6 +106,7 @@ func getCheckValuesExpectedConfig() transportConfig {
 		OwnerFormatRegex:        regexp.MustCompile(".*"),
 		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
 		BucketFormatRegex:       regexp.MustCompile(".+"),
+		ItemDataMaxDepth:        5,
 	}
 }
 
