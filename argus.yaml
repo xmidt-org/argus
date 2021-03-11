@@ -112,11 +112,18 @@ userInputValidation:
   itemMaxTTL: "24h" 
 
   # bucketFormatRegex helps define the validity of a bucket through a regular expression.
+  # (Optional) default: ^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$
   bucketFormatRegex: "^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$"
 
   # ownerFormatRegex helps define the validity of a bucket through a regular expression.
+  # (Optional) default: ^.{10,60}$
   ownerFormatRegex: "^.{10,60}$"
 
+  # itemDataMaxDepth is the max allowed depth of the Item JSON data field.
+  # If your DB supports up to N nested objects, you should validate the item's 
+  # data field has depth <= N-1.
+  # (Optional) default: 30
+  itemDataMaxDepth: 30
 
 ##############################################################################
 # Authorization Credentials
