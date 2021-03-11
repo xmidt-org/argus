@@ -263,7 +263,7 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c *Client) sendRequest(owner, method, url string, body io.Reader,ctx context.Context) (response, error) {
+func (c *Client) sendRequest(ctx context.Context,owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
@@ -294,8 +294,8 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader,ctx conte
 }
 
 // GetItems fetches all items that belong to a given owner.
-func (c *Client) GetItems(owner string,ctx context.Context) (Items, error) {
-	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil,ctx)
+func (c *Client) GetItems(ctx context.Context,owner string) (Items, error) {
+	response, err := c.sendRequest(ctx,owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func (c *Client) GetItems(owner string,ctx context.Context) (Items, error) {
 
 // PushItem creates a new item if one doesn't already exist. If an item exists
 // and the ownership matches, the item is simply updated.
-func (c *Client) PushItem(owner string, item model.Item,ctx context.Context) (PushResult, error) {
+func (c *Client) PushItem(ctx context.Context,owner string, item model.Item) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
@@ -330,7 +330,7 @@ func (c *Client) PushItem(owner string, item model.Item,ctx context.Context) (Pu
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data),ctx)
+	response, err := c.sendRequest(ctx,owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -351,12 +351,12 @@ func (c *Client) PushItem(owner string, item model.Item,ctx context.Context) (Pu
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(id, owner string,ctx context.Context) (model.Item, error) {
+func (c *Client) RemoveItem(ctx context.Context,id, owner string) (model.Item, error) {
 	if len(id) < 1 {
 		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil,ctx)
+	resp, err := c.sendRequest(ctx,owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -402,7 +402,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems("",context.TODO())
+				items, err := c.GetItems(context.Background(),"")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {

@@ -209,7 +209,7 @@ func TestSendRequest(t *testing.T) {
 			}
 
 			assert.Nil(err)
-			resp, err := client.sendRequest(tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body),context.TODO())
+			resp, err := client.sendRequest(context.TODO(),tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body))
 
 			if tc.ExpectedErr == nil {
 				assert.Equal(http.StatusOK, resp.Code)
@@ -307,7 +307,7 @@ func TestGetItems(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			output, err := client.GetItems(owner,context.TODO())
+			output, err := client.GetItems(context.TODO(),owner)
 
 			assert.True(errors.Is(err, tc.ExpectedErr))
 			if tc.ExpectedErr == nil {
@@ -446,7 +446,7 @@ func TestPushItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.PushItem(tc.Owner, tc.Item,context.TODO())
+			output, err := client.PushItem(context.TODO(),tc.Owner, tc.Item)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -540,7 +540,7 @@ func TestRemoveItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.RemoveItem(id, tc.Owner,context.TODO())
+			output, err := client.RemoveItem(context.TODO(),id, tc.Owner)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
