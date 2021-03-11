@@ -1,10 +1,12 @@
 package store
 
 import (
+	"encoding/json"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsIDValid(t *testing.T) {
@@ -103,6 +105,55 @@ func TestIsOwnerValidFromDefaultSource(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			assert.Equal(tc.Succeeds, isOwnerValid(OwnerFormatRegex, tc.Owner))
+		})
+	}
+}
+
+func TestValidDepth(t *testing.T) {
+	tcs := []struct {
+		Description   string
+		InputJSONData string
+		MaxDepth      uint
+		IsValid       bool
+	}{
+		{
+			Description:   "Well within constraints",
+			InputJSONData: `{"hey": "jude"}`,
+			MaxDepth:      3,
+			IsValid:       true,
+		},
+
+		{
+			Description:   "Min depth edge case",
+			InputJSONData: `{"hey": "jude"}`,
+			MaxDepth:      0,
+			IsValid:       true,
+		},
+
+		{
+			Description:   "At depth limit",
+			InputJSONData: `{"hey": {"jude": "don't be afraid"}}`,
+			MaxDepth:      1,
+			IsValid:       true,
+		},
+		{
+			Description:   "Pass depth limits",
+			InputJSONData: `{"hey": {"jude": {"don't make it bad": {"take a sad song & make it better": 3}}}}`,
+			MaxDepth:      2,
+			IsValid:       false,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+			var data map[string]interface{}
+			err := json.Unmarshal([]byte(tc.InputJSONData), &data)
+			require.Nil(err)
+
+			isValid := validDepth(data, tc.MaxDepth)
+			assert.Equal(tc.IsValid, isValid)
 		})
 	}
 }
