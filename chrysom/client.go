@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xmidt-org/bascule"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -36,8 +37,8 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/candlelight"
+	"github.com/xmidt-org/themis/xlog"
 )
 
 const (
@@ -107,10 +108,6 @@ type ClientConfig struct {
 	// (Optional) If section is not provided with Listener, this
 	// feature will be disabled for the client.
 	Listen ListenerConfig
-
-	// HeaderConfig provides the placeholder names to be used in logger for traceID
-	// and spanID. (Optional) If HeaderConfig is not provided the defaults will be used.
-	HeaderConfig candlelight.HeaderConfig
 }
 
 type response struct {
@@ -133,7 +130,7 @@ type Client struct {
 	logger       log.Logger
 	bucket       string
 	observer     *observerConfig
-	headerConfig candlelight.HeaderConfig
+	getLogger    func(context.Context) bascule.Logger
 }
 
 // listening states
@@ -168,16 +165,18 @@ type observerConfig struct {
 	state        int32
 }
 
-func NewClient(config ClientConfig) (*Client, error) {
+func NewClient(config ClientConfig, logger func(ctx context.Context) bascule.Logger) (*Client, error) {
 	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
+	}
+	if logger == nil {
+		logger = bascule.GetDefaultLoggerFunc
 	}
 	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
 	if err != nil {
 		return nil, err
 	}
-
 	clientStore := &Client{
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
@@ -185,7 +184,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		observer:     newObserver(config.Logger, config.Listen),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
-		headerConfig: config.HeaderConfig,
+		getLogger:    logger,
 	}
 
 	return clientStore, nil
@@ -241,12 +240,6 @@ func validateConfig(config *ClientConfig) error {
 	if config.Logger == nil {
 		config.Logger = log.NewNopLogger()
 	}
-	if len(config.HeaderConfig.TraceIDHeaderName) == 0 {
-		config.HeaderConfig.TraceIDHeaderName = candlelight.DefaultTraceIDHeaderName
-	}
-	if len(config.HeaderConfig.SpanIDHeaderName) == 0 {
-		config.HeaderConfig.SpanIDHeaderName = candlelight.DefaultSpanIDHeaderName
-	}
 	return nil
 }
 
@@ -263,12 +256,12 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c *Client) sendRequest(ctx context.Context,owner, method, url string, body io.Reader) (response, error) {
+func (c *Client) sendRequest(ctx context.Context, owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
-	candlelight.InjectTraceInformation(ctx,r.Header)
+	candlelight.InjectTraceInformation(ctx, r.Header)
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
@@ -294,16 +287,15 @@ func (c *Client) sendRequest(ctx context.Context,owner, method, url string, body
 }
 
 // GetItems fetches all items that belong to a given owner.
-func (c *Client) GetItems(ctx context.Context,owner string) (Items, error) {
-	response, err := c.sendRequest(ctx,owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
+func (c *Client) GetItems(ctx context.Context, owner string) (Items, error) {
+	response, err := c.sendRequest(ctx, owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.Code != http.StatusOK {
-		spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
-			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
+			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 	}
 
@@ -319,7 +311,7 @@ func (c *Client) GetItems(ctx context.Context,owner string) (Items, error) {
 
 // PushItem creates a new item if one doesn't already exist. If an item exists
 // and the ownership matches, the item is simply updated.
-func (c *Client) PushItem(ctx context.Context,owner string, item model.Item) (PushResult, error) {
+func (c *Client) PushItem(ctx context.Context, owner string, item model.Item) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
@@ -330,7 +322,7 @@ func (c *Client) PushItem(ctx context.Context,owner string, item model.Item) (Pu
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(ctx,owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
+	response, err := c.sendRequest(ctx, owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -342,29 +334,27 @@ func (c *Client) PushItem(ctx context.Context,owner string, item model.Item) (Pu
 	if response.Code == http.StatusOK {
 		return UpdatedPushResult, nil
 	}
-	spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
 
-	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
-		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
+	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
+		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
 	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(ctx context.Context,id, owner string) (model.Item, error) {
+func (c *Client) RemoveItem(ctx context.Context, id, owner string) (model.Item, error) {
 	if len(id) < 1 {
 		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(ctx,owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
+	resp, err := c.sendRequest(ctx, owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
 
 	if resp.Code != http.StatusOK {
-		spanIDHeaderName,spanID,traceIDHeaderName,traceID := extractTraceInformation(ctx,c.headerConfig)
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
-			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader,spanIDHeaderName,spanID,traceIDHeaderName,traceID)
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
+			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
 	}
 
@@ -402,7 +392,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems(context.Background(),"")
+				items, err := c.GetItems(context.Background(), "")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -447,10 +437,4 @@ func validatePushItemInput(owner string, item model.Item) error {
 	}
 
 	return nil
-}
-
-func extractTraceInformation(ctx context.Context,headerConfig candlelight.HeaderConfig) (spanIDHeaderName,spanID,traceIDHeaderName,traceID string) {
-	spanIDHeaderName, traceIDHeaderName = candlelight.ExtractSpanIDAndTraceIDHeaderName(headerConfig)
-	traceID, spanID = candlelight.ExtractTraceInformation(ctx)
-	return
 }
