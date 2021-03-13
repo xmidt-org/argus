@@ -114,7 +114,7 @@ func (v *validItemUnmarshaler) UnmarshalJSON(data []byte) error {
 // validDepth returns true if the maximum depth in data is at
 // most maxDepth. False otherwise.
 func validDepth(data map[string]interface{}, maxDepth uint) bool {
-	return validDepthHelper(data, 0, maxDepth)
+	return validDepthHelper(data, 1, maxDepth)
 }
 
 func validDepthHelper(data map[string]interface{}, currentDepth, maxDepth uint) bool {

@@ -83,7 +83,7 @@ type userInputValidationConfig struct {
 	ItemMaxTTL        time.Duration
 	BucketFormatRegex string
 	OwnerFormatRegex  string
-	ItemDataMaxDepth  *uint
+	ItemDataMaxDepth  uint
 }
 
 type transportConfigIn struct {
@@ -103,16 +103,15 @@ func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
 		userInputValidation.ItemMaxTTL = time.Hour * 24
 	}
 
+	if userInputValidation.ItemDataMaxDepth == 0 {
+		userInputValidation.ItemDataMaxDepth = defaultItemDataMaxDepth
+	}
+
 	config := &transportConfig{
 		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
 		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
+		ItemDataMaxDepth:        userInputValidation.ItemDataMaxDepth,
 	}
-
-	var itemDataMaxDepth = defaultItemDataMaxDepth
-	if userInputValidation.ItemDataMaxDepth != nil {
-		itemDataMaxDepth = *userInputValidation.ItemDataMaxDepth
-	}
-	config.ItemDataMaxDepth = itemDataMaxDepth
 
 	buildInputRegexValidators(userInputValidation, config)
 	return config, nil
