@@ -22,8 +22,6 @@ func TestNewTransportConfig(t *testing.T) {
 		ExpectedErr             error
 	}
 
-	var itemDataMaxDepth uint = 5
-
 	tcs := []testCase{
 		{
 			Description:         "Unmarshal fails",
@@ -57,7 +55,7 @@ func TestNewTransportConfig(t *testing.T) {
 				ItemMaxTTL:        48 * time.Hour,
 				BucketFormatRegex: ".+",
 				OwnerFormatRegex:  ".*",
-				ItemDataMaxDepth:  &itemDataMaxDepth,
+				ItemDataMaxDepth:  5,
 			},
 			ExpectedTransportConfig: getCheckValuesExpectedConfig(),
 		},

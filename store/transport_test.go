@@ -533,5 +533,6 @@ func getTestTransportConfig() *transportConfig {
 		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
 		BucketFormatRegex:       regexp.MustCompile(BucketFormatRegexSource),
 		OwnerFormatRegex:        regexp.MustCompile(OwnerFormatRegexSource),
+		ItemDataMaxDepth:        1,
 	}
 }

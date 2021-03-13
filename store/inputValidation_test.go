@@ -126,20 +126,20 @@ func TestValidDepth(t *testing.T) {
 		{
 			Description:   "Min depth edge case",
 			InputJSONData: `{"hey": "jude"}`,
-			MaxDepth:      0,
+			MaxDepth:      1,
 			IsValid:       true,
 		},
 
 		{
 			Description:   "At depth limit",
 			InputJSONData: `{"hey": {"jude": "don't be afraid"}}`,
-			MaxDepth:      1,
+			MaxDepth:      2,
 			IsValid:       true,
 		},
 		{
 			Description:   "Pass depth limits",
 			InputJSONData: `{"hey": {"jude": {"don't make it bad": {"take a sad song & make it better": 3}}}}`,
-			MaxDepth:      2,
+			MaxDepth:      3,
 			IsValid:       false,
 		},
 	}
