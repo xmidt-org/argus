@@ -141,11 +141,11 @@ userInputValidation:
   ownerFormatRegex: (( grab $OWNER_FORMAT_REGEX || "^.{10,60}$" ))
 
   # itemDataMaxDepth is the max allowed depth of the Item JSON data field.
-  # If your DB supports up to N nested objects, you should validate the item's 
-  # data field has depth <= N-1.
+  # If your DB supports up to N nested objects, itemDataMaxDepth should be set to 
+  # N-1. The value of itemDataMaxDepth must be > 0, otherwise the default value will
+  # be used.
   # (Optional) default: 30
   itemDataMaxDepth: (( grab $ITEM_DATA_MAX_DEPTH || 30 ))
-
 
 ##############################################################################
 # Authorization Credentials

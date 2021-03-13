@@ -121,7 +121,8 @@ userInputValidation:
 
   # itemDataMaxDepth is the max allowed depth of the Item JSON data field.
   # If your DB supports up to N nested objects, itemDataMaxDepth should be set to 
-  # N-1.
+  # N-1. The value of itemDataMaxDepth must be > 0, otherwise the default value will
+  # be used.
   # (Optional) default: 30
   itemDataMaxDepth: 30
 
