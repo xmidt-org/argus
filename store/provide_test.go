@@ -55,6 +55,7 @@ func TestNewTransportConfig(t *testing.T) {
 				ItemMaxTTL:        48 * time.Hour,
 				BucketFormatRegex: ".+",
 				OwnerFormatRegex:  ".*",
+				ItemDataMaxDepth:  5,
 			},
 			ExpectedTransportConfig: getCheckValuesExpectedConfig(),
 		},
@@ -92,6 +93,7 @@ func getDefaultValuesExpectedConfig() transportConfig {
 		OwnerFormatRegex:        regexp.MustCompile(OwnerFormatRegexSource),
 		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
 		BucketFormatRegex:       regexp.MustCompile(BucketFormatRegexSource),
+		ItemDataMaxDepth:        defaultItemDataMaxDepth,
 	}
 }
 
@@ -102,6 +104,7 @@ func getCheckValuesExpectedConfig() transportConfig {
 		OwnerFormatRegex:        regexp.MustCompile(".*"),
 		IDFormatRegex:           regexp.MustCompile(IDFormatRegexSource),
 		BucketFormatRegex:       regexp.MustCompile(".+"),
+		ItemDataMaxDepth:        5,
 	}
 }
 

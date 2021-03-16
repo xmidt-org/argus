@@ -30,6 +30,9 @@ import (
 
 var errRegexCompilation = errors.New("regex could not be compiled")
 
+// allow up to 31 nested objects in item data by default
+const defaultItemDataMaxDepth uint = 30
+
 type handlerIn struct {
 	fx.In
 
@@ -80,6 +83,7 @@ type userInputValidationConfig struct {
 	ItemMaxTTL        time.Duration
 	BucketFormatRegex string
 	OwnerFormatRegex  string
+	ItemDataMaxDepth  uint
 }
 
 type transportConfigIn struct {
@@ -99,9 +103,14 @@ func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
 		userInputValidation.ItemMaxTTL = time.Hour * 24
 	}
 
+	if userInputValidation.ItemDataMaxDepth == 0 {
+		userInputValidation.ItemDataMaxDepth = defaultItemDataMaxDepth
+	}
+
 	config := &transportConfig{
 		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
 		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
+		ItemDataMaxDepth:        userInputValidation.ItemDataMaxDepth,
 	}
 
 	buildInputRegexValidators(userInputValidation, config)

@@ -51,6 +51,7 @@ type transportConfig struct {
 	IDFormatRegex           *regexp.Regexp
 	BucketFormatRegex       *regexp.Regexp
 	OwnerFormatRegex        *regexp.Regexp
+	ItemDataMaxDepth        uint
 }
 type getOrDeleteItemRequest struct {
 	key       model.Key
