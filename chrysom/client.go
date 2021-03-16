@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xmidt-org/bascule"
+	"github.com/xmidt-org/webpa-common/logging"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -36,6 +38,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
+	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/themis/xlog"
 )
 
@@ -128,6 +131,7 @@ type Client struct {
 	logger       log.Logger
 	bucket       string
 	observer     *observerConfig
+	getLogger    func(context.Context) bascule.Logger
 }
 
 // listening states
@@ -162,16 +166,18 @@ type observerConfig struct {
 	state        int32
 }
 
-func NewClient(config ClientConfig) (*Client, error) {
+func NewClient(config ClientConfig, logger func(ctx context.Context) bascule.Logger) (*Client, error) {
 	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
+	}
+	if logger == nil {
+		logger = bascule.GetDefaultLoggerFunc
 	}
 	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
 	if err != nil {
 		return nil, err
 	}
-
 	clientStore := &Client{
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
@@ -179,6 +185,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		observer:     newObserver(config.Logger, config.Listen),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
+		getLogger:    logger,
 	}
 
 	return clientStore, nil
@@ -250,11 +257,12 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 	return &acquire.DefaultAcquirer{}, nil
 }
 
-func (c *Client) sendRequest(owner, method, url string, body io.Reader) (response, error) {
+func (c *Client) sendRequest(ctx context.Context, owner, method, url string, body io.Reader) (response, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
+	candlelight.InjectTraceInformation(ctx, r.Header)
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
@@ -267,7 +275,6 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 		return response{}, fmt.Errorf(errWrappedFmt, errDoRequestFailure, err.Error())
 	}
 	defer resp.Body.Close()
-
 	var sqResp = response{
 		Code:             resp.StatusCode,
 		ArgusErrorHeader: resp.Header.Get(store.XmidtErrorHeaderKey),
@@ -281,14 +288,14 @@ func (c *Client) sendRequest(owner, method, url string, body io.Reader) (respons
 }
 
 // GetItems fetches all items that belong to a given owner.
-func (c *Client) GetItems(owner string) (Items, error) {
-	response, err := c.sendRequest(owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
+func (c *Client) GetItems(ctx context.Context, owner string) (Items, error) {
+	response, err := c.sendRequest(ctx, owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.Code != http.StatusOK {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
 			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 	}
@@ -305,7 +312,7 @@ func (c *Client) GetItems(owner string) (Items, error) {
 
 // PushItem creates a new item if one doesn't already exist. If an item exists
 // and the ownership matches, the item is simply updated.
-func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
+func (c *Client) PushItem(ctx context.Context, owner string, item model.Item) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
 		return "", err
@@ -316,7 +323,7 @@ func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
 		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
-	response, err := c.sendRequest(owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
+	response, err := c.sendRequest(ctx, owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
@@ -329,25 +336,25 @@ func (c *Client) PushItem(owner string, item model.Item) (PushResult, error) {
 		return UpdatedPushResult, nil
 	}
 
-	level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
+	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
 		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
 	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
-func (c *Client) RemoveItem(id, owner string) (model.Item, error) {
+func (c *Client) RemoveItem(ctx context.Context, id, owner string) (model.Item, error) {
 	if len(id) < 1 {
 		return model.Item{}, ErrItemIDEmpty
 	}
 
-	resp, err := c.sendRequest(owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
+	resp, err := c.sendRequest(ctx, owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
 	if err != nil {
 		return model.Item{}, err
 	}
 
 	if resp.Code != http.StatusOK {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
 			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
 	}
@@ -386,7 +393,8 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems("")
+				ctx := logging.WithLogger(context.Background(), c.logger)
+				items, err := c.GetItems(ctx, "")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {

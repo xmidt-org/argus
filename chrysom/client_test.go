@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xmidt-org/bascule"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -184,6 +185,8 @@ func TestSendRequest(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
+			}, func(ctx context.Context) bascule.Logger {
+				return log.NewNopLogger()
 			})
 
 			if tc.AcquirerFails {
@@ -196,7 +199,7 @@ func TestSendRequest(t *testing.T) {
 			}
 
 			assert.Nil(err)
-			resp, err := client.sendRequest(tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body))
+			resp, err := client.sendRequest(context.TODO(), tc.Owner, tc.Method, URL, bytes.NewBuffer(tc.Body))
 
 			if tc.ExpectedErr == nil {
 				assert.Equal(http.StatusOK, resp.Code)
@@ -282,7 +285,7 @@ func TestGetItems(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			})
+			}, bascule.GetDefaultLoggerFunc)
 
 			require.Nil(err)
 
@@ -294,7 +297,7 @@ func TestGetItems(t *testing.T) {
 				client.storeBaseURL = failingURL
 			}
 
-			output, err := client.GetItems(owner)
+			output, err := client.GetItems(context.TODO(), owner)
 
 			assert.True(errors.Is(err, tc.ExpectedErr))
 			if tc.ExpectedErr == nil {
@@ -418,7 +421,7 @@ func TestPushItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			})
+			}, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -433,7 +436,7 @@ func TestPushItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.PushItem(tc.Owner, tc.Item)
+			output, err := client.PushItem(context.TODO(), tc.Owner, tc.Item)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -516,7 +519,7 @@ func TestRemoveItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			})
+			}, bascule.GetDefaultLoggerFunc)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -527,7 +530,7 @@ func TestRemoveItem(t *testing.T) {
 			}
 
 			require.Nil(err)
-			output, err := client.RemoveItem(id, tc.Owner)
+			output, err := client.RemoveItem(context.TODO(), id, tc.Owner)
 
 			if tc.ExpectedErr == nil {
 				assert.EqualValues(tc.ExpectedOutput, output)
@@ -671,7 +674,7 @@ func newStartStopClient(includeListener bool) (*Client, func()) {
 		}))
 	}
 
-	client, err := NewClient(config)
+	client, err := NewClient(config, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -709,7 +712,7 @@ func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) 
 		Logger: xlog.Default(),
 	}
 
-	client, err := NewClient(config)
+	client, err := NewClient(config, nil)
 
 	if err != nil {
 		panic(err)
