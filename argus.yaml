@@ -81,26 +81,26 @@ servers:
 #  #enableHostVerification: false
 
 # dynamo is the configuration block to communicate with dynamoDB.
-#dynamo:
-#  # endpoint is used to set a custom aws endpoint.
-#  # (Optional)
-#  endpoint: "http://localhost:8000"
-#
-#  # table is the name of the table that is already configured with bucket and id as the key.
-#  table: "gifnoc"
-#
-#  # region is where request should go to.
-#  region: "us-east-2"
-#
-#  # maxRetires is the maximum times the application will retry the request to the db.
-#  # (Optional) default: 3
-#  maxRetries: 3
-#
-#  # accessKey is the AWS accessKey to access dynamodb.
-#  accessKey: "accessKey"
-#
-#  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
-#  secretKey: "secretKey"
+dynamo:
+  # endpoint is used to set a custom aws endpoint.
+  # (Optional)
+  endpoint: "http://localhost:8000"
+
+  # table is the name of the table that is already configured with bucket and id as the key.
+  table: "gifnoc"
+
+  # region is where request should go to.
+  region: "us-east-2"
+
+  # maxRetires is the maximum times the application will retry the request to the db.
+  # (Optional) default: 3
+  maxRetries: 3
+
+  # accessKey is the AWS accessKey to access dynamodb.
+  accessKey: "accessKey"
+
+  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
+  secretKey: "secretKey"
 
 
 # userInputValidation groups options around validating data on incoming requests.
