@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xmidt-org/bascule"
+	"github.com/xmidt-org/webpa-common/logging"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -392,7 +393,8 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				items, err := c.GetItems(context.Background(), "")
+				ctx := logging.WithLogger(context.Background(), c.logger)
+				items, err := c.GetItems(ctx, "")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
