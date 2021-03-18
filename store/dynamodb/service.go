@@ -18,6 +18,9 @@
 package dynamodb
 
 import (
+	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,6 +31,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/httpaux"
 )
 
 // client captures the methods of interest from the dynamoDB API. This
@@ -76,15 +80,27 @@ const (
 	expirationAttributeKey = "expires"
 )
 
-func handleClientError(err error) error {
-	awsErr, ok := err.(awserr.Error)
-	if !ok {
-		return store.InternalError{Reason: err.Error(), Retryable: false}
+var (
+	errDefaultDynamoDBFailure = httpaux.Error{
+		Err:  errors.New("dynamodb operation failed"),
+		Code: http.StatusInternalServerError,
 	}
-	msg := awsErr.Code()
-	retryable := retryableAWSCodes[msg]
+	errBadRequest = httpaux.Error{
+		Err:  errors.New("bad request to dynamodb"),
+		Code: http.StatusBadRequest,
+	}
+)
 
-	return store.InternalError{Reason: msg, Retryable: retryable}
+func handleClientError(err error) error {
+	var awsErr awserr.Error
+	if errors.As(err, &awsErr) {
+		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
+			if strings.Contains(awsErr.Message(), "ValidationException") {
+				return &errBadRequest
+			}
+		}
+	}
+	return &errDefaultDynamoDBFailure
 }
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {

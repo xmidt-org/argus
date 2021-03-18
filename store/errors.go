@@ -5,7 +5,33 @@ import (
 	"net/http"
 
 	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/httpaux"
 )
+
+type sanitizedError interface {
+	// Sanitized returns an HTTP error with content
+	// that should be safe to share across API boundaries.
+	// This provides a mechanism to prevent leaking
+	// sensitive error data coming from the datastores.
+	Sanitized() error
+}
+
+type SanitizedError struct {
+	Err          error
+	SanitizedErr httpaux.Error
+}
+
+func (s SanitizedError) Sanitized() error {
+	return &s.SanitizedErr
+}
+
+func (s SanitizedError) Error() string {
+	return s.Err.Error()
+}
+
+func (s SanitizedError) Unwrap() error {
+	return s.Err
+}
 
 type BadRequestErr struct {
 	Message string
