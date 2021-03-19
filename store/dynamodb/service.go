@@ -96,11 +96,11 @@ func handleClientError(err error) error {
 	if errors.As(err, &awsErr) {
 		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
 			if strings.Contains(awsErr.Message(), "ValidationException") {
-				return &errBadRequest
+				return store.SanitizedError{Err: err, SanitizedErr: errBadRequest}
 			}
 		}
 	}
-	return &errDefaultDynamoDBFailure
+	return store.SanitizedError{Err: err, SanitizedErr: errDefaultDynamoDBFailure}
 }
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {

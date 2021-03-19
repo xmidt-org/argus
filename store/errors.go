@@ -8,29 +8,44 @@ import (
 	"github.com/xmidt-org/httpaux"
 )
 
-type sanitizedError interface {
-	// Sanitized returns an HTTP error with content
+type sanitizedErrorer interface {
+	// SanitizedError returns an error message with content
 	// that should be safe to share across API boundaries.
 	// This provides a mechanism to prevent leaking
 	// sensitive error data coming from the datastores.
-	Sanitized() error
+	SanitizedError() string
 }
 
 type SanitizedError struct {
-	Err          error
+	// Err contains the raw error explaining the cause of the
+	// failure event.
+	Err error
+
+	// SanitizedErr should contain some filtered version
+	// of Err that can be safely used across API boundaries.
+	// Two use cases are hiding sensitive error data or translating
+	// errors to better explain error events to API consumers.
 	SanitizedErr httpaux.Error
 }
 
-func (s SanitizedError) Sanitized() error {
-	return &s.SanitizedErr
+func (s SanitizedError) Unwrap() error {
+	return s.Err
 }
 
 func (s SanitizedError) Error() string {
 	return s.Err.Error()
 }
 
-func (s SanitizedError) Unwrap() error {
-	return s.Err
+func (s SanitizedError) SanitizedError() string {
+	return s.SanitizedErr.Error()
+}
+
+func (s SanitizedError) StatusCode() int {
+	return s.SanitizedErr.StatusCode()
+}
+
+func (s SanitizedError) Headers() http.Header {
+	return s.SanitizedErr.Headers()
 }
 
 type BadRequestErr struct {
