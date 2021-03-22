@@ -243,7 +243,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		}
 
 		if item.Expires != nil {
-			remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
+			remainingTTLSeconds := int64(time.Until(time.Unix(*item.Expires, 0)).Seconds())
 			if remainingTTLSeconds < 1 {
 				continue
 			}
