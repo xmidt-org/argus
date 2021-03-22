@@ -68,11 +68,6 @@ type storableItem struct {
 	model.Key
 }
 
-var retryableAWSCodes = map[string]bool{
-	dynamodb.ErrCodeProvisionedThroughputExceededException: true,
-	dynamodb.ErrCodeInternalServerError:                    true,
-}
-
 // Dynamo DB attribute keys
 const (
 	bucketAttributeKey     = "bucket"
@@ -96,11 +91,11 @@ func handleClientError(err error) error {
 	if errors.As(err, &awsErr) {
 		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
 			if strings.Contains(awsErr.Message(), "ValidationException") {
-				return store.SanitizedError{Err: err, SanitizedErr: errBadRequest}
+				return store.SanitizedError{Err: err, ErrHTTP: errBadRequest}
 			}
 		}
 	}
-	return store.SanitizedError{Err: err, SanitizedErr: errDefaultDynamoDBFailure}
+	return store.SanitizedError{Err: err, ErrHTTP: errDefaultDynamoDBFailure}
 }
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {

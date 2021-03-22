@@ -21,11 +21,11 @@ type SanitizedError struct {
 	// failure event.
 	Err error
 
-	// SanitizedErr should contain some filtered version
+	// ErrHTTP should contain some filtered version
 	// of Err that can be safely used across API boundaries.
-	// Two use cases are hiding sensitive error data or translating
-	// errors to better explain error events to API consumers.
-	SanitizedErr httpaux.Error
+	// Two use cases include: hiding sensitive error data and
+	// translating errors to better explain error events to API consumers.
+	ErrHTTP httpaux.Error
 }
 
 func (s SanitizedError) Unwrap() error {
@@ -37,15 +37,15 @@ func (s SanitizedError) Error() string {
 }
 
 func (s SanitizedError) SanitizedError() string {
-	return s.SanitizedErr.Error()
+	return s.ErrHTTP.Error()
 }
 
 func (s SanitizedError) StatusCode() int {
-	return s.SanitizedErr.StatusCode()
+	return s.ErrHTTP.StatusCode()
 }
 
 func (s SanitizedError) Headers() http.Header {
-	return s.SanitizedErr.Headers()
+	return s.ErrHTTP.Headers()
 }
 
 type BadRequestErr struct {

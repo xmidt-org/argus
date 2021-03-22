@@ -1,7 +1,6 @@
 package dynamodb
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -82,28 +81,29 @@ func (s *ClientErrorTestSuite) TestClientErrors() {
 						tableName: testTableName,
 					}
 
+					var (
+						consumedCapacity *dynamodb.ConsumedCapacity
+						err              error
+						ownableItems     = map[string]store.OwnableItem{}
+						ownableItem      = store.OwnableItem{}
+					)
+
 					switch operationType.name {
 					case "Push":
-						consumedCapacity, err := service.Push(key, item)
-						assert.Equal(clientErrorCase.expectedErr, err)
-						assert.Nil(consumedCapacity)
+						consumedCapacity, err = service.Push(key, item)
 					case "Get":
-						ownableItem, consumedCapacity, err := service.Get(key)
-						assert.Equal(clientErrorCase.expectedErr, err)
-						assert.Nil(consumedCapacity)
-						assert.Equal(store.OwnableItem{}, ownableItem)
+						ownableItem, consumedCapacity, err = service.Get(key)
 					case "GetAll":
-						ownableItems, consumedCapacity, err := service.GetAll(testBucketName)
-						assert.Equal(clientErrorCase.expectedErr, err)
-						assert.Nil(consumedCapacity)
-						assert.Equal(map[string]store.OwnableItem{}, ownableItems)
+						ownableItems, consumedCapacity, err = service.GetAll(testBucketName)
 					case "Delete":
-						ownableItem, consumedCapacity, err := service.Delete(key)
-						assert.Equal(clientErrorCase.expectedErr, err)
-						assert.Nil(consumedCapacity)
-						assert.Equal(store.OwnableItem{}, ownableItem)
+						ownableItem, consumedCapacity, err = service.Delete(key)
 					}
+					assert.Nil(consumedCapacity)
+					assert.Equal(store.OwnableItem{}, ownableItem)
+					assert.Equal(map[string]store.OwnableItem{}, ownableItems)
 					m.AssertExpectations(t)
+
+					assert.Equal(clientErrorCase.expectedErr, err)
 				})
 			}
 		})
@@ -494,31 +494,21 @@ func (s *ClientErrorTestSuite) setupOperations() {
 }
 
 func (s *ClientErrorTestSuite) setupErrorCases() {
+	var (
+		errResourceNotFound = new(dynamodb.ResourceNotFoundException)
+		errValidation       = &dynamodb.TransactionCanceledException{Message_: aws.String("ValidationException: Nesting Levels have exceeded supported limits")}
+	)
+
 	s.clientErrorCases = []errorCase{
 		{
-			name:        "Throughput exceeded",
-			dynamoErr:   new(dynamodb.ProvisionedThroughputExceededException),
-			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeProvisionedThroughputExceededException, Retryable: true},
-		},
-		{
 			name:        "Resource not found",
-			dynamoErr:   new(dynamodb.ResourceNotFoundException),
-			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeResourceNotFoundException, Retryable: false},
+			dynamoErr:   errResourceNotFound,
+			expectedErr: store.SanitizedError{ErrHTTP: errDefaultDynamoDBFailure, Err: errResourceNotFound},
 		},
 		{
-			name:        "Request Limit exceeded",
-			dynamoErr:   new(dynamodb.RequestLimitExceeded),
-			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeRequestLimitExceeded, Retryable: false},
-		},
-		{
-			name:        "Internal server error",
-			dynamoErr:   new(dynamodb.InternalServerError),
-			expectedErr: store.InternalError{Reason: dynamodb.ErrCodeInternalServerError, Retryable: true},
-		},
-		{
-			name:        "Non AWS Error",
-			dynamoErr:   errors.New("non AWS internal error"),
-			expectedErr: store.InternalError{Reason: "non AWS internal error", Retryable: false},
+			name:        "ValidationException",
+			dynamoErr:   errValidation,
+			expectedErr: store.SanitizedError{ErrHTTP: errBadRequest, Err: errValidation},
 		},
 	}
 }
