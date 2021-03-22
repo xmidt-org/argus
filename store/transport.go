@@ -223,14 +223,10 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		transferHeaders(w, headerer.Headers())
 	}
 
-	// TODO: should we keep this or should we not add this header msg unless
-	// we know the error is sanitized?
-	xmidtErrMsg := err.Error()
 	var sErrorer sanitizedErrorer
 	if errors.As(err, &sErrorer) {
-		xmidtErrMsg = sErrorer.SanitizedError()
+		w.Header().Set(XmidtErrorHeaderKey, sErrorer.SanitizedError())
 	}
-	w.Header().Set(XmidtErrorHeaderKey, xmidtErrMsg)
 
 	code := http.StatusInternalServerError
 	var statusCoder kithttp.StatusCoder

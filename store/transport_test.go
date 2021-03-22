@@ -45,7 +45,7 @@ func TestEncodeError(t *testing.T) {
 		{
 			Description:     "Default",
 			InputErr:        errors.New("some internal error"),
-			ExpectedHeaders: http.Header{XmidtErrorHeaderKey: []string{"some internal error"}},
+			ExpectedHeaders: http.Header{},
 			ExpectedCode:    http.StatusInternalServerError,
 		},
 	}
