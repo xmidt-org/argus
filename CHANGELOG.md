@@ -3,10 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 - Add configurable validation for an item's data depth. [#146](https://github.com/xmidt-org/argus/pull/146)
 - Add initial OpenTelemetry integration to Argus client. [#145](https://github.com/xmidt-org/argus/pull/145) thanks to @Sachin4403
+- Testing codeowners file :-) 
 
 ## [v0.3.12]
 ### Changed
