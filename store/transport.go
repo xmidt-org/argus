@@ -209,19 +209,29 @@ func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, 
 	rw.Write(data)
 	return nil
 }
-
-func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	w.Header().Set(XmidtErrorHeaderKey, err.Error())
-	if headerer, ok := err.(kithttp.Headerer); ok {
-		for k, values := range headerer.Headers() {
-			for _, v := range values {
-				w.Header().Add(k, v)
-			}
+func transferHeaders(w http.ResponseWriter, h http.Header) {
+	for k, values := range h {
+		for _, v := range values {
+			w.Header().Add(k, v)
 		}
 	}
+}
+
+func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
+	var headerer kithttp.Headerer
+	if errors.As(err, &headerer) {
+		transferHeaders(w, headerer.Headers())
+	}
+
+	var sErrorer sanitizedErrorer
+	if errors.As(err, &sErrorer) {
+		w.Header().Set(XmidtErrorHeaderKey, sErrorer.SanitizedError())
+	}
+
 	code := http.StatusInternalServerError
-	if sc, ok := err.(kithttp.StatusCoder); ok {
-		code = sc.StatusCode()
+	var statusCoder kithttp.StatusCoder
+	if errors.As(err, &statusCoder) {
+		code = statusCoder.StatusCode()
 	}
 	w.WriteHeader(code)
 }

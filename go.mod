@@ -20,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/xmidt-org/bascule v0.9.0
 	github.com/xmidt-org/candlelight v0.0.2
+	github.com/xmidt-org/httpaux v0.1.3
 	github.com/xmidt-org/themis v0.4.4
 	github.com/xmidt-org/webpa-common v1.11.5-0.20210120003553-3d03d7329aee
 	go.uber.org/fx v1.13.1
