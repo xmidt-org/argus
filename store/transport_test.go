@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,48 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
+	"github.com/xmidt-org/httpaux"
 )
+
+func TestEncodeError(t *testing.T) {
+	errHTTPMsg := errors.New("sanitized api error")
+	tcs := []struct {
+		Description     string
+		InputErr        error
+		ExpectedHeaders http.Header
+		ExpectedCode    int
+	}{
+		{
+			Description: "Headers and code",
+			InputErr: SanitizedError{
+				Err: errors.New("internal ignored err"),
+				ErrHTTP: httpaux.Error{
+					Err:    errHTTPMsg,
+					Code:   http.StatusBadRequest,
+					Header: http.Header{"X-Some-Header": []string{"val0", "val1"}},
+				},
+			},
+			ExpectedHeaders: http.Header{"X-Some-Header": []string{"val0", "val1"}, XmidtErrorHeaderKey: []string{errHTTPMsg.Error()}},
+			ExpectedCode:    http.StatusBadRequest,
+		},
+		{
+			Description:     "Default",
+			InputErr:        errors.New("some internal error"),
+			ExpectedHeaders: http.Header{XmidtErrorHeaderKey: []string{"some internal error"}},
+			ExpectedCode:    http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			w := httptest.NewRecorder()
+			encodeError(context.Background(), tc.InputErr, w)
+			assert.Equal(tc.ExpectedCode, w.Code)
+			assert.Equal(tc.ExpectedHeaders, w.Header())
+		})
+	}
+}
 
 func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 	sfID := Sha256HexDigest("san francisco")
