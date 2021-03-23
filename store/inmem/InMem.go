@@ -38,7 +38,7 @@ var (
 var (
 	errHTTPItemNotFound   = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
 	errHTTPBucketNotFound = httpaux.Error{Err: errors.New("Bucket not found"), Code: http.StatusNotFound}
-	errHTTPOpFailed       = httpaux.Error{Err: errors.New("InMem operation failed"), Code: http.StatusInternalServerError}
+	errHTTPOpFailed       = httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type InMem struct {
