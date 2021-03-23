@@ -24,13 +24,11 @@ import (
 	"net/http"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/httpaux"
-	"github.com/xmidt-org/themis/xlog"
 )
 
 type dbStore interface {
@@ -48,6 +46,7 @@ var (
 	errPushFailed   = errors.New("Push operation failed")
 	errGetFailed    = errors.New("Get operation failed")
 	errDeleteFailed = errors.New("Delete operation failed")
+	errGetAllFailed = errors.New("GetAll operation failed")
 	errItemNotFound = errors.New("Item at resource path not found")
 	errJSONDecode   = errors.New("Error decoding JSON data from DB")
 )
@@ -132,16 +131,17 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem,
 		item := store.OwnableItem{}
 		err := json.Unmarshal(data, &item)
 		if err != nil {
-			level.Error(s.logger).Log(xlog.MessageKey(), "failed to unmarshal data", "bucket", bucket, "id", key)
-			data = []byte{}
-			key = ""
-			continue
+			iter.Close()
+			return result, fmt.Errorf("GetAll Operation Failed for bucket '%s'. %w: %v", bucket, errJSONDecode, err)
 		}
 		item.TTL = &ttl
 		result[key] = item
 	}
 	err := iter.Close()
-	return result, err
+	if err != nil {
+		return result, fmt.Errorf("Bucket:'%s'. %w: %v", bucket, errGetAllFailed, err)
+	}
+	return result, nil
 }
 
 func (s *cassandraExecutor) Close() {
