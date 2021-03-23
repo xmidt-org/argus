@@ -18,10 +18,27 @@
 package inmem
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/httpaux"
+)
+
+// internal errors to be wrapped with more information for logging purposes
+var (
+	errItemNotFound   = errors.New("Item at resource path not found")
+	errBucketNotFound = errors.New("Bucket path not found")
+)
+
+// sanitized HTTP errors
+var (
+	errHTTPItemNotFound   = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	errHTTPBucketNotFound = httpaux.Error{Err: errors.New("Bucket not found"), Code: http.StatusNotFound}
+	errHTTPOpFailed       = httpaux.Error{Err: errors.New("InMem operation failed"), Code: http.StatusInternalServerError}
 )
 
 type InMem struct {
@@ -54,17 +71,17 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 		err  error
 	)
 	i.lock.RLock()
+	defer i.lock.RUnlock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.KeyNotFoundError{Key: key}
+		err = fmt.Errorf("%w: %v", errBucketNotFound, key.Bucket)
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.KeyNotFoundError{Key: key}
+			err = fmt.Errorf("%w: %v/%v", errItemNotFound, key.Bucket, key.ID)
 		} else {
 			item = value
 		}
 	}
-	i.lock.RUnlock()
-	return item, err
+	return item, sanitizeError(err)
 }
 
 func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
@@ -77,13 +94,10 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	if item, ok := i.data[bucket]; ok {
 		items = item
 	} else {
-		err = store.KeyNotFoundError{Key: model.Key{
-			Bucket: bucket,
-			ID:     "",
-		}}
+		err = fmt.Errorf("%w: %v", errBucketNotFound, bucket)
 	}
 	i.lock.RUnlock()
-	return items, err
+	return items, sanitizeError(err)
 }
 
 func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
@@ -93,15 +107,30 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	)
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.KeyNotFoundError{Key: key}
+		err = fmt.Errorf("%w: %v", errBucketNotFound, key.Bucket)
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.KeyNotFoundError{Key: key}
+			err = fmt.Errorf("%w: %v/%v", errItemNotFound, key.Bucket, key.ID)
 		} else {
 			item = value
 			delete(i.data[key.Bucket], key.ID)
 		}
 	}
 	i.lock.Unlock()
-	return item, err
+	return item, sanitizeError(err)
+}
+
+func sanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var errHTTP = errHTTPOpFailed
+
+	switch {
+	case errors.Is(err, errItemNotFound):
+		errHTTP = errHTTPItemNotFound
+	case errors.Is(err, errBucketNotFound):
+		errHTTP = errHTTPBucketNotFound
+	}
+	return store.SanitizedError{Err: err, ErrHTTP: errHTTP}
 }
