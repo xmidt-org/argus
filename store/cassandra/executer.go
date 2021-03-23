@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -28,6 +29,7 @@ import (
 	"github.com/hailocab/go-hostpool"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/httpaux"
 	"github.com/xmidt-org/themis/xlog"
 )
 
@@ -45,8 +47,15 @@ var (
 var (
 	errPushFailed   = errors.New("Push operation failed")
 	errGetFailed    = errors.New("Get operation failed")
+	errDeleteFailed = errors.New("Delete operation failed")
 	errItemNotFound = errors.New("Item at resource path not found")
 	errJSONDecode   = errors.New("Error decoding JSON data from DB")
+)
+
+// sanitized HTTP errors
+var (
+	errHTTPItemNotFound = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	errHTTPOpFailed     = httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type cassandraExecutor struct {
@@ -102,10 +111,13 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.Get(key)
 	if err != nil {
-		return item, err
+		return item, fmt.Errorf("Failed to get item for deletion. %v", err)
 	}
 	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
-	return item, err
+	if err != nil {
+		return store.OwnableItem{}, fmt.Errorf("%w: %v", errDeleteFailed, err)
+	}
+	return item, nil
 }
 
 func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem, error) {
