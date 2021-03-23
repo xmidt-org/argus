@@ -20,6 +20,7 @@ package cassandra
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -41,6 +42,10 @@ var (
 	serverClosed   = errors.New("server is closed")
 )
 
+var (
+	errPushFailed = errors.New("Push operation failed")
+)
+
 type cassandraExecutor struct {
 	session *gocql.Session
 	logger  log.Logger
@@ -59,10 +64,13 @@ func connect(clusterConfig *gocql.ClusterConfig, logger log.Logger) (dbStore, er
 func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 	data, err := json.Marshal(&item)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w. Failed to JSON encode item: %v", errPushFailed, err)
 	}
-
-	return s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
+	err = s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
+	if err != nil {
+		return fmt.Errorf("%w. Push Query failure: %v", errPushFailed, err)
+	}
+	return nil
 }
 
 func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
