@@ -43,7 +43,10 @@ var (
 )
 
 var (
-	errPushFailed = errors.New("Push operation failed")
+	errPushFailed   = errors.New("Push operation failed")
+	errGetFailed    = errors.New("Get operation failed")
+	errItemNotFound = errors.New("Item at resource path not found")
+	errJSONDecode   = errors.New("Error decoding JSON data from DB")
 )
 
 type cassandraExecutor struct {
@@ -79,19 +82,21 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 		ttl  int64
 	)
 	iter := s.session.Query("SELECT data, ttl(data) from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Iter()
-	defer func() {
-		err := iter.Close()
+	ok := iter.Scan(&data, &ttl)
+	err := iter.Close()
+	if !ok {
 		if err != nil {
-			level.Error(s.logger).Log(xlog.MessageKey(), "failed to close iter ", "bucket", key.Bucket, "id", key.ID)
+			return store.OwnableItem{}, fmt.Errorf("%w. DB query execution failed: %v", errGetFailed, err)
 		}
-	}()
-	for iter.Scan(&data, &ttl) {
-		item := store.OwnableItem{}
-		err := json.Unmarshal(data, &item)
-		item.TTL = &ttl
-		return item, err
+		return store.OwnableItem{}, fmt.Errorf("%w: %v/%v", errItemNotFound, key.Bucket, key.ID)
 	}
-	return store.OwnableItem{}, noDataResponse
+	item := store.OwnableItem{}
+	err = json.Unmarshal(data, &item)
+	if err != nil {
+		return store.OwnableItem{}, fmt.Errorf("%w: %v", errJSONDecode, err)
+	}
+	item.TTL = &ttl
+	return item, nil
 }
 
 func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
