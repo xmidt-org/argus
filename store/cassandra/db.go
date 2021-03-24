@@ -193,11 +193,10 @@ func (s *CassandraClient) Push(key model.Key, item store.OwnableItem) error {
 func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
+		if !errors.Is(err, errItemNotFound) {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		}
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, sanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, nil
@@ -206,11 +205,10 @@ func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
+		if !errors.Is(err, errItemNotFound) {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		}
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, sanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
@@ -219,13 +217,8 @@ func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 func (s *CassandraClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: model.Key{
-				Bucket: bucket,
-			}}
-		}
 		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, sanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
@@ -265,4 +258,16 @@ func validateConfig(config *CassandraConfig) {
 	if config.MaxConnsPerHost <= 0 {
 		config.MaxConnsPerHost = defaultMaxNumberConnsPerHost
 	}
+}
+
+func sanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	errHTTP := errHTTPOpFailed
+	switch {
+	case errors.Is(err, errItemNotFound):
+		errHTTP = errHTTPItemNotFound
+	}
+	return store.SanitizedError{Err: err, ErrHTTP: errHTTP}
 }
