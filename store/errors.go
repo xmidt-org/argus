@@ -1,11 +1,25 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/httpaux"
+)
+
+// Sentinel internal errors.
+var (
+	ErrItemNotFound   = errors.New("Item at resource path not found")
+	ErrBucketNotFound = errors.New("Bucket path not found")
+)
+
+// Sentinel errors to be used by the HTTP response error encoder.
+var (
+	ErrHTTPItemNotFound   = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	ErrHTTPBucketNotFound = httpaux.Error{Err: errors.New("Bucket not found"), Code: http.StatusNotFound}
+	ErrHTTPOpFailed       = httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type sanitizedErrorer interface {
@@ -101,4 +115,25 @@ func (ie InternalError) Error() string {
 
 func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
+}
+
+// SanitizeError should be used by DB implementations to prevent exposing
+// internal error data in HTTP responses.
+// This method maps an internal error to their sanitized version which contains
+// HTTP response information like code and debug header values.
+// DB implementations should implement their own versions of this function
+// when they need to look at implementation-specific errors to perform the mapping.
+func SanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var errHTTP = ErrHTTPOpFailed
+
+	switch {
+	case errors.Is(err, ErrItemNotFound):
+		errHTTP = ErrHTTPItemNotFound
+	case errors.Is(err, ErrBucketNotFound):
+		errHTTP = ErrHTTPBucketNotFound
+	}
+	return SanitizedError{Err: err, ErrHTTP: errHTTP}
 }
