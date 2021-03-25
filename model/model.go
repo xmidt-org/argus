@@ -19,10 +19,11 @@ package model
 
 // Key defines the field mapping to retrieve an item from storage.
 type Key struct {
-	// Bucket is a collection of items.
+	// Bucket is the name for a collection or partition to which an item belongs.
 	Bucket string `json:"bucket"`
 
-	// ID is the unique ID for an item in a bucket.
+	// ID is an item's identifier. Note that different buckets may have
+	// items with the same ID.
 	ID string `json:"id"`
 }
 
