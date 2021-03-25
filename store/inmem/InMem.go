@@ -18,7 +18,6 @@
 package inmem
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/xmidt-org/argus/model"
@@ -57,13 +56,16 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = fmt.Errorf("%w: %v", store.ErrBucketNotFound, key.Bucket)
+		err = store.ErrBucketNotFound
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = fmt.Errorf("%w: %v/%v", store.ErrItemNotFound, key.Bucket, key.ID)
+			err = store.ErrItemNotFound
 		} else {
 			item = value
 		}
+	}
+	if err != nil {
+		err = store.ItemOperationError{Err: err, Key: key, Operation: "get"}
 	}
 	return item, store.SanitizeError(err)
 }
@@ -78,9 +80,12 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	if item, ok := i.data[bucket]; ok {
 		items = item
 	} else {
-		err = fmt.Errorf("%w: %v", store.ErrBucketNotFound, bucket)
+		err = store.ErrBucketNotFound
 	}
 	i.lock.RUnlock()
+	if err != nil {
+		err = store.GetAllItemsOperationErr{Err: err, Bucket: bucket}
+	}
 	return items, store.SanitizeError(err)
 }
 
@@ -91,15 +96,18 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	)
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = fmt.Errorf("%w: %v", store.ErrBucketNotFound, key.Bucket)
+		err = store.ErrBucketNotFound
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = fmt.Errorf("%w: %v/%v", store.ErrItemNotFound, key.Bucket, key.ID)
+			err = store.ErrItemNotFound
 		} else {
 			item = value
 			delete(i.data[key.Bucket], key.ID)
 		}
 	}
 	i.lock.Unlock()
+	if err != nil {
+		err = store.ItemOperationError{Err: err, Key: key, Operation: "delete"}
+	}
 	return item, store.SanitizeError(err)
 }

@@ -13,6 +13,13 @@ import (
 var (
 	ErrItemNotFound   = errors.New("Item at resource path not found")
 	ErrBucketNotFound = errors.New("Bucket path not found")
+	ErrPushFailed     = errors.New("Push operation failed")
+	ErrGetFailed      = errors.New("Get operation failed")
+	ErrDeleteFailed   = errors.New("Delete operation failed")
+	ErrGetAllFailed   = errors.New("GetAll operation failed")
+	ErrJSONDecode     = errors.New("Error decoding JSON data from DB")
+	ErrJSONEncode     = errors.New("Error encoding JSON data to send to DB")
+	ErrQueryExecution = errors.New("Error occurred during DB query execution")
 )
 
 // Sentinel errors to be used by the HTTP response error encoder.
@@ -115,6 +122,33 @@ func (ie InternalError) Error() string {
 
 func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
+}
+
+type ItemOperationError struct {
+	Err       error
+	Key       model.Key
+	Operation string
+}
+
+func (e ItemOperationError) Error() string {
+	return fmt.Sprintf("%s operation failed for item at path %s/%s: %v", e.Operation, e.Key.Bucket, e.Key.ID, e.Err)
+}
+
+func (e ItemOperationError) Unwrap() error {
+	return e.Err
+}
+
+type GetAllItemsOperationErr struct {
+	Err    error
+	Bucket string
+}
+
+func (e GetAllItemsOperationErr) Error() string {
+	return fmt.Sprintf("getall operation failed for bucket %s: %v", e.Bucket, e.Err)
+}
+
+func (e GetAllItemsOperationErr) Unwrap() error {
+	return e.Err
 }
 
 // SanitizeError should be used by DB implementations to prevent exposing
