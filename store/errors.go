@@ -124,6 +124,9 @@ func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
 }
 
+// ItemOperationError is a simple error wrapper for DB operations
+// that apply to specific items. It provides a formatted message with
+// context around the error.
 type ItemOperationError struct {
 	Err       error
 	Key       model.Key
@@ -138,6 +141,8 @@ func (e ItemOperationError) Unwrap() error {
 	return e.Err
 }
 
+// GetAllItemsOperationError is the ItemOperation counterpart for
+// the getAllItems operation which applies to a group of items.
 type GetAllItemsOperationErr struct {
 	Err    error
 	Bucket string
