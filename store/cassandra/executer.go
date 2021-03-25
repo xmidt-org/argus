@@ -21,14 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/go-kit/kit/log"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/httpaux"
 )
 
 type dbStore interface {
@@ -37,25 +35,7 @@ type dbStore interface {
 	Ping() error
 }
 
-var (
-	noDataResponse = errors.New("no data from query")
-	serverClosed   = errors.New("server is closed")
-)
-
-var (
-	errPushFailed   = errors.New("Push operation failed")
-	errGetFailed    = errors.New("Get operation failed")
-	errDeleteFailed = errors.New("Delete operation failed")
-	errGetAllFailed = errors.New("GetAll operation failed")
-	errItemNotFound = errors.New("Item at resource path not found")
-	errJSONDecode   = errors.New("Error decoding JSON data from DB")
-)
-
-// sanitized HTTP errors
-var (
-	errHTTPItemNotFound = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
-	errHTTPOpFailed     = httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
-)
+var serverClosed = errors.New("server is closed")
 
 type cassandraExecutor struct {
 	session *gocql.Session
@@ -75,11 +55,11 @@ func connect(clusterConfig *gocql.ClusterConfig, logger log.Logger) (dbStore, er
 func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
 	data, err := json.Marshal(&item)
 	if err != nil {
-		return fmt.Errorf("%w. Failed to JSON encode item: %v", errPushFailed, err)
+		return store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrJSONEncode, err), Key: key, Operation: "push"}
 	}
 	err = s.session.Query("INSERT INTO gifnoc (bucket, id, data) VALUES (?,?,?) USING TTL ?", key.Bucket, key.ID, data, item.TTL).Exec()
 	if err != nil {
-		return fmt.Errorf("%w. Push Query failure: %v", errPushFailed, err)
+		return store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrQueryExecution, err), Key: key, Operation: "push"}
 	}
 	return nil
 }
@@ -94,14 +74,14 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 	err := iter.Close()
 	if !ok {
 		if err != nil {
-			return store.OwnableItem{}, fmt.Errorf("%w. DB query execution failed: %v", errGetFailed, err)
+			return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrQueryExecution, err), Key: key, Operation: "get"}
 		}
-		return store.OwnableItem{}, fmt.Errorf("%w: %v/%v", errItemNotFound, key.Bucket, key.ID)
+		return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrItemNotFound, err), Key: key, Operation: "get"}
 	}
 	item := store.OwnableItem{}
 	err = json.Unmarshal(data, &item)
 	if err != nil {
-		return store.OwnableItem{}, fmt.Errorf("%w: %v", errJSONDecode, err)
+		return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrJSONDecode, err), Key: key, Operation: "get"}
 	}
 	item.TTL = &ttl
 	return item, nil
@@ -110,11 +90,11 @@ func (s *cassandraExecutor) Get(key model.Key) (store.OwnableItem, error) {
 func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.Get(key)
 	if err != nil {
-		return item, fmt.Errorf("Failed to get item for deletion. %v", err)
+		return item, store.ItemOperationError{Err: err, Key: key, Operation: "delete"}
 	}
 	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
 	if err != nil {
-		return store.OwnableItem{}, fmt.Errorf("%w: %v", errDeleteFailed, err)
+		return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrDeleteFailed, err), Key: key, Operation: "delete"}
 	}
 	return item, nil
 }
@@ -132,14 +112,14 @@ func (s *cassandraExecutor) GetAll(bucket string) (map[string]store.OwnableItem,
 		err := json.Unmarshal(data, &item)
 		if err != nil {
 			iter.Close()
-			return result, fmt.Errorf("GetAll Operation Failed for bucket '%s'. %w: %v", bucket, errJSONDecode, err)
+			return result, store.GetAllItemsOperationErr{Err: store.ErrJSONDecode, Bucket: bucket}
 		}
 		item.TTL = &ttl
 		result[key] = item
 	}
 	err := iter.Close()
 	if err != nil {
-		return result, fmt.Errorf("Bucket:'%s'. %w: %v", bucket, errGetAllFailed, err)
+		return result, store.GetAllItemsOperationErr{Err: store.ErrQueryExecution, Bucket: bucket}
 	}
 	return result, nil
 }
