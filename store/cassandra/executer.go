@@ -94,7 +94,7 @@ func (s *cassandraExecutor) Delete(key model.Key) (store.OwnableItem, error) {
 	}
 	err = s.session.Query("DELETE from gifnoc WHERE bucket = ? AND id = ?", key.Bucket, key.ID).Exec()
 	if err != nil {
-		return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrDeleteFailed, err), Key: key, Operation: "delete"}
+		return store.OwnableItem{}, store.ItemOperationError{Err: fmt.Errorf("%w: %v", store.ErrQueryExecution, err), Key: key, Operation: "delete"}
 	}
 	return item, nil
 }

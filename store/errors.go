@@ -13,10 +13,6 @@ import (
 var (
 	ErrItemNotFound   = errors.New("Item at resource path not found")
 	ErrBucketNotFound = errors.New("Bucket path not found")
-	ErrPushFailed     = errors.New("Push operation failed")
-	ErrGetFailed      = errors.New("Get operation failed")
-	ErrDeleteFailed   = errors.New("Delete operation failed")
-	ErrGetAllFailed   = errors.New("GetAll operation failed")
 	ErrJSONDecode     = errors.New("Error decoding JSON data from DB")
 	ErrJSONEncode     = errors.New("Error encoding JSON data to send to DB")
 	ErrQueryExecution = errors.New("Error occurred during DB query execution")
