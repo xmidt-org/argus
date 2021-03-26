@@ -1,11 +1,28 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/httpaux"
+)
+
+// Sentinel internal errors.
+var (
+	ErrItemNotFound   = errors.New("Item at resource path not found")
+	ErrBucketNotFound = errors.New("Bucket path not found")
+	ErrJSONDecode     = errors.New("Error decoding JSON data from DB")
+	ErrJSONEncode     = errors.New("Error encoding JSON data to send to DB")
+	ErrQueryExecution = errors.New("Error occurred during DB query execution")
+)
+
+// Sentinel errors to be used by the HTTP response error encoder.
+var (
+	ErrHTTPItemNotFound   = httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	ErrHTTPBucketNotFound = httpaux.Error{Err: errors.New("Bucket not found"), Code: http.StatusNotFound}
+	ErrHTTPOpFailed       = httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type sanitizedErrorer interface {
@@ -101,4 +118,57 @@ func (ie InternalError) Error() string {
 
 func (ie InternalError) StatusCode() int {
 	return http.StatusInternalServerError
+}
+
+// ItemOperationError is a simple error wrapper for DB operations
+// that apply to specific items. It provides a formatted message with
+// context around the error.
+type ItemOperationError struct {
+	Err       error
+	Key       model.Key
+	Operation string
+}
+
+func (e ItemOperationError) Error() string {
+	return fmt.Sprintf("%s operation failed for item at path %s/%s: %v", e.Operation, e.Key.Bucket, e.Key.ID, e.Err)
+}
+
+func (e ItemOperationError) Unwrap() error {
+	return e.Err
+}
+
+// GetAllItemsOperationError is the ItemOperation counterpart for
+// the getAllItems operation which applies to a group of items.
+type GetAllItemsOperationErr struct {
+	Err    error
+	Bucket string
+}
+
+func (e GetAllItemsOperationErr) Error() string {
+	return fmt.Sprintf("getall operation failed for bucket %s: %v", e.Bucket, e.Err)
+}
+
+func (e GetAllItemsOperationErr) Unwrap() error {
+	return e.Err
+}
+
+// SanitizeError should be used by DB implementations to prevent exposing
+// internal error data in HTTP responses.
+// This method maps an internal error to their sanitized version which contains
+// HTTP response information like code and debug header values.
+// DB implementations should implement their own versions of this function
+// when they need to look at implementation-specific errors to perform the mapping.
+func SanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var errHTTP = ErrHTTPOpFailed
+
+	switch {
+	case errors.Is(err, ErrItemNotFound):
+		errHTTP = ErrHTTPItemNotFound
+	case errors.Is(err, ErrBucketNotFound):
+		errHTTP = ErrHTTPBucketNotFound
+	}
+	return SanitizedError{Err: err, ErrHTTP: errHTTP}
 }

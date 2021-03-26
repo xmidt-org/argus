@@ -54,17 +54,20 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 		err  error
 	)
 	i.lock.RLock()
+	defer i.lock.RUnlock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.KeyNotFoundError{Key: key}
+		err = store.ErrBucketNotFound
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.KeyNotFoundError{Key: key}
+			err = store.ErrItemNotFound
 		} else {
 			item = value
 		}
 	}
-	i.lock.RUnlock()
-	return item, err
+	if err != nil {
+		err = store.ItemOperationError{Err: err, Key: key, Operation: "get"}
+	}
+	return item, store.SanitizeError(err)
 }
 
 func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
@@ -77,13 +80,13 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	if item, ok := i.data[bucket]; ok {
 		items = item
 	} else {
-		err = store.KeyNotFoundError{Key: model.Key{
-			Bucket: bucket,
-			ID:     "",
-		}}
+		err = store.ErrBucketNotFound
 	}
 	i.lock.RUnlock()
-	return items, err
+	if err != nil {
+		err = store.GetAllItemsOperationErr{Err: err, Bucket: bucket}
+	}
+	return items, store.SanitizeError(err)
 }
 
 func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
@@ -93,15 +96,18 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	)
 	i.lock.Lock()
 	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.KeyNotFoundError{Key: key}
+		err = store.ErrBucketNotFound
 	} else {
 		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.KeyNotFoundError{Key: key}
+			err = store.ErrItemNotFound
 		} else {
 			item = value
 			delete(i.data[key.Bucket], key.ID)
 		}
 	}
 	i.lock.Unlock()
-	return item, err
+	if err != nil {
+		err = store.ItemOperationError{Err: err, Key: key, Operation: "delete"}
+	}
+	return item, store.SanitizeError(err)
 }

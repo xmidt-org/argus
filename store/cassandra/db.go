@@ -193,11 +193,12 @@ func (s *CassandraClient) Push(key model.Key, item store.OwnableItem) error {
 func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
+		if errors.Is(err, store.ErrItemNotFound) {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+		} else {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		}
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, store.SanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, nil
@@ -206,11 +207,12 @@ func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
 func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: key}
+		if errors.Is(err, store.ErrItemNotFound) {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+		} else {
+			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
 		}
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, store.SanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
@@ -219,13 +221,8 @@ func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
 func (s *CassandraClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
-		if err == noDataResponse {
-			return item, store.KeyNotFoundError{Key: model.Key{
-				Bucket: bucket,
-			}}
-		}
 		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
-		return item, err
+		return item, store.SanitizeError(err)
 	}
 	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
 	return item, err
