@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add configurable validation for an item's data depth. [#146](https://github.com/xmidt-org/argus/pull/146)
 - Add initial OpenTelemetry integration to Argus client. [#145](https://github.com/xmidt-org/argus/pull/145) thanks to @Sachin4403
 - Sanitize dynamodb errors before reporting in HTTP response headers. [#149](https://github.com/xmidt-org/argus/pull/149)
+- Sanitize errors in inMem and cassandra store implementations. [#155](https://github.com/xmidt-org/argus/pull/155)
+- Minor Go struct documentation rewording. [#155](https://github.com/xmidt-org/argus/pull/155)
+
 
 ## [v0.3.12]
 ### Changed
