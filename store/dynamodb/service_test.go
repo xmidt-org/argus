@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -110,9 +111,120 @@ func (s *ClientErrorTestSuite) TestClientErrors() {
 	}
 }
 
-func TestClientErrors(t *testing.T) {
+// TODO: We might not need this anymore.
+func testClientErrors(t *testing.T) {
 	initGlobalInputs()
 	suite.Run(t, new(ClientErrorTestSuite))
+}
+
+func genTestPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInput {
+	storingItem := storableItem{
+		OwnableItem: item,
+		Key:         key,
+	}
+
+	if item.TTL != nil {
+		unixExpSeconds := time.Now().Unix() + *item.TTL
+		storingItem.Expires = &unixExpSeconds
+	}
+
+	av, err := dynamodbattribute.MarshalMap(storingItem)
+	if err != nil {
+		panic("must be able to marshal")
+	}
+	return &dynamodb.PutItemInput{
+		Item:                   av,
+		TableName:              aws.String("testTable"),
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+}
+
+func TestNewPushItem(t *testing.T) {
+	var (
+		dbErr    = errors.New("dynamodb error")
+		capacity = &dynamodb.ConsumedCapacity{}
+	)
+	tcs := []struct {
+		Description              string
+		Key                      model.Key
+		Item                     store.OwnableItem
+		PutItemFails             bool
+		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedError            error
+	}{
+		{
+			Description: "PutItem Fails",
+			Key:         model.Key{Bucket: "testBucket", ID: "id001"},
+			Item: store.OwnableItem{
+				Owner: "testOwner",
+				Item: model.Item{
+					ID:  "id001",
+					TTL: aws.Int64(5),
+				},
+			},
+			PutItemFails:             true,
+			ExpectedConsumedCapacity: nil,
+			ExpectedError:            dbErr,
+		},
+		{
+			Description: "Success. No TTL",
+			Key:         model.Key{Bucket: "testBucket", ID: "id001"},
+			Item: store.OwnableItem{
+				Owner: "testOwner",
+				Item: model.Item{
+					ID: "id001",
+				},
+			},
+			PutItemFails:             false,
+			ExpectedConsumedCapacity: capacity,
+			ExpectedError:            nil,
+		},
+		{
+			Description: "Success with TTL",
+			Key:         model.Key{Bucket: "testBucket", ID: "id001"},
+			Item: store.OwnableItem{
+				Owner: "testOwner",
+				Item: model.Item{
+					ID: "id001",
+				},
+			},
+			PutItemFails:             false,
+			ExpectedConsumedCapacity: capacity,
+			ExpectedError:            nil,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(mockClient)
+			sv := executor{
+				c:         m,
+				tableName: "testTable",
+			}
+			var (
+				putItemOutput = &dynamodb.PutItemOutput{
+					ConsumedCapacity: capacity,
+				}
+				putItemErr error
+			)
+			if tc.PutItemFails {
+				putItemOutput, putItemErr = nil, dbErr
+			}
+
+			m.On("PutItem", genTestPutItemInput(tc.Key, tc.Item)).Return(putItemOutput, putItemErr)
+			cc, err := sv.Push(tc.Key, tc.Item)
+			assert.Equal(tc.ExpectedConsumedCapacity, cc)
+			assert.Equal(tc.ExpectedError, err)
+			m.AssertExpectations(t)
+		})
+
+	}
+	//  Cases
+	// (2) Include TTL, dynamo client fails
+	// (2) Include TTL, dynamo client succeeds
+	// (1) No TTL, Success
+
 }
 
 func TestPushItem(t *testing.T) {
