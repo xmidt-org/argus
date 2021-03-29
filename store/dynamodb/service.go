@@ -20,11 +20,9 @@ package dynamodb
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -86,18 +84,6 @@ var (
 	}
 )
 
-func handleClientError(err error) error {
-	var awsErr awserr.Error
-	if errors.As(err, &awsErr) {
-		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
-			if strings.Contains(awsErr.Message(), "ValidationException") {
-				return store.SanitizedError{Err: err, ErrHTTP: errBadRequest}
-			}
-		}
-	}
-	return store.SanitizedError{Err: err, ErrHTTP: errDefaultDynamoDBFailure}
-}
-
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
 	storingItem := storableItem{
 		OwnableItem: item,
@@ -126,7 +112,7 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 	}
 
 	if err != nil {
-		return consumedCapacity, handleClientError(err)
+		return consumedCapacity, err
 	}
 	return consumedCapacity, nil
 }
@@ -172,7 +158,7 @@ func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.Con
 func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
 	if err != nil {
-		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
+		return store.OwnableItem{}, consumedCapacity, err
 	}
 	item := new(storableItem)
 	err = dynamodbattribute.UnmarshalMap(attributes, item)
@@ -181,13 +167,13 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	}
 
 	if itemNotFound(item) {
-		return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+		return item.OwnableItem, consumedCapacity, store.ErrItemNotFound
 	}
 
 	if item.Expires != nil {
-		remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
+		remainingTTLSeconds := int64(time.Until(time.Unix(*item.Expires, 0)).Seconds())
 		if remainingTTLSeconds < 1 {
-			return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+			return item.OwnableItem, consumedCapacity, store.ErrItemNotFound
 		}
 		item.TTL = &remainingTTLSeconds
 	}
@@ -229,7 +215,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		consumedCapacity = queryResult.ConsumedCapacity
 	}
 	if err != nil {
-		return map[string]store.OwnableItem{}, consumedCapacity, handleClientError(err)
+		return map[string]store.OwnableItem{}, consumedCapacity, err
 	}
 
 	for _, i := range queryResult.Items {
