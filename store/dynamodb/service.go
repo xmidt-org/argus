@@ -58,6 +58,8 @@ type executor struct {
 
 	// tableName is the name of the dynamodb table
 	tableName string
+
+	now func() time.Time
 }
 
 type storableItem struct {
@@ -229,7 +231,8 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		}
 
 		if item.Expires != nil {
-			remainingTTLSeconds := int64(time.Until(time.Unix(*item.Expires, 0)).Seconds())
+			expiryTime := time.Unix(*item.Expires, 0)
+			remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
 			if remainingTTLSeconds < 1 {
 				continue
 			}
@@ -260,5 +263,6 @@ func newService(config aws.Config, awsProfile string, tableName string, logger l
 	return &executor{
 		c:         dynamodb.New(sess),
 		tableName: tableName,
+		now:       time.Now,
 	}, nil
 }
