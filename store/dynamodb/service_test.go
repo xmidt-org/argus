@@ -117,7 +117,7 @@ func testClientErrors(t *testing.T) {
 	suite.Run(t, new(ClientErrorTestSuite))
 }
 
-func getTestPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInput {
+func getPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInput {
 	storingItem := storableItem{
 		OwnableItem: item,
 		Key:         key,
@@ -212,7 +212,7 @@ func TestNewPushItem(t *testing.T) {
 				putItemOutput, putItemErr = nil, dbErr
 			}
 
-			m.On("PutItem", getTestPutItemInput(tc.Key, tc.Item)).Return(putItemOutput, putItemErr)
+			m.On("PutItem", getPutItemInput(tc.Key, tc.Item)).Return(putItemOutput, putItemErr)
 			cc, err := sv.Push(tc.Key, tc.Item)
 			assert.Equal(tc.ExpectedConsumedCapacity, cc)
 			assert.Equal(tc.ExpectedError, err)
@@ -222,7 +222,7 @@ func TestNewPushItem(t *testing.T) {
 	}
 }
 
-func getTestQueryInput() *dynamodb.QueryInput {
+func getQueryInput() *dynamodb.QueryInput {
 	return &dynamodb.QueryInput{
 		TableName: aws.String("testTable"),
 		KeyConditions: map[string]*dynamodb.Condition{
@@ -261,7 +261,7 @@ func testPushItem(t *testing.T) {
 	assert.Equal(expectedConsumedCapacity, actualConsumedCapacity)
 }
 
-func getTestFilteredQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
+func getFilteredQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
 	pastExpiration := strconv.Itoa(int(now.Unix() - int64(time.Hour.Seconds())))
 	futureExpiration := strconv.Itoa(int(now.Add(time.Hour).Unix()))
 	bucket := "testBucket"
@@ -313,7 +313,7 @@ func getTestFilteredQueryOutput(now time.Time, consumedCapacity *dynamodb.Consum
 	}
 }
 
-func getTestFilteredExpectedItems() map[string]store.OwnableItem {
+func getFilteredExpectedItems() map[string]store.OwnableItem {
 	return map[string]store.OwnableItem{
 		"e4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35": {
 			Item: model.Item{
@@ -329,7 +329,7 @@ func getTestFilteredExpectedItems() map[string]store.OwnableItem {
 	}
 }
 
-func getTestQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
+func getQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
 	futureExpiration := strconv.Itoa(int(now.Add(time.Hour).Unix()))
 	bucket := "testBucket"
 	return &dynamodb.QueryOutput{
@@ -358,7 +358,7 @@ func getTestQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapaci
 	}
 }
 
-func getTestExpectedItems() map[string]store.OwnableItem {
+func getExpectedItems() map[string]store.OwnableItem {
 	return map[string]store.OwnableItem{
 		"e4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35": {
 			Item: model.Item{
@@ -374,6 +374,7 @@ func getTestExpectedItems() map[string]store.OwnableItem {
 	}
 }
 
+// getRefTime should be used to make
 func getRefTime() time.Time {
 	refTime, err := time.Parse(time.RFC3339, "2021-01-02T15:04:00Z")
 	if err != nil {
@@ -409,15 +410,15 @@ func TestNewGetAll(t *testing.T) {
 		},
 		{
 			Description:              "Expired or bad items",
-			QueryOutput:              getTestFilteredQueryOutput(nowRef, consumedCapacity),
+			QueryOutput:              getFilteredQueryOutput(nowRef, consumedCapacity),
 			ExpectedConsumedCapacity: consumedCapacity,
-			ExpectedItems:            getTestFilteredExpectedItems(),
+			ExpectedItems:            getFilteredExpectedItems(),
 		},
 		{
 			Description:              "All good items",
-			QueryOutput:              getTestQueryOutput(nowRef, consumedCapacity),
+			QueryOutput:              getQueryOutput(nowRef, consumedCapacity),
 			ExpectedConsumedCapacity: consumedCapacity,
-			ExpectedItems:            getTestExpectedItems(),
+			ExpectedItems:            getExpectedItems(),
 		},
 	}
 	for _, tc := range tcs {
@@ -429,7 +430,7 @@ func TestNewGetAll(t *testing.T) {
 				tableName: "testTable",
 				now:       nowFunc,
 			}
-			m.On("Query", getTestQueryInput()).Return(tc.QueryOutput, tc.QueryErr)
+			m.On("Query", getQueryInput()).Return(tc.QueryOutput, tc.QueryErr)
 			items, cc, err := svc.GetAll("testBucket")
 			assert.Equal(tc.ExpectedItems, items)
 			assert.Equal(tc.ExpectedConsumedCapacity, cc)
@@ -470,7 +471,7 @@ func TestNewGet(t *testing.T) {
 		},
 		{
 			Description:              "ExpiredItem",
-			GetItemOutput:            getTestGetItemOutputExpired(nowRef, consumedCapacity, key),
+			GetItemOutput:            getGetItemOutputExpired(nowRef, consumedCapacity, key),
 			GetItemErr:               nil,
 			ExpectedItem:             store.OwnableItem{},
 			ExpectedConsumedCapacity: consumedCapacity,
@@ -485,10 +486,10 @@ func TestNewGet(t *testing.T) {
 		},
 		{
 			Description:              "Happy path",
-			GetItemOutput:            getTestGetItemOutput(nowRef, consumedCapacity, key),
+			GetItemOutput:            getGetItemOutput(nowRef, consumedCapacity, key),
 			GetItemErr:               nil,
 			ExpectedConsumedCapacity: consumedCapacity,
-			ExpectedItem:             getTestGetItemExpectedItem(),
+			ExpectedItem:             getGetItemExpectedItem(),
 			ExpectedError:            nil,
 		},
 	}
@@ -502,7 +503,7 @@ func TestNewGet(t *testing.T) {
 				tableName: "testTable",
 				now:       nowFunc,
 			}
-			m.On("GetItem", getTestGetItemInput(key)).Return(tc.GetItemOutput, tc.GetItemErr)
+			m.On("GetItem", getGetItemInput(key)).Return(tc.GetItemOutput, tc.GetItemErr)
 			item, cc, err := svc.Get(key)
 			assert.Equal(tc.ExpectedError, err)
 			assert.Equal(tc.ExpectedConsumedCapacity, cc)
@@ -511,7 +512,7 @@ func TestNewGet(t *testing.T) {
 	}
 }
 
-func getTestGetItemExpectedItem() store.OwnableItem {
+func getGetItemExpectedItem() store.OwnableItem {
 	return store.OwnableItem{
 		Owner: "xmidt",
 		Item: model.Item{
@@ -524,7 +525,7 @@ func getTestGetItemExpectedItem() store.OwnableItem {
 	}
 }
 
-func getTestGetItemInput(key model.Key) *dynamodb.GetItemInput {
+func getGetItemInput(key model.Key) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: aws.String("testTable"),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -539,7 +540,7 @@ func getTestGetItemInput(key model.Key) *dynamodb.GetItemInput {
 	}
 }
 
-func getTestGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
+func getGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
 	futureExpiration := strconv.Itoa(int(nowRef.Add(time.Hour).Unix()))
 	return &dynamodb.GetItemOutput{
 		Item: map[string]*dynamodb.AttributeValue{
@@ -567,7 +568,7 @@ func getTestGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedC
 	}
 }
 
-func getTestGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
+func getGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
 	secondsInHour := int64(time.Hour.Seconds())
 	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
 	return &dynamodb.GetItemOutput{
