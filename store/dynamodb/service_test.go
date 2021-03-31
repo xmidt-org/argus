@@ -438,6 +438,164 @@ func TestNewGetAll(t *testing.T) {
 	}
 }
 
+func TestNewGet(t *testing.T) {
+	var (
+		dbErr            = errors.New("dynamodb error")
+		consumedCapacity = &dynamodb.ConsumedCapacity{
+			ReadCapacityUnits: aws.Float64(1),
+		}
+		nowRef  = getRefTime()
+		nowFunc = func() time.Time {
+			return nowRef
+		}
+		key = model.Key{
+			ID:     "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+			Bucket: "testBucket",
+		}
+	)
+	tcs := []struct {
+		Description              string
+		GetItemOutput            *dynamodb.GetItemOutput
+		GetItemErr               error
+		ExpectedItem             store.OwnableItem
+		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedError            error
+	}{
+		{
+			Description:   "GetItemFails",
+			GetItemOutput: nil,
+			GetItemErr:    dbErr,
+			ExpectedItem:  store.OwnableItem{},
+			ExpectedError: dbErr,
+		},
+		{
+			Description:              "ExpiredItem",
+			GetItemOutput:            getTestGetItemOutputExpired(nowRef, consumedCapacity, key),
+			GetItemErr:               nil,
+			ExpectedItem:             store.OwnableItem{},
+			ExpectedConsumedCapacity: consumedCapacity,
+			ExpectedError:            store.ErrItemNotFound,
+		},
+		{
+			Description:   "Item not in DB",
+			GetItemOutput: &dynamodb.GetItemOutput{},
+			GetItemErr:    nil,
+			ExpectedItem:  store.OwnableItem{},
+			ExpectedError: store.ErrItemNotFound,
+		},
+		{
+			Description:              "Happy path",
+			GetItemOutput:            getTestGetItemOutput(nowRef, consumedCapacity, key),
+			GetItemErr:               nil,
+			ExpectedConsumedCapacity: consumedCapacity,
+			ExpectedItem:             getTestGetItemExpectedItem(),
+			ExpectedError:            nil,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(mockClient)
+			svc := executor{
+				c:         m,
+				tableName: "testTable",
+				now:       nowFunc,
+			}
+			m.On("GetItem", getTestGetItemInput(key)).Return(tc.GetItemOutput, tc.GetItemErr)
+			item, cc, err := svc.Get(key)
+			assert.Equal(tc.ExpectedError, err)
+			assert.Equal(tc.ExpectedConsumedCapacity, cc)
+			assert.Equal(tc.ExpectedItem, item)
+		})
+	}
+}
+
+func getTestGetItemExpectedItem() store.OwnableItem {
+	return store.OwnableItem{
+		Owner: "xmidt",
+		Item: model.Item{
+			TTL: aws.Int64(3600),
+			ID:  "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+			Data: map[string]interface{}{
+				"key": "stringVal",
+			},
+		},
+	}
+}
+
+func getTestGetItemInput(key model.Key) *dynamodb.GetItemInput {
+	return &dynamodb.GetItemInput{
+		TableName: aws.String("testTable"),
+		Key: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+}
+
+func getTestGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
+	futureExpiration := strconv.Itoa(int(nowRef.Add(time.Hour).Unix()))
+	return &dynamodb.GetItemOutput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"expires": {
+				N: aws.String(futureExpiration),
+			},
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+		},
+		ConsumedCapacity: consumedCapacity,
+	}
+}
+
+func getTestGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
+	secondsInHour := int64(time.Hour.Seconds())
+	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
+	return &dynamodb.GetItemOutput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"expires": {
+				N: aws.String(pastExpiration),
+			},
+			bucketAttributeKey: {
+				S: aws.String(testBucketName),
+			},
+			idAttributeKey: {
+				S: aws.String(testID),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+		},
+		ConsumedCapacity: consumedCapacity,
+	}
+}
+
 // TODO: candidate for deletion
 func testGetAllItems(t *testing.T) {
 	initGlobalInputs()
