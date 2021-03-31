@@ -14,11 +14,22 @@ import (
 	"github.com/xmidt-org/argus/store"
 )
 
-func TestPushItem(t *testing.T) {
-	var (
-		dbErr    = errors.New("dynamodb error")
-		capacity = &dynamodb.ConsumedCapacity{}
-	)
+var (
+	dbErr            = errors.New("dynamodb error")
+	consumedCapacity = &dynamodb.ConsumedCapacity{
+		ReadCapacityUnits: aws.Float64(1),
+	}
+	nowRef  = getRefTime()
+	nowFunc = func() time.Time {
+		return nowRef
+	}
+	key = model.Key{
+		ID:     "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+		Bucket: "testBucket",
+	}
+)
+
+func TestPush(t *testing.T) {
 	tcs := []struct {
 		Description              string
 		Key                      model.Key
@@ -51,7 +62,7 @@ func TestPushItem(t *testing.T) {
 				},
 			},
 			PutItemFails:             false,
-			ExpectedConsumedCapacity: capacity,
+			ExpectedConsumedCapacity: consumedCapacity,
 			ExpectedError:            nil,
 		},
 		{
@@ -64,7 +75,7 @@ func TestPushItem(t *testing.T) {
 				},
 			},
 			PutItemFails:             false,
-			ExpectedConsumedCapacity: capacity,
+			ExpectedConsumedCapacity: consumedCapacity,
 			ExpectedError:            nil,
 		},
 	}
@@ -79,7 +90,7 @@ func TestPushItem(t *testing.T) {
 			}
 			var (
 				putItemOutput = &dynamodb.PutItemOutput{
-					ConsumedCapacity: capacity,
+					ConsumedCapacity: consumedCapacity,
 				}
 				putItemErr error
 			)
@@ -154,20 +165,6 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	var (
-		dbErr            = errors.New("dynamodb error")
-		consumedCapacity = &dynamodb.ConsumedCapacity{
-			ReadCapacityUnits: aws.Float64(1),
-		}
-		nowRef  = getRefTime()
-		nowFunc = func() time.Time {
-			return nowRef
-		}
-		key = model.Key{
-			ID:     "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
-			Bucket: "testBucket",
-		}
-	)
 	tcs := []struct {
 		Description              string
 		GetItemOutput            *dynamodb.GetItemOutput
@@ -203,7 +200,7 @@ func TestGet(t *testing.T) {
 			GetItemOutput:            getGetItemOutput(nowRef, consumedCapacity, key),
 			GetItemErr:               nil,
 			ExpectedConsumedCapacity: consumedCapacity,
-			ExpectedItem:             getGetItemExpectedItem(),
+			ExpectedItem:             getGetOrDeleteExpectedItem(),
 			ExpectedError:            nil,
 		},
 	}
@@ -226,6 +223,79 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	var (
+		dbErr            = errors.New("dynamodb error")
+		consumedCapacity = &dynamodb.ConsumedCapacity{
+			ReadCapacityUnits: aws.Float64(1),
+		}
+		nowRef  = getRefTime()
+		nowFunc = func() time.Time {
+			return nowRef
+		}
+		key = model.Key{
+			ID:     "4c94485e0c21ae6c41ce1dfe7b6bfaceea5ab68e40a2476f50208e526f506080",
+			Bucket: "testBucket",
+		}
+	)
+	tcs := []struct {
+		Description              string
+		DeleteItemOutput         *dynamodb.DeleteItemOutput
+		DeleteItemErr            error
+		ExpectedItem             store.OwnableItem
+		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedError            error
+	}{
+		{
+			Description:      "DeletetemFails",
+			DeleteItemOutput: nil,
+			DeleteItemErr:    dbErr,
+			ExpectedItem:     store.OwnableItem{},
+			ExpectedError:    dbErr,
+		},
+		{
+			Description:              "ExpiredItem",
+			DeleteItemOutput:         getDeleteItemOutputExpired(nowRef, consumedCapacity, key),
+			DeleteItemErr:            nil,
+			ExpectedItem:             store.OwnableItem{},
+			ExpectedConsumedCapacity: consumedCapacity,
+			ExpectedError:            store.ErrItemNotFound,
+		},
+		{
+			Description:      "Item not in DB",
+			DeleteItemOutput: &dynamodb.DeleteItemOutput{},
+			DeleteItemErr:    nil,
+			ExpectedItem:     store.OwnableItem{},
+			ExpectedError:    store.ErrItemNotFound,
+		},
+		{
+			Description:              "Happy path",
+			DeleteItemOutput:         getDeleteItemOutput(nowRef, consumedCapacity, key),
+			DeleteItemErr:            nil,
+			ExpectedConsumedCapacity: consumedCapacity,
+			ExpectedItem:             getGetOrDeleteExpectedItem(),
+			ExpectedError:            nil,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			m := new(mockClient)
+			svc := executor{
+				c:         m,
+				tableName: "testTable",
+				now:       nowFunc,
+			}
+			m.On("DeleteItem", getDeleteItemInput(key)).Return(tc.DeleteItemOutput, tc.DeleteItemErr)
+			item, cc, err := svc.Delete(key)
+			m.AssertExpectations(t)
+			assert.Equal(tc.ExpectedError, err)
+			assert.Equal(tc.ExpectedConsumedCapacity, cc)
+			assert.Equal(tc.ExpectedItem, item)
+		})
+	}
+}
 func getPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInput {
 	storingItem := storableItem{
 		OwnableItem: item,
@@ -387,7 +457,7 @@ func getRefTime() time.Time {
 	return refTime
 }
 
-func getGetItemExpectedItem() store.OwnableItem {
+func getGetOrDeleteExpectedItem() store.OwnableItem {
 	return store.OwnableItem{
 		Owner: "xmidt",
 		Item: model.Item{
@@ -412,6 +482,22 @@ func getGetItemInput(key model.Key) *dynamodb.GetItemInput {
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+}
+
+func getDeleteItemInput(key model.Key) *dynamodb.DeleteItemInput {
+	return &dynamodb.DeleteItemInput{
+		TableName: aws.String("testTable"),
+		Key: map[string]*dynamodb.AttributeValue{
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
 	}
 }
 
@@ -443,11 +529,68 @@ func getGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapac
 	}
 }
 
+func getDeleteItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.DeleteItemOutput {
+	futureExpiration := strconv.Itoa(int(nowRef.Add(time.Hour).Unix()))
+	return &dynamodb.DeleteItemOutput{
+		Attributes: map[string]*dynamodb.AttributeValue{
+			"expires": {
+				N: aws.String(futureExpiration),
+			},
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+		},
+		ConsumedCapacity: consumedCapacity,
+	}
+}
+
 func getGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
 	secondsInHour := int64(time.Hour.Seconds())
 	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
 	return &dynamodb.GetItemOutput{
 		Item: map[string]*dynamodb.AttributeValue{
+			"expires": {
+				N: aws.String(pastExpiration),
+			},
+			bucketAttributeKey: {
+				S: aws.String(key.Bucket),
+			},
+			idAttributeKey: {
+				S: aws.String(key.ID),
+			},
+			"data": {
+				M: map[string]*dynamodb.AttributeValue{
+					"key": {
+						S: aws.String("stringVal"),
+					},
+				},
+			},
+			"owner": {
+				S: aws.String("xmidt"),
+			},
+		},
+		ConsumedCapacity: consumedCapacity,
+	}
+}
+
+func getDeleteItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.DeleteItemOutput {
+	secondsInHour := int64(time.Hour.Seconds())
+	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
+	return &dynamodb.DeleteItemOutput{
+		Attributes: map[string]*dynamodb.AttributeValue{
 			"expires": {
 				N: aws.String(pastExpiration),
 			},
