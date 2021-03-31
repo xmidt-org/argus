@@ -452,10 +452,10 @@ func getGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.Consum
 				N: aws.String(pastExpiration),
 			},
 			bucketAttributeKey: {
-				S: aws.String(testBucketName),
+				S: aws.String(key.Bucket),
 			},
 			idAttributeKey: {
-				S: aws.String(testID),
+				S: aws.String(key.ID),
 			},
 			"data": {
 				M: map[string]*dynamodb.AttributeValue{
