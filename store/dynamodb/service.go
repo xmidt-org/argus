@@ -169,13 +169,15 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	}
 
 	if itemNotFound(item) {
-		return item.OwnableItem, consumedCapacity, store.ErrItemNotFound
+		return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 	}
 
 	if item.Expires != nil {
-		remainingTTLSeconds := int64(time.Until(time.Unix(*item.Expires, 0)).Seconds())
+
+		expiryTime := time.Unix(*item.Expires, 0)
+		remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
 		if remainingTTLSeconds < 1 {
-			return item.OwnableItem, consumedCapacity, store.ErrItemNotFound
+			return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 		}
 		item.TTL = &remainingTTLSeconds
 	}
