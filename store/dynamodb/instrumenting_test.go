@@ -96,12 +96,15 @@ func TestInstrumentingService(t *testing.T) {
 }
 
 func TestMeasuresUpdate(t *testing.T) {
-	var capacityUnits float64 = 5
+	var (
+		capacityUnits float64 = 5
+		errDummy              = errors.New("bummer")
+	)
 	tcs := []struct {
 		Name                  string
 		QueryType             string
 		IncludeCapacity       bool
-		IncludeError          bool
+		Err                   error
 		ExpectedSuccessCount  float64
 		ExpectedFailCount     float64
 		ExpectedReadCapacity  float64
@@ -139,10 +142,19 @@ func TestMeasuresUpdate(t *testing.T) {
 		{
 			Name:                  "Failed Push Query",
 			IncludeCapacity:       true,
-			IncludeError:          true,
+			Err:                   errDummy,
 			ExpectedFailCount:     1,
 			QueryType:             metric.PushQueryType,
 			ExpectedWriteCapacity: capacityUnits,
+		},
+
+		{
+			Name:                 "Get Query. Item not found",
+			IncludeCapacity:      true,
+			ExpectedSuccessCount: 1,
+			Err:                  store.ErrItemNotFound,
+			QueryType:            metric.GetQueryType,
+			ExpectedReadCapacity: capacityUnits,
 		},
 	}
 
@@ -159,10 +171,7 @@ func TestMeasuresUpdate(t *testing.T) {
 			r := &measureUpdateRequest{
 				queryType: tc.QueryType,
 				start:     time.Now(),
-			}
-
-			if tc.IncludeError {
-				r.err = errors.New("bummer")
+				err:       tc.Err,
 			}
 
 			if tc.IncludeCapacity {
