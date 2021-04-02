@@ -18,15 +18,19 @@
 package dynamodb
 
 import (
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/go-kit/kit/log"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/httpaux"
 	"github.com/xmidt-org/themis/config"
 )
 
@@ -40,6 +44,11 @@ const (
 )
 
 var validate *validator.Validate
+
+var errHTTPBadRequest = &httpaux.Error{
+	Err:  errors.New("bad request to dynamodb"),
+	Code: http.StatusBadRequest,
+}
 
 func init() {
 	validate = validator.New()
@@ -116,22 +125,22 @@ func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures,
 
 func (d dao) Push(key model.Key, item store.OwnableItem) error {
 	_, err := d.s.Push(key, item)
-	return err
+	return sanitizeError(err)
 }
 
 func (d dao) Get(key model.Key) (store.OwnableItem, error) {
 	item, _, err := d.s.Get(key)
-	return item, err
+	return item, sanitizeError(err)
 }
 
 func (d *dao) Delete(key model.Key) (store.OwnableItem, error) {
 	item, _, err := d.s.Delete(key)
-	return item, err
+	return item, sanitizeError(err)
 }
 
 func (d *dao) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	items, _, err := d.s.GetAll(bucket)
-	return items, err
+	return items, sanitizeError(err)
 }
 
 func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
@@ -149,4 +158,17 @@ func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func sanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var awsErr awserr.Error
+	if errors.As(err, &awsErr) {
+		if awsErr.Code() == "ValidationException" {
+			return store.SanitizedError{Err: err, ErrHTTP: errHTTPBadRequest}
+		}
+	}
+	return store.SanitizeError(err)
 }

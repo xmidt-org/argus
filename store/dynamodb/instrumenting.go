@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -111,7 +112,7 @@ func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *d
 }
 
 func (m *dynamoMeasuresUpdater) updateQueryMeasures(err error, queryType string) {
-	if err != nil {
+	if err != nil && !errors.Is(err, store.ErrItemNotFound) {
 		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1)
 	} else {
 		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1.0)

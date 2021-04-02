@@ -300,7 +300,7 @@ func TestSetItemEndpoint(t *testing.T) {
 					Owner: "cable",
 				},
 			},
-			GetDAOResponseErr: KeyNotFoundError{},
+			GetDAOResponseErr: ErrItemNotFound,
 			PushDAOResponse: OwnableItem{
 				Owner: "cable",
 				Item:  model.Item{},

@@ -33,7 +33,7 @@ func TestEncodeError(t *testing.T) {
 			Description: "Headers and code",
 			InputErr: SanitizedError{
 				Err: errors.New("internal ignored err"),
-				ErrHTTP: httpaux.Error{
+				ErrHTTP: &httpaux.Error{
 					Err:    errHTTPMsg,
 					Code:   http.StatusBadRequest,
 					Header: http.Header{"X-Some-Header": []string{"val0", "val1"}},

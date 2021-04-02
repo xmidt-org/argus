@@ -18,20 +18,15 @@
 package dynamodb
 
 import (
-	"errors"
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/httpaux"
 )
 
 // client captures the methods of interest from the dynamoDB API. This
@@ -60,6 +55,8 @@ type executor struct {
 
 	// tableName is the name of the dynamodb table
 	tableName string
+
+	now func() time.Time
 }
 
 type storableItem struct {
@@ -74,29 +71,6 @@ const (
 	idAttributeKey         = "id"
 	expirationAttributeKey = "expires"
 )
-
-var (
-	errDefaultDynamoDBFailure = httpaux.Error{
-		Err:  errors.New("dynamodb operation failed"),
-		Code: http.StatusInternalServerError,
-	}
-	errBadRequest = httpaux.Error{
-		Err:  errors.New("bad request to dynamodb"),
-		Code: http.StatusBadRequest,
-	}
-)
-
-func handleClientError(err error) error {
-	var awsErr awserr.Error
-	if errors.As(err, &awsErr) {
-		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
-			if strings.Contains(awsErr.Message(), "ValidationException") {
-				return store.SanitizedError{Err: err, ErrHTTP: errBadRequest}
-			}
-		}
-	}
-	return store.SanitizedError{Err: err, ErrHTTP: errDefaultDynamoDBFailure}
-}
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
 	storingItem := storableItem{
@@ -126,7 +100,7 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 	}
 
 	if err != nil {
-		return consumedCapacity, handleClientError(err)
+		return consumedCapacity, err
 	}
 	return consumedCapacity, nil
 }
@@ -172,7 +146,7 @@ func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.Con
 func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
 	if err != nil {
-		return store.OwnableItem{}, consumedCapacity, handleClientError(err)
+		return store.OwnableItem{}, consumedCapacity, err
 	}
 	item := new(storableItem)
 	err = dynamodbattribute.UnmarshalMap(attributes, item)
@@ -181,13 +155,15 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	}
 
 	if itemNotFound(item) {
-		return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+		return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 	}
 
 	if item.Expires != nil {
-		remainingTTLSeconds := int64(time.Unix(*item.Expires, 0).Sub(time.Now()).Seconds())
+
+		expiryTime := time.Unix(*item.Expires, 0)
+		remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
 		if remainingTTLSeconds < 1 {
-			return item.OwnableItem, consumedCapacity, store.KeyNotFoundError{Key: key}
+			return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 		}
 		item.TTL = &remainingTTLSeconds
 	}
@@ -229,7 +205,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		consumedCapacity = queryResult.ConsumedCapacity
 	}
 	if err != nil {
-		return map[string]store.OwnableItem{}, consumedCapacity, handleClientError(err)
+		return map[string]store.OwnableItem{}, consumedCapacity, err
 	}
 
 	for _, i := range queryResult.Items {
@@ -243,7 +219,8 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 		}
 
 		if item.Expires != nil {
-			remainingTTLSeconds := int64(time.Until(time.Unix(*item.Expires, 0)).Seconds())
+			expiryTime := time.Unix(*item.Expires, 0)
+			remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
 			if remainingTTLSeconds < 1 {
 				continue
 			}
@@ -274,5 +251,6 @@ func newService(config aws.Config, awsProfile string, tableName string, logger l
 	return &executor{
 		c:         dynamodb.New(sess),
 		tableName: tableName,
+		now:       time.Now,
 	}, nil
 }

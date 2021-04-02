@@ -81,8 +81,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 		itemResponse, err := s.Get(setItemRequest.key)
 
 		if err != nil {
-			var errKeyNotFound KeyNotFoundError
-			if errors.As(err, &errKeyNotFound) {
+			if errors.Is(err, ErrItemNotFound) {
 				err = s.Push(setItemRequest.key, setItemRequest.item)
 				if err != nil {
 					return nil, err
