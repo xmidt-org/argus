@@ -47,7 +47,7 @@ const (
 
 var validate *validator.Validate
 
-var errHTTPBadRequest = httpaux.Error{
+var errHTTPBadRequest = &httpaux.Error{
 	Err:  errors.New("bad request to dynamodb"),
 	Code: http.StatusBadRequest,
 }
