@@ -154,7 +154,7 @@ func TestGetAllDAO(t *testing.T) {
 }
 
 func TestSanitizeError(t *testing.T) {
-	dynamodbValidationErr := awserr.New(dynamodb.ErrCodeTransactionCanceledException, "x-ValidationException-y", errInternal)
+	dynamodbValidationErr := awserr.New("ValidationException", "some dynamodb specific input validation error", errInternal)
 	tcs := []struct {
 		Description     string
 		InputErr        error

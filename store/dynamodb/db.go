@@ -20,13 +20,11 @@ package dynamodb
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/go-kit/kit/log"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
@@ -168,10 +166,8 @@ func sanitizeError(err error) error {
 	}
 	var awsErr awserr.Error
 	if errors.As(err, &awsErr) {
-		if awsErr.Code() == dynamodb.ErrCodeTransactionCanceledException {
-			if strings.Contains(awsErr.Message(), "ValidationException") {
-				return store.SanitizedError{Err: err, ErrHTTP: errHTTPBadRequest}
-			}
+		if awsErr.Code() == "ValidationException" {
+			return store.SanitizedError{Err: err, ErrHTTP: errHTTPBadRequest}
 		}
 	}
 	return store.SanitizeError(err)
