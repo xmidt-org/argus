@@ -23,13 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xmidt-org/bascule"
-	"github.com/xmidt-org/webpa-common/logging"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/xmidt-org/bascule"
+	"github.com/xmidt-org/webpa-common/logging"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -262,7 +264,7 @@ func (c *Client) sendRequest(ctx context.Context, owner, method, url string, bod
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
-	candlelight.InjectTraceInformation(ctx, r.Header)
+	candlelight.InjectTraceInformation(ctx, propagation.HeaderCarrier(r.Header))
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
