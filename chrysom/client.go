@@ -31,7 +31,6 @@ import (
 
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/webpa-common/logging"
-	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -40,7 +39,6 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/themis/xlog"
 )
 
@@ -264,7 +262,6 @@ func (c *Client) sendRequest(ctx context.Context, owner, method, url string, bod
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
-	candlelight.InjectTraceInformation(ctx, propagation.HeaderCarrier(r.Header))
 	err = acquire.AddAuth(r, c.auth)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
