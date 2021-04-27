@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [v0.3.14]
 - Rely on instrumented client to propagate OpenTelemetry trace context. [#162](https://github.com/xmidt-org/argus/pull/162)
 
 ## [v0.3.13]
@@ -143,7 +146,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.13...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.14...HEAD
+[v0.3.14]: https://github.com/xmidt-org/argus/compare/v0.3.13...v0.3.14
 [v0.3.13]: https://github.com/xmidt-org/argus/compare/v0.3.12...v0.3.13
 [v0.3.12]: https://github.com/xmidt-org/argus/compare/v0.3.11...v0.3.12
 [v0.3.11]: https://github.com/xmidt-org/argus/compare/v0.3.10...v0.3.11
