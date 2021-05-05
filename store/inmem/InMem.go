@@ -37,77 +37,49 @@ func ProvideInMem() store.S {
 
 func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	i.lock.Lock()
-	if _, ok := i.data[key.Bucket]; !ok {
-		i.data[key.Bucket] = map[string]store.OwnableItem{
-			key.ID: item,
-		}
-	} else {
-		i.data[key.Bucket][key.ID] = item
+	defer i.lock.Unlock()
+	if i.data[key.Bucket] == nil {
+		i.data[key.Bucket] = map[string]store.OwnableItem{}
 	}
-	i.lock.Unlock()
+	i.data[key.Bucket][key.ID] = item
 	return nil
 }
 
 func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
-	var (
-		item store.OwnableItem
-		err  error
-	)
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.ErrBucketNotFound
-	} else {
-		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.ErrItemNotFound
-		} else {
-			item = value
-		}
+	bucket, ok := i.data[key.Bucket]
+	if !ok {
+		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
-	if err != nil {
-		err = store.ItemOperationError{Err: err, Key: key, Operation: "get"}
+	item, ok := bucket[key.ID]
+	if !ok {
+		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
-	return item, store.SanitizeError(err)
+	return item, nil
 }
 
 func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
-	var (
-		items map[string]store.OwnableItem
-		err   error
-	)
-
 	i.lock.RLock()
-	if item, ok := i.data[bucket]; ok {
-		items = item
-	} else {
-		err = store.ErrBucketNotFound
+	defer i.lock.RUnlock()
+	items := i.data[bucket]
+	if items == nil {
+		items = map[string]store.OwnableItem{}
 	}
-	i.lock.RUnlock()
-	if err != nil {
-		err = store.GetAllItemsOperationErr{Err: err, Bucket: bucket}
-	}
-	return items, store.SanitizeError(err)
+	return items, nil
 }
 
 func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
-	var (
-		item store.OwnableItem
-		err  error
-	)
 	i.lock.Lock()
-	if _, ok := i.data[key.Bucket]; !ok {
-		err = store.ErrBucketNotFound
-	} else {
-		if value, ok := i.data[key.Bucket][key.ID]; !ok {
-			err = store.ErrItemNotFound
-		} else {
-			item = value
-			delete(i.data[key.Bucket], key.ID)
-		}
+	defer i.lock.Unlock()
+	bucket := i.data[key.Bucket]
+	if bucket == nil {
+		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
-	i.lock.Unlock()
-	if err != nil {
-		err = store.ItemOperationError{Err: err, Key: key, Operation: "delete"}
+	item, ok := bucket[key.ID]
+	if !ok {
+		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
-	return item, store.SanitizeError(err)
+	delete(bucket, key.ID)
+	return item, nil
 }
