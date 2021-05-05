@@ -28,6 +28,7 @@ import (
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"github.com/xmidt-org/webpa-common/basculemetrics"
@@ -124,6 +125,16 @@ func main() {
 			xhttpserver.Unmarshal{Key: "servers.primary", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.metrics", Optional: true}.Annotated(),
 			xhttpserver.Unmarshal{Key: "servers.health", Optional: true}.Annotated(),
+			candlelight.New,
+			func(u config.Unmarshaller) (candlelight.Config, error) {
+				var config candlelight.Config
+				err := u.UnmarshalKey("tracing", &config)
+				if err != nil {
+					return candlelight.Config{}, err
+				}
+				config.ApplicationName = applicationName
+				return config, nil
+			},
 		),
 
 		fx.Invoke(
