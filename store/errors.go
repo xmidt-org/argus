@@ -12,7 +12,6 @@ import (
 // Sentinel internal errors.
 var (
 	ErrItemNotFound   = errors.New("Item at resource path not found")
-	ErrBucketNotFound = errors.New("Bucket path not found")
 	ErrJSONDecode     = errors.New("Error decoding JSON data from DB")
 	ErrJSONEncode     = errors.New("Error encoding JSON data to send to DB")
 	ErrQueryExecution = errors.New("Error occurred during DB query execution")
@@ -20,9 +19,8 @@ var (
 
 // Sentinel errors to be used by the HTTP response error encoder.
 var (
-	ErrHTTPItemNotFound   = &httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
-	ErrHTTPBucketNotFound = &httpaux.Error{Err: errors.New("Bucket not found"), Code: http.StatusNotFound}
-	ErrHTTPOpFailed       = &httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
+	ErrHTTPItemNotFound = &httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	ErrHTTPOpFailed     = &httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type sanitizedErrorer interface {
@@ -163,12 +161,8 @@ func SanitizeError(err error) error {
 		return nil
 	}
 	var errHTTP = ErrHTTPOpFailed
-
-	switch {
-	case errors.Is(err, ErrItemNotFound):
+	if errors.Is(err, ErrItemNotFound) {
 		errHTTP = ErrHTTPItemNotFound
-	case errors.Is(err, ErrBucketNotFound):
-		errHTTP = ErrHTTPBucketNotFound
 	}
 	return SanitizedError{Err: err, ErrHTTP: errHTTP}
 }
