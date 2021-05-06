@@ -255,3 +255,54 @@ func (s *InMemTestSuite) TestDelete() {
 func TestInMem(t *testing.T) {
 	suite.Run(t, new(InMemTestSuite))
 }
+
+type InMemTestParallelSuite struct {
+	suite.Suite
+	Storage    *InMem
+	BucketName string
+	ItemOneKey model.Key
+	ItemOneID  string
+	ItemOne    store.OwnableItem
+}
+
+func (s *InMemTestParallelSuite) SetupSuite() {
+	s.Storage = &InMem{
+		data: map[string]map[string]store.OwnableItem{},
+	}
+	s.BucketName = "test-bucket-name"
+	s.ItemOneID = "test-item-id-1"
+	s.ItemOne = store.OwnableItem{
+		Owner: "test-owner-1",
+		Item: model.Item{
+			ID: s.ItemOneID,
+			Data: map[string]interface{}{
+				"k1": "v1",
+			},
+		},
+	}
+	s.ItemOneKey = model.Key{ID: s.ItemOneID, Bucket: s.BucketName}
+}
+
+func (s *InMemTestParallelSuite) TestGet() {
+	s.T().Parallel()
+	s.Storage.Get(s.ItemOneKey)
+}
+
+func (s *InMemTestParallelSuite) TestPush() {
+	s.T().Parallel()
+	s.Storage.Push(s.ItemOneKey, s.ItemOne)
+}
+
+func (s *InMemTestParallelSuite) TestDelete() {
+	s.T().Parallel()
+	s.Storage.Delete(s.ItemOneKey)
+}
+
+func (s *InMemTestParallelSuite) TestGetAll() {
+	s.T().Parallel()
+	s.Storage.GetAll(s.BucketName)
+}
+
+func TestInMemParallel(t *testing.T) {
+	suite.Run(t, new(InMemTestParallelSuite))
+}
