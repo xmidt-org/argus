@@ -18,19 +18,15 @@
 package inmem
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/argus/store/test"
 )
-
-func TestInMemStore(t *testing.T) {
-	s := ProvideInMem()
-	test.StoreTest(s, 0, t)
-}
 
 type InMemTestSuite struct {
 	suite.Suite
@@ -88,11 +84,11 @@ func (s *InMemTestSuite) TestPush() {
 		ExpectedData map[string]map[string]store.OwnableItem
 	}{
 		{
-			Description: "BucketNotFound",
+			Description: "Create bucket",
 			Data:        s.DataBucketNotFound,
 		},
 		{
-			Description: "BucketFound",
+			Description: "Push into existing bucket",
 			Data:        s.DataBucketFound,
 		},
 	}
@@ -106,6 +102,52 @@ func (s *InMemTestSuite) TestPush() {
 			err := storage.Push(model.Key{Bucket: s.BucketName, ID: s.ItemID}, s.Item)
 			assert.Nil(err)
 			assert.EqualValues(expectedData, storage.data)
+		})
+	}
+}
+
+func (s *InMemTestSuite) TestGet() {
+	tcs := []struct {
+		Description   string
+		Data          map[string]map[string]store.OwnableItem
+		ExpectedData  map[string]map[string]store.OwnableItem
+		ExpectedError error
+	}{
+		{
+			Description:   "Bucket missing",
+			Data:          s.DataBucketNotFound,
+			ExpectedError: store.ErrItemNotFound,
+		},
+		{
+			Description:   "Item missing",
+			Data:          s.DataItemNotFound,
+			ExpectedError: store.ErrItemNotFound,
+		},
+		{
+			Description: "Item found",
+			Data:        s.DataItemFound,
+		},
+	}
+
+	for _, tc := range tcs {
+		s.T().Run(tc.Description, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+			storage := InMem{data: tc.Data}
+			key := model.Key{Bucket: s.BucketName, ID: s.ItemID}
+			actualItem, err := storage.Get(key)
+			if tc.ExpectedError != nil {
+				var sErr store.SanitizedError
+				require.True(errors.As(err, &sErr), "Expected '%v' to be a store.SanitizedError", err)
+				var iErr store.ItemOperationError
+				require.True(errors.As(err, &iErr), "Expected '%v' to be a store.ItemOperationError", err)
+				assert.Equal("get", iErr.Operation)
+				assert.Equal(key, iErr.Key)
+				assert.True(errors.Is(err, tc.ExpectedError), "Expected to find match for '%v' in error chain of '%v'", tc.ExpectedError, err)
+			} else {
+				assert.Nil(err)
+				assert.Equal(s.Item, actualItem)
+			}
 		})
 	}
 }
