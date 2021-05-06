@@ -19,6 +19,7 @@ package inmem
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -256,53 +257,29 @@ func TestInMem(t *testing.T) {
 	suite.Run(t, new(InMemTestSuite))
 }
 
-type InMemTestParallelSuite struct {
-	suite.Suite
-	Storage    *InMem
-	BucketName string
-	ItemOneKey model.Key
-	ItemOneID  string
-	ItemOne    store.OwnableItem
-}
-
-func (s *InMemTestParallelSuite) SetupSuite() {
-	s.Storage = &InMem{
+func TestInMemConcurrent(t *testing.T) {
+	Storage := &InMem{
 		data: map[string]map[string]store.OwnableItem{},
 	}
-	s.BucketName = "test-bucket-name"
-	s.ItemOneID = "test-item-id-1"
-	s.ItemOne = store.OwnableItem{
+	BucketName := "test-bucket-name"
+	ItemOneID := "test-item-id-1"
+	ItemOne := store.OwnableItem{
 		Owner: "test-owner-1",
 		Item: model.Item{
-			ID: s.ItemOneID,
+			ID: ItemOneID,
 			Data: map[string]interface{}{
 				"k1": "v1",
 			},
 		},
 	}
-	s.ItemOneKey = model.Key{ID: s.ItemOneID, Bucket: s.BucketName}
-}
-
-func (s *InMemTestParallelSuite) TestGet() {
-	s.T().Parallel()
-	s.Storage.Get(s.ItemOneKey)
-}
-
-func (s *InMemTestParallelSuite) TestPush() {
-	s.T().Parallel()
-	s.Storage.Push(s.ItemOneKey, s.ItemOne)
-}
-
-func (s *InMemTestParallelSuite) TestDelete() {
-	s.T().Parallel()
-	s.Storage.Delete(s.ItemOneKey)
-}
-
-func (s *InMemTestParallelSuite) TestGetAll() {
-	s.T().Parallel()
-	s.Storage.GetAll(s.BucketName)
-}
-
-func TestInMemParallel(t *testing.T) {
-	suite.Run(t, new(InMemTestParallelSuite))
+	ItemOneKey := model.Key{ID: ItemOneID, Bucket: BucketName}
+	for i := 0; i < 30; i++ {
+		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+			t.Parallel()
+			Storage.Push(ItemOneKey, ItemOne)
+			Storage.Delete(ItemOneKey)
+			Storage.GetAll(BucketName)
+			Storage.Get(ItemOneKey)
+		})
+	}
 }
