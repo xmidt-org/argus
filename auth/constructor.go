@@ -36,7 +36,7 @@ type primaryBasculeMetricListenerIn struct {
 
 type primaryBasculeOnHTTPErrorResponseIn struct {
 	fx.In
-	OnErrorHTTPResponse basculehttp.OnErrorHTTPResponse `name:"primary_bascule_on_error_http_response"`
+	OnErrorHTTPResponse basculehttp.OnErrorHTTPResponse `name:"primary_bascule_on_error_http_response" optional:"true"`
 }
 
 func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
