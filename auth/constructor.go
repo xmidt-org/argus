@@ -14,6 +14,8 @@ import (
 	"go.uber.org/fx"
 )
 
+const primaryBasculeCOptionsName = "primary_bascule_constructor_options"
+
 type primaryCOptionsIn struct {
 	LoggerIn
 	Options []basculehttp.COption `group:"primary_bascule_constructor_options"`
@@ -32,17 +34,21 @@ type primaryBasculeMetricListenerIn struct {
 	Listener *basculemetrics.MetricListener `name:"primary_bascule_metric_listener"`
 }
 
+type primaryBasculeOnHTTPErrorResponseIn struct {
+	fx.In
+	OnErrorHTTPResponse basculehttp.OnErrorHTTPResponse `name:"primary_bascule_on_error_http_response"`
+}
+
 func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 	return fx.Provide(
 		fx.Annotated{
-			Group: "primary_bascule_constructor_options",
+			Group: primaryBasculeCOptionsName,
 			Target: func(in primaryBasculeMetricListenerIn) basculehttp.COption {
 				return basculehttp.WithCErrorResponseFunc(in.Listener.OnErrorResponse)
 			},
 		},
-
 		fx.Annotated{
-			Group: "primary_bascule_constructor_options",
+			Group: primaryBasculeCOptionsName,
 			Target: func(in primaryBearerTokenFactoryIn) basculehttp.COption {
 				if in.Resolver == nil {
 					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil bearer token factory option as resolver was not defined", "server", "primary")
@@ -59,7 +65,7 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 			},
 		},
 		fx.Annotated{
-			Group: "primary_bascule_constructor_options",
+			Group: primaryBasculeCOptionsName,
 			Target: func(in primaryProfileIn) (basculehttp.COption, error) {
 				if in.Profile == nil || len(in.Profile.Basic) < 1 {
 					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil basic token factory option as config was not provided", "server", "primary")
@@ -73,11 +79,19 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 				return basculehttp.WithTokenFactory("Basic", basicTokenFactory), nil
 			},
 		},
-
 		fx.Annotated{
-			Group: "primary_bascule_constructor_options",
+			Group: primaryBasculeCOptionsName,
 			Target: func() basculehttp.COption {
 				return basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc))
+			},
+		},
+		fx.Annotated{
+			Group: primaryBasculeCOptionsName,
+			Target: func(in primaryBasculeOnHTTPErrorResponseIn) basculehttp.COption {
+				if in.OnErrorHTTPResponse == nil {
+					return nil
+				}
+				return basculehttp.WithCErrorHTTPResponseFunc(in.OnErrorHTTPResponse)
 			},
 		},
 	)
