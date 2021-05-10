@@ -25,7 +25,7 @@ func ProvidePrimaryServerChain(apiBase string) fx.Option {
 		providePrimaryBasculeEnforcer(),
 		fx.Provide(
 			profileFactory{serverName: "primary"}.annotated(),
-			basculemetrics.MeasuresFactory{ServerName: "primary"}.Annotated(),
+			basculemetrics.ListenerFactory{ServerName: "primary"}.Annotated(),
 			fx.Annotated{
 				Name: "primary_alice_listener",
 				Target: func(in primaryBasculeMetricListenerIn) alice.Constructor {

@@ -26,7 +26,7 @@ type primaryProfileIn struct {
 type primaryCapabilityValidatorIn struct {
 	LoggerIn
 	Profile  *profile                                   `name:"primary_profile"`
-	Measures *basculechecks.AuthCapabilityCheckMeasures `name:"primary_capability_measures"`
+	Measures *basculechecks.AuthCapabilityCheckMeasures `name:"primary_bascule_capability_measures"`
 }
 
 func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {

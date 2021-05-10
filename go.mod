@@ -22,6 +22,6 @@ require (
 	github.com/xmidt-org/candlelight v0.0.5
 	github.com/xmidt-org/httpaux v0.1.3
 	github.com/xmidt-org/themis v0.4.7
-	github.com/xmidt-org/webpa-common v1.11.5
+	github.com/xmidt-org/webpa-common v1.11.7-0.20210510234533-326a7c49b4dc
 	go.uber.org/fx v1.13.1
 )

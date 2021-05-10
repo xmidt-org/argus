@@ -702,6 +702,7 @@ github.com/xmidt-org/argus v0.3.9/go.mod h1:mDFS44R704gl9Fif3gkfAyvnZa53SvMepmXj
 github.com/xmidt-org/argus v0.3.10-0.20201105190057-402fede05764/go.mod h1:lnMCVB/i0gOlUOOd2WbzDDgzTEqP5TipzQ8xKIw+N/I=
 github.com/xmidt-org/argus v0.3.10-0.20201217204602-66f69b12c498/go.mod h1:lnMCVB/i0gOlUOOd2WbzDDgzTEqP5TipzQ8xKIw+N/I=
 github.com/xmidt-org/argus v0.3.12/go.mod h1:T0oHbqQ1SAjE616Q9f1p+7nsmuvmHNoC0zAIUpUiFuE=
+github.com/xmidt-org/argus v0.3.14/go.mod h1:Xn5ZMLNBvY6QSAEG3sLehLLa+YVOdd3hJlyGsy7tve4=
 github.com/xmidt-org/arrange v0.1.9 h1:MgMCRH7uMg+LZWvuo3c+63UmEV73LRMyrYmm267E8oM=
 github.com/xmidt-org/arrange v0.1.9/go.mod h1:PRA8iEZ11L93NsEkDP56x1mZyfDcWxzDULgHj56TaEk=
 github.com/xmidt-org/bascule v0.8.0 h1:xk/c8zqqNjoSW4b4oSrUwemm786Bs5DabmX7AgUgNPw=
@@ -712,6 +713,7 @@ github.com/xmidt-org/bascule v0.9.0 h1:CsMtwiDO4jjoOIh4pWe2U9tXA9A73CfohDsSvwzXm
 github.com/xmidt-org/bascule v0.9.0/go.mod h1:C64nSBtUTTK/f2/mCvvp/qJhav5raD0T+by68DCp/gU=
 github.com/xmidt-org/bascule v0.9.1-0.20210506212507-4df8762472bc h1:ElOFjglrmCTSZMalcm+b2zX+rmyZTzJSx6f8whenOcI=
 github.com/xmidt-org/bascule v0.9.1-0.20210506212507-4df8762472bc/go.mod h1:lYB9XFKYZZsnI3pFqafO8T8JAj4F1eXIPy2/5h7dDRo=
+github.com/xmidt-org/candlelight v0.0.4/go.mod h1:f5aC01FCH/KTT9j4zGrrzaV9vRmtTSDwdS4jrREZAW4=
 github.com/xmidt-org/candlelight v0.0.5 h1:2qsfD7Uubz08LQZSaBIYXaQe9qXijr/U8lIDgkU7UFM=
 github.com/xmidt-org/candlelight v0.0.5/go.mod h1:j9Q2tzrOAywm+JvvVJjlOmlPJvdlRrOyFjLz33SaU1Y=
 github.com/xmidt-org/httpaux v0.1.2/go.mod h1:qZnH2uObGPwHnOz8HcPNlbcd3gKEvdmxbIK3rgbQhto=
@@ -734,6 +736,8 @@ github.com/xmidt-org/webpa-common v1.11.5-0.20210120003553-3d03d7329aee h1:BkR9T
 github.com/xmidt-org/webpa-common v1.11.5-0.20210120003553-3d03d7329aee/go.mod h1:NtJzdNhDznwjWiRKDnj/vxdQZnPOhuQ6haemx+nDMSY=
 github.com/xmidt-org/webpa-common v1.11.5 h1:kUR7fvtZ4tBlRMNLlyhFiHQN0No42F/6DApU4VniBzw=
 github.com/xmidt-org/webpa-common v1.11.5/go.mod h1:jMyROPQmgvNS+P0csPodDMikqesqPFzlb3v/JVw2SmY=
+github.com/xmidt-org/webpa-common v1.11.7-0.20210510234533-326a7c49b4dc h1:3wKUfNw0u1ryAM2aNmUiIE9eEqIOZhoOBMI3ZQ9gi7I=
+github.com/xmidt-org/webpa-common v1.11.7-0.20210510234533-326a7c49b4dc/go.mod h1:xpoQsmpXTs2psilHLTPSGHkww898szPpnwQL3d0xVfg=
 github.com/xmidt-org/wrp-go v1.3.4/go.mod h1:EWC9BgcYYO1hKgLzz6VFPpg3LU6ZWSDV/uNiWC7zP+o=
 github.com/xmidt-org/wrp-go/v2 v2.0.1/go.mod h1:v0HK0go/7OSVDvKbnXsUn6c+M987p0yyxWEs8/Fmf60=
 github.com/xmidt-org/wrp-go/v3 v3.0.1/go.mod h1:08zAEevd+fM81/asCgsMJdgO8sfKLvqclqJGX1pphnE=
