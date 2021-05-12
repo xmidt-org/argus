@@ -4,6 +4,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule"
+	bchecks "github.com/xmidt-org/bascule/basculechecks"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/webpa-common/basculechecks"
@@ -41,7 +42,7 @@ func providePrimaryBasculeEnforcerOptions() fx.Option {
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func() basculehttp.EOption {
-				return basculehttp.WithRules("Basic", bascule.CreateAllowAllCheck())
+				return basculehttp.WithRules("Basic", bchecks.AllowAll())
 			},
 		},
 		fx.Annotated{
@@ -59,13 +60,13 @@ func providePrimaryBasculeEnforcer() fx.Option {
 			fx.Annotated{
 				Name: "primary_bearer_validator_principal",
 				Target: func() bascule.Validator {
-					return bascule.CreateNonEmptyPrincipalCheck()
+					return bchecks.NonEmptyPrincipal()
 				},
 			},
 			fx.Annotated{
 				Name: "primary_bearer_validator_type",
 				Target: func() bascule.Validator {
-					return bascule.CreateValidTypeCheck([]string{"jwt"})
+					return bchecks.ValidType([]string{"jwt"})
 				},
 			},
 			primaryCapabilityValidatorAnnotated(),

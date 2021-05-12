@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xmidt-org/bascule"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -185,7 +184,7 @@ func TestSendRequest(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, func(ctx context.Context) bascule.Logger {
+			}, func(ctx context.Context) log.Logger {
 				return log.NewNopLogger()
 			})
 
@@ -285,7 +284,9 @@ func TestGetItems(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, bascule.GetDefaultLoggerFunc)
+			}, func(ctx context.Context) log.Logger {
+				return log.NewNopLogger()
+			})
 
 			require.Nil(err)
 
@@ -519,7 +520,9 @@ func TestRemoveItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, bascule.GetDefaultLoggerFunc)
+			}, func(ctx context.Context) log.Logger {
+				return log.NewNopLogger()
+			})
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)

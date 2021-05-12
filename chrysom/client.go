@@ -29,7 +29,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/webpa-common/logging"
 
 	"github.com/go-kit/kit/log"
@@ -131,7 +130,7 @@ type Client struct {
 	logger       log.Logger
 	bucket       string
 	observer     *observerConfig
-	getLogger    func(context.Context) bascule.Logger
+	getLogger    func(context.Context) log.Logger
 }
 
 // listening states
@@ -166,13 +165,15 @@ type observerConfig struct {
 	state        int32
 }
 
-func NewClient(config ClientConfig, logger func(ctx context.Context) bascule.Logger) (*Client, error) {
+func NewClient(config ClientConfig, getLogger func(ctx context.Context) log.Logger) (*Client, error) {
 	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
 	}
-	if logger == nil {
-		logger = bascule.GetDefaultLoggerFunc
+	if getLogger == nil {
+		getLogger = func(ctx context.Context) log.Logger {
+			return log.NewNopLogger()
+		}
 	}
 	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
 	if err != nil {
@@ -185,7 +186,7 @@ func NewClient(config ClientConfig, logger func(ctx context.Context) bascule.Log
 		observer:     newObserver(config.Logger, config.Listen),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
-		getLogger:    logger,
+		getLogger:    getLogger,
 	}
 
 	return clientStore, nil

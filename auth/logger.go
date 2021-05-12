@@ -25,7 +25,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/justinas/alice"
-	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/themis/xlog"
 	"go.uber.org/fx"
@@ -60,14 +59,6 @@ func (l logOptionsProvider) setLogger(logger log.Logger) alice.Constructor {
 	}
 }
 
-// getBasculeLogger simply converts a go-kit logger to a bascule logger.  They
-// are the same.
-func getBasculeLogger(f func(context.Context) log.Logger) func(context.Context) bascule.Logger {
-	return func(ctx context.Context) bascule.Logger {
-		return bascule.Logger(f(ctx))
-	}
-}
-
 func (l logOptionsProvider) provide() fx.Option {
 	return fx.Options(
 		fx.Supply(getLogger),
@@ -80,14 +71,14 @@ func (l logOptionsProvider) provide() fx.Option {
 			fx.Annotated{
 				Group: fmt.Sprintf("%s_bascule_constructor_options", l.serverName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.COption {
-					return basculehttp.WithCLogger(getBasculeLogger(getLogger))
+					return basculehttp.WithCLogger(getLogger)
 				},
 			},
 
 			fx.Annotated{
 				Group: fmt.Sprintf("%s_bascule_enforcer_options", l.serverName),
 				Target: func(getLogger func(context.Context) log.Logger) basculehttp.EOption {
-					return basculehttp.WithELogger(getBasculeLogger(getLogger))
+					return basculehttp.WithELogger(getLogger)
 				},
 			},
 		),
