@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 - Allow auth package client code to pass the basculehttp.OnErrorHTTPResponse option. [#174](https://github.com/xmidt-org/argus/pull/174)
+- Fix bug that did not include context (with tracing data) in outgoing requests. [#176](https://github.com/xmidt-org/argus/pull/176)
 
 ## [v0.3.15]
 - Add optional OpenTelemetry tracing feature. [#170](https://github.com/xmidt-org/argus/pull/170) thanks to @utsavbatra5
