@@ -259,7 +259,7 @@ func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
 }
 
 func (c *Client) sendRequest(ctx context.Context, owner, method, url string, body io.Reader) (response, error) {
-	r, err := http.NewRequest(method, url, body)
+	r, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
 	}
