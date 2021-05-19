@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.16]
 - Allow auth package client code to pass the basculehttp.OnErrorHTTPResponse option. [#174](https://github.com/xmidt-org/argus/pull/174)
 - Fix bug that did not include context (with tracing data) in outgoing requests. [#176](https://github.com/xmidt-org/argus/pull/176)
 
@@ -151,7 +153,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.15...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.16...HEAD
+[v0.3.16]: https://github.com/xmidt-org/argus/compare/v0.3.15...v0.3.16
 [v0.3.15]: https://github.com/xmidt-org/argus/compare/v0.3.14...v0.3.15
 [v0.3.14]: https://github.com/xmidt-org/argus/compare/v0.3.13...v0.3.14
 [v0.3.13]: https://github.com/xmidt-org/argus/compare/v0.3.12...v0.3.13
