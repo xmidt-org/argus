@@ -39,6 +39,11 @@ type primaryBasculeOnHTTPErrorResponseIn struct {
 	OnErrorHTTPResponse basculehttp.OnErrorHTTPResponse `name:"primary_bascule_on_error_http_response" optional:"true"`
 }
 
+type primaryBasculeParseURLFuncIn struct {
+	fx.In
+	ParseURL basculehttp.ParseURL `name:"primary_bascule_parse_url"`
+}
+
 func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 	return fx.Provide(
 		fx.Annotated{
@@ -81,8 +86,8 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 		},
 		fx.Annotated{
 			Group: primaryBasculeCOptionsName,
-			Target: func() basculehttp.COption {
-				return basculehttp.WithParseURLFunc(basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc))
+			Target: func(in primaryBasculeParseURLFuncIn) basculehttp.COption {
+				return basculehttp.WithParseURLFunc(in.ParseURL)
 			},
 		},
 		fx.Annotated{
