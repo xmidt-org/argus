@@ -18,7 +18,7 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
-	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/httpaux/erraux"
 )
 
 func TestEncodeError(t *testing.T) {
@@ -33,7 +33,7 @@ func TestEncodeError(t *testing.T) {
 			Description: "Headers and code",
 			InputErr: SanitizedError{
 				Err: errors.New("internal ignored err"),
-				ErrHTTP: &httpaux.Error{
+				ErrHTTP: &erraux.Error{
 					Err:    errHTTPMsg,
 					Code:   http.StatusBadRequest,
 					Header: http.Header{"X-Some-Header": []string{"val0", "val1"}},
