@@ -30,7 +30,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
-	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/httpaux/erraux"
 	"github.com/xmidt-org/themis/config"
 )
 
@@ -45,7 +45,7 @@ const (
 
 var validate *validator.Validate
 
-var errHTTPBadRequest = &httpaux.Error{
+var errHTTPBadRequest = &erraux.Error{
 	Err:  errors.New("bad request to dynamodb"),
 	Code: http.StatusBadRequest,
 }

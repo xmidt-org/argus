@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/xmidt-org/argus/model"
-	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/httpaux/erraux"
 )
 
 // Sentinel internal errors.
@@ -19,8 +19,8 @@ var (
 
 // Sentinel errors to be used by the HTTP response error encoder.
 var (
-	ErrHTTPItemNotFound = &httpaux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
-	ErrHTTPOpFailed     = &httpaux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
+	ErrHTTPItemNotFound = &erraux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	ErrHTTPOpFailed     = &erraux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 
 type sanitizedErrorer interface {
@@ -40,7 +40,7 @@ type SanitizedError struct {
 	// of Err that can be safely used across API boundaries.
 	// Two use cases include: hiding sensitive error data and
 	// translating errors to better explain error events to API consumers.
-	ErrHTTP *httpaux.Error
+	ErrHTTP *erraux.Error
 }
 
 func (s SanitizedError) Unwrap() error {
