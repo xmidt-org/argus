@@ -18,18 +18,21 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/candlelight"
+	"github.com/xmidt-org/sallust/sallustkit"
 	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"github.com/xmidt-org/webpa-common/basculemetrics"
@@ -40,9 +43,8 @@ import (
 	"github.com/xmidt-org/themis/config"
 	"github.com/xmidt-org/themis/xhealth"
 	"github.com/xmidt-org/themis/xhttp/xhttpserver"
-	"github.com/xmidt-org/themis/xlog"
-	"github.com/xmidt-org/themis/xlog/xloghttp"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 const (
@@ -57,14 +59,6 @@ var (
 	Version   = "undefined"
 	BuildTime = "undefined"
 )
-
-func setupFlagSet(fs *pflag.FlagSet) error {
-	fs.StringP("file", "f", "", "the configuration file to use.  Overrides the search path.")
-	fs.BoolP("debug", "d", false, "enables debug logging.  Overrides configuration.")
-	fs.BoolP("version", "v", false, "print version and exit")
-
-	return nil
-}
 
 func setupViper(in config.ViperIn, v *viper.Viper) (err error) {
 	if printVersion, _ := in.FlagSet.GetBool("version"); printVersion {
@@ -92,20 +86,16 @@ func setupViper(in config.ViperIn, v *viper.Viper) (err error) {
 	return nil
 }
 
-func printVersionInfo() {
-	fmt.Fprintf(os.Stdout, "%s:\n", applicationName)
-	fmt.Fprintf(os.Stdout, "  version: \t%s\n", Version)
-	fmt.Fprintf(os.Stdout, "  go version: \t%s\n", runtime.Version())
-	fmt.Fprintf(os.Stdout, "  built time: \t%s\n", BuildTime)
-	fmt.Fprintf(os.Stdout, "  git commit: \t%s\n", GitCommit)
-	fmt.Fprintf(os.Stdout, "  os/arch: \t%s/%s\n", runtime.GOOS, runtime.GOARCH)
-	os.Exit(0)
-}
-
 func main() {
+	v, logger, err := setup(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	app := fx.New(
-		xlog.Logger(),
-		config.CommandLine{Name: applicationName}.Provide(setupFlagSet),
+		arrange.LoggerFunc(logger.Sugar().Infof),
+		arrange.ForViper(v),
+		fx.Supply(logger, v),
 		provideMetrics(),
 		metric.ProvideMetrics(),
 		basculechecks.ProvideMetricsVec(),
@@ -113,12 +103,11 @@ func main() {
 		auth.ProvidePrimaryServerChain(apiBase),
 		store.ProvideHandlers(),
 		fx.Provide(
+			backwardsCompatibleLogger,
+			backwardsCompatibleUnmarshaller,
 			auth.ProfilesUnmarshaler{
 				ConfigKey:        "authx.inbound.profiles",
 				SupportedServers: []string{"primary"}}.Annotated(),
-			config.ProvideViper(setupViper),
-			xlog.Unmarshal("log"),
-			xloghttp.ProvideStandardBuilders,
 			db.Provide,
 			xhealth.Unmarshal("health"),
 			provideServerChainFactory,
@@ -162,13 +151,25 @@ func main() {
 		),
 	)
 
-	switch err := app.Err(); err {
-	case pflag.ErrHelp:
+	switch err := app.Err(); {
+	case errors.Is(err, pflag.ErrHelp):
 		return
-	case nil:
+	case err == nil:
 		app.Run()
 	default:
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
+	}
+}
+
+func backwardsCompatibleLogger(l *zap.Logger) log.Logger {
+	return sallustkit.Logger{
+		Zap: l,
+	}
+}
+
+func backwardsCompatibleUnmarshaller(v *viper.Viper) config.Unmarshaller {
+	return config.ViperUnmarshaller{
+		Viper: v,
 	}
 }

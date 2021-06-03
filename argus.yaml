@@ -4,9 +4,12 @@ prometheus:
   constLabels:
     development: "true"
 
-log:
-  file: stdout
-  level: DEBUG
+logging:
+  level: debug
+  development: true
+  encoderConfig:
+    messageKey: msg
+    levelKey: level
 
 health:
   disableLogging: false
