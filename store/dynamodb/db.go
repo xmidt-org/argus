@@ -112,7 +112,7 @@ func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures,
 			SecretAccessKey: config.SecretKey,
 		}))
 
-	svc, err := newService(awsConfig, "", config.Table, logger)
+	svc, err := newService(awsConfig, "", config.Table)
 	if err != nil {
 		return nil, err
 	}
