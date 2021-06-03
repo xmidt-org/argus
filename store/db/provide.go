@@ -32,7 +32,7 @@ const DynamoDB = "dynamo"
 
 func Provide(unmarshaller config.Unmarshaller, measures metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
 	if unmarshaller.IsSet(dynamodb.DynamoDB) {
-		return dynamodb.ProvideDynamoDB(unmarshaller, measures, logger)
+		return dynamodb.ProvideDynamoDB(unmarshaller, measures)
 	}
 	if unmarshaller.IsSet(cassandra.Yugabyte) {
 		return cassandra.ProvideCassandra(unmarshaller, measures, lc, logger)

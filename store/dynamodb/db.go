@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/go-kit/kit/log"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -90,7 +89,7 @@ type dao struct {
 	s service
 }
 
-func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures, logger log.Logger) (store.S, error) {
+func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures) (store.S, error) {
 	config, err := getConfig(unmarshaller)
 	if err != nil {
 		return nil, err
