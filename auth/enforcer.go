@@ -1,12 +1,10 @@
 package auth
 
 import (
-	"github.com/go-kit/kit/log/level"
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule"
 	bchecks "github.com/xmidt-org/bascule/basculechecks"
 	"github.com/xmidt-org/bascule/basculehttp"
-	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"go.uber.org/fx"
 )
@@ -31,7 +29,7 @@ func providePrimaryBasculeEnforcerOptions() fx.Option {
 		fx.Annotated{
 			Group: "primary_bascule_enforcer_options",
 			Target: func(in primaryBearerValidatorsIn) basculehttp.EOption {
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer rules option", "server", "primary")
+				in.Logger.Debug("building bearer rules option")
 				var validators = []bascule.Validator{in.Principal, in.Type}
 				if in.Capability != nil {
 					validators = append(validators, in.Capability)
@@ -74,7 +72,7 @@ func providePrimaryBasculeEnforcer() fx.Option {
 			fx.Annotated{
 				Name: "primary_alice_enforcer",
 				Target: func(in primaryEOptionsIn) alice.Constructor {
-					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice enforcer", "server", "primary")
+					in.Logger.Debug("building alice enforcer")
 					return basculehttp.NewEnforcer(in.Options...)
 				},
 			},

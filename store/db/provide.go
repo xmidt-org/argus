@@ -18,7 +18,6 @@
 package db
 
 import (
-	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/cassandra"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -26,13 +25,14 @@ import (
 	"github.com/xmidt-org/argus/store/inmem"
 	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 const DynamoDB = "dynamo"
 
-func Provide(unmarshaller config.Unmarshaller, measures metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
+func Provide(unmarshaller config.Unmarshaller, measures metric.Measures, lc fx.Lifecycle, logger *zap.Logger) (store.S, error) {
 	if unmarshaller.IsSet(dynamodb.DynamoDB) {
-		return dynamodb.ProvideDynamoDB(unmarshaller, measures, logger)
+		return dynamodb.ProvideDynamoDB(unmarshaller, measures)
 	}
 	if unmarshaller.IsSet(cassandra.Yugabyte) {
 		return cassandra.ProvideCassandra(unmarshaller, measures, lc, logger)

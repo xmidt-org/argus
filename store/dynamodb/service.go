@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 )
@@ -237,7 +236,7 @@ func itemNotFound(item *storableItem) bool {
 	return item.Key.Bucket == "" || item.Key.ID == ""
 }
 
-func newService(config aws.Config, awsProfile string, tableName string, logger log.Logger) (service, error) {
+func newService(config aws.Config, awsProfile string, tableName string) (service, error) {
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config:            config,
 		Profile:           awsProfile,
