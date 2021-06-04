@@ -103,8 +103,8 @@ func main() {
 		auth.ProvidePrimaryServerChain(apiBase),
 		store.ProvideHandlers(),
 		fx.Provide(
-			backwardsCompatibleLogger,
-			backwardsCompatibleUnmarshaller,
+			gokitLogger,
+			Unmarshaller,
 			auth.ProfilesUnmarshaler{
 				ConfigKey:        "authx.inbound.profiles",
 				SupportedServers: []string{"primary"}}.Annotated(),
@@ -162,13 +162,13 @@ func main() {
 	}
 }
 
-func backwardsCompatibleLogger(l *zap.Logger) log.Logger {
+func gokitLogger(l *zap.Logger) log.Logger {
 	return sallustkit.Logger{
 		Zap: l,
 	}
 }
 
-func backwardsCompatibleUnmarshaller(v *viper.Viper) config.Unmarshaller {
+func Unmarshaller(v *viper.Viper) config.Unmarshaller {
 	return config.ViperUnmarshaller{
 		Viper: v,
 	}
