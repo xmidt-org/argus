@@ -22,8 +22,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-kit/kit/log/level"
-
 	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
 	"github.com/xmidt-org/argus/model"
@@ -31,10 +29,9 @@ import (
 	"github.com/xmidt-org/argus/store/db/metric"
 	dbmetric "github.com/xmidt-org/argus/store/db/metric"
 
-	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/themis/config"
-	"github.com/xmidt-org/themis/xlog"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 const (
@@ -86,21 +83,21 @@ type CassandraConfig struct {
 type CassandraClient struct {
 	client   dbStore
 	config   CassandraConfig
-	logger   log.Logger
+	logger   *zap.Logger
 	measures metric.Measures
 }
 
-func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger log.Logger) (store.S, error) {
+func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger *zap.Logger) (store.S, error) {
 	var config CassandraConfig
 	err := unmarshaller.UnmarshalKey(Yugabyte, &config)
 	if err != nil {
 		return nil, err
 	}
-	client, err := CreateCassandraClient(config, metricsIn, logger)
+	client, err := CreateCassandraClient(config, metricsIn)
 	ticker := doEvery(time.Second*5, func(_ time.Time) {
 		err := client.Ping()
 		if err != nil {
-			level.Error(logger).Log(xlog.MessageKey(), "ping failed", xlog.ErrorKey(), err)
+			logger.Error("ping failed", zap.Error(err))
 		}
 	})
 	if err != nil {
@@ -129,7 +126,7 @@ func doEvery(d time.Duration, f func(time.Time)) *time.Ticker {
 	return ticker
 }
 
-func CreateCassandraClient(config CassandraConfig, measures metric.Measures, logger log.Logger) (*CassandraClient, error) {
+func CreateCassandraClient(config CassandraConfig, measures metric.Measures) (*CassandraClient, error) {
 	if len(config.Hosts) == 0 {
 		return nil, errors.New("number of hosts must be > 0")
 	}
@@ -159,13 +156,13 @@ func CreateCassandraClient(config CassandraConfig, measures metric.Measures, log
 		}
 	}
 
-	session, err := connect(clusterConfig, logger)
+	session, err := connect(clusterConfig)
 
 	// retry if it fails
 	waitTime := 1 * time.Second
 	for attempt := 0; attempt < config.NumRetries && err != nil; attempt++ {
 		time.Sleep(waitTime)
-		session, err = connect(clusterConfig, logger)
+		session, err = connect(clusterConfig)
 		waitTime = waitTime * config.WaitTimeMult
 	}
 	if err != nil {
@@ -175,7 +172,6 @@ func CreateCassandraClient(config CassandraConfig, measures metric.Measures, log
 	return &CassandraClient{
 		client:   session,
 		config:   config,
-		logger:   logger,
 		measures: measures,
 	}, nil
 }

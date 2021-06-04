@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-kit/kit/log"
 	"github.com/gocql/gocql"
 	"github.com/hailocab/go-hostpool"
 	"github.com/xmidt-org/argus/model"
@@ -39,17 +38,16 @@ var serverClosed = errors.New("server is closed")
 
 type cassandraExecutor struct {
 	session *gocql.Session
-	logger  log.Logger
 }
 
-func connect(clusterConfig *gocql.ClusterConfig, logger log.Logger) (dbStore, error) {
+func connect(clusterConfig *gocql.ClusterConfig) (dbStore, error) {
 	clusterConfig.PoolConfig.HostSelectionPolicy = gocql.HostPoolHostPolicy(hostpool.New(nil))
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err
 	}
 
-	return &cassandraExecutor{session: session, logger: logger}, nil
+	return &cassandraExecutor{session: session}, nil
 }
 
 func (s *cassandraExecutor) Push(key model.Key, item store.OwnableItem) error {
