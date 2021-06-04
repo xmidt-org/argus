@@ -23,9 +23,12 @@ prometheus:
   defaultNamespace: xmidt
   defaultSubsystem: argus
 
-log:
-  file: stdout
+logging:
   level: (( grab $LOG_LEVEL || "INFO" ))
+  development: (( grab $LOG_DEVELOPMENT || false ))
+  encoderConfig:
+    messageKey: msg
+    levelKey: level
 
 health:
   disableLogging: false
