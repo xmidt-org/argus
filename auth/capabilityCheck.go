@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/go-kit/kit/log/level"
 	"github.com/xmidt-org/bascule"
-	"github.com/xmidt-org/themis/xlog"
 	"github.com/xmidt-org/webpa-common/basculechecks"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 type capabilityValidatorConfig struct {
@@ -31,18 +30,18 @@ type primaryCapabilityValidatorIn struct {
 
 func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Validator, error) {
 	if in.Profile == nil {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "undefined profile. CapabilityCheck disabled.", "server", "primary")
+		in.Logger.Warn("undefined profile. CapabilityCheck disabled")
 		return nil, nil
 	}
 
 	config := in.Profile.CapabilityCheck
 	if config == nil {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "config not provided. CapabilityCheck disabled.", "server", "primary")
+		in.Logger.Warn("config not provided. CapabilityCheck disabled")
 		return nil, nil
 	}
 
 	if config.Type != "enforce" && config.Type != "monitor" {
-		in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "unsupported capability check type. CapabilityCheck disabled.", "type", config.Type, "server", "primary")
+		in.Logger.Warn("unsupported capability check type. CapabilityCheck disabled", zap.String("type", config.Type))
 		return nil, nil
 	}
 
@@ -55,7 +54,7 @@ func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Val
 	for _, e := range config.EndpointBuckets {
 		r, err := regexp.Compile(e)
 		if err != nil {
-			in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "failed to compile regular expression", "regex", e, xlog.ErrorKey(), err.Error(), "server", "primary")
+			in.Logger.Warn("failed to compile regular expression", zap.String("regex", e))
 			continue
 		}
 		endpoints = append(endpoints, r)
@@ -66,8 +65,7 @@ func newPrimaryCapabilityValidator(in primaryCapabilityValidatorIn) (bascule.Val
 		Measures:  in.Measures,
 		Endpoints: endpoints,
 	}
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building auth capability", "server", "primary", "type", config.Type)
-
+	in.Logger.Info("building auth capability", zap.String("type", config.Type))
 	return m.CreateValidator(config.Type == "enforce"), nil
 }
 

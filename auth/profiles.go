@@ -4,13 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/key"
 	"github.com/xmidt-org/themis/config"
-	"github.com/xmidt-org/themis/xlog"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 var (
@@ -25,8 +23,7 @@ var (
 type LoggerIn struct {
 	fx.In
 
-	// Logger is the required go-kit logger that will receive logging output.
-	Logger log.Logger
+	Logger *zap.Logger
 }
 
 type profilesFactoryIn struct {
@@ -81,15 +78,14 @@ func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...str
 		servers[supportedServer] = true
 	}
 	return func(in profilesFactoryIn) (map[string]*profile, error) {
-		in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "unmarshaling bascule profiles")
-
+		in.Logger.Debug("unmarshaling bascule profiles")
 		var sourceProfiles []profile
 		if err := in.Unmarshaller.UnmarshalKey(configKey, &sourceProfiles); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal bascule profiles from config: %w", err)
 		}
 
 		if len(sourceProfiles) < 1 {
-			in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "No bascule profiles configured.")
+			in.Logger.Info("no bascule profiles configured")
 			return nil, nil
 		}
 
@@ -101,12 +97,12 @@ func (p ProfilesUnmarshaler) Unmarshal(configKey string, supportedServers ...str
 
 			for _, targetServer := range sourceProfile.TargetServers {
 				if !servers[targetServer] {
-					in.Logger.Log(level.Key(), level.ErrorValue(), xlog.MessageKey(), "Bascule profile targetServer does not exist.", "targetServer", targetServer)
+					in.Logger.Error("Bascule profile targetServer does not exist.", zap.String("targetServer", targetServer))
 					return nil, ErrUnsupportedTargetServer
 				}
 
 				if _, ok := profiles[targetServer]; ok {
-					in.Logger.Log(level.Key(), level.InfoValue(), xlog.MessageKey(), "A previous Bascule profile was used for this server. Skipping.", "targetServer", targetServer)
+					in.Logger.Info("A previous Bascule profile was used for this server. Skipping.", zap.String("targetServer", targetServer))
 					continue
 				}
 				profiles[targetServer] = &sourceProfile
@@ -129,7 +125,7 @@ type profileFactory struct {
 }
 
 func (p profileFactory) new(in profilesIn) *profile {
-	in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "returning profile", "server", p.serverName)
+	in.Logger.Debug("returning profile", zap.String("server", p.serverName))
 	return in.Profiles[p.serverName]
 }
 

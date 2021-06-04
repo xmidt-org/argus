@@ -3,9 +3,6 @@ package auth
 import (
 	"reflect"
 
-	"github.com/xmidt-org/themis/xlog"
-
-	"github.com/go-kit/kit/log/level"
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
@@ -56,10 +53,10 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 			Group: primaryBasculeCOptionsName,
 			Target: func(in primaryBearerTokenFactoryIn) basculehttp.COption {
 				if in.Resolver == nil {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil bearer token factory option as resolver was not defined", "server", "primary")
+					in.Logger.Warn("returning nil bearer token factory option as resolver was not defined")
 					return nil
 				}
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer token factory option", "server", "primary")
+				in.Logger.Debug("building bearer token factory option")
 				return basculehttp.WithTokenFactory("Bearer", accessLevelBearerTokenFactory{
 					DefaultKeyID: in.DefaultKeyID,
 					Resolver:     in.Resolver,
@@ -73,14 +70,14 @@ func providePrimaryBasculeConstructorOptions(apiBase string) fx.Option {
 			Group: primaryBasculeCOptionsName,
 			Target: func(in primaryProfileIn) (basculehttp.COption, error) {
 				if in.Profile == nil || len(in.Profile.Basic) < 1 {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil basic token factory option as config was not provided", "server", "primary")
+					in.Logger.Warn("returning nil basic token factory option as config was not provided")
 					return nil, nil
 				}
 				basicTokenFactory, err := basculehttp.NewBasicTokenFactoryFromList(in.Profile.Basic)
 				if err != nil {
 					return nil, err
 				}
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building basic token factory option", "server", "primary")
+				in.Logger.Debug("building basic token factory option")
 				return basculehttp.WithTokenFactory("Basic", basicTokenFactory), nil
 			},
 		},
@@ -110,7 +107,7 @@ func providePrimaryBasculeConstructor(apiBase string) fx.Option {
 			fx.Annotated{
 				Name: "primary_alice_constructor",
 				Target: func(in primaryCOptionsIn) alice.Constructor {
-					in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building alice constructor from bascule constructor options", "server", "primary")
+					in.Logger.Debug("building alice constructor from bascule constructor options")
 					var filteredOptions []basculehttp.COption
 					for _, option := range in.Options {
 						if option == nil || reflect.ValueOf(option).IsNil() {
@@ -136,10 +133,10 @@ func providePrimaryTokenFactoryInput() fx.Option {
 			Name: "primary_bearer_key_resolver",
 			Target: func(in primaryProfileIn) (key.Resolver, error) {
 				if anyNil(in.Profile, in.Profile.Bearer) {
-					in.Logger.Log(level.Key(), level.WarnValue(), xlog.MessageKey(), "returning nil bearer key resolver as config wasn't provided", "server", "primary")
+					in.Logger.Warn("returning nil bearer key resolver as config wasn't provided")
 					return nil, nil
 				}
-				in.Logger.Log(level.Key(), level.DebugValue(), xlog.MessageKey(), "building bearer key resolver option", "server", "primary")
+				in.Logger.Debug("building bearer key resolver option")
 				return in.Profile.Bearer.Keys.NewResolver()
 			},
 		},
