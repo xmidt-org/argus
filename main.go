@@ -49,9 +49,7 @@ import (
 
 const (
 	applicationName = "argus"
-
-	DefaultKeyID = "current"
-	apiBase      = "api/v1"
+	apiBase         = "api/v1"
 )
 
 var (
@@ -59,32 +57,6 @@ var (
 	Version   = "undefined"
 	BuildTime = "undefined"
 )
-
-func setupViper(in config.ViperIn, v *viper.Viper) (err error) {
-	if printVersion, _ := in.FlagSet.GetBool("version"); printVersion {
-		printVersionInfo()
-	}
-	if file, _ := in.FlagSet.GetString("file"); len(file) > 0 {
-		v.SetConfigFile(file)
-		err = v.ReadInConfig()
-	} else {
-		v.SetConfigName(string(in.Name))
-		v.AddConfigPath(fmt.Sprintf("/etc/%s", in.Name))
-		v.AddConfigPath(fmt.Sprintf("$HOME/.%s", in.Name))
-		v.AddConfigPath(".")
-		err = v.ReadInConfig()
-	}
-
-	if err != nil {
-		return
-	}
-
-	if debug, _ := in.FlagSet.GetBool("debug"); debug {
-		v.Set("log.level", "DEBUG")
-	}
-
-	return nil
-}
 
 func main() {
 	v, logger, err := setup(os.Args[1:])
@@ -104,7 +76,7 @@ func main() {
 		store.ProvideHandlers(),
 		fx.Provide(
 			gokitLogger,
-			Unmarshaller,
+			unmarshaller,
 			auth.ProfilesUnmarshaler{
 				ConfigKey:        "authx.inbound.profiles",
 				SupportedServers: []string{"primary"}}.Annotated(),
@@ -168,7 +140,7 @@ func gokitLogger(l *zap.Logger) log.Logger {
 	}
 }
 
-func Unmarshaller(v *viper.Viper) config.Unmarshaller {
+func unmarshaller(v *viper.Viper) config.Unmarshaller {
 	return config.ViperUnmarshaller{
 		Viper: v,
 	}
