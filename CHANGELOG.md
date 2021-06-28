@@ -5,9 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.17]
 - Add URLParse Option to auth package. [#179](https://github.com/xmidt-org/argus/pull/179)
 - Use latest version of httpaux. [#180](https://github.com/xmidt-org/argus/pull/180)
 - Use arrange and zap logger. [#185](https://github.com/xmidt-org/argus/pull/185)
+- Bumped bascule version. []()
 
 ## [v0.3.16]
 - Allow auth package client code to pass the basculehttp.OnErrorHTTPResponse option. [#174](https://github.com/xmidt-org/argus/pull/174)
