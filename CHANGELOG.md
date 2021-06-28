@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [v0.3.17]
+## [v0.4.0]
 - Add URLParse Option to auth package. [#179](https://github.com/xmidt-org/argus/pull/179)
 - Use latest version of httpaux. [#180](https://github.com/xmidt-org/argus/pull/180)
 - Use arrange and zap logger. [#185](https://github.com/xmidt-org/argus/pull/185)
@@ -159,8 +159,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.3.17...HEAD
-[v0.3.17]: https://github.com/xmidt-org/argus/compare/v0.3.16...v0.3.17
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.4.0...HEAD
+[v0.4.0]: https://github.com/xmidt-org/argus/compare/v0.3.16...v0.4.0
 [v0.3.16]: https://github.com/xmidt-org/argus/compare/v0.3.15...v0.3.16
 [v0.3.15]: https://github.com/xmidt-org/argus/compare/v0.3.14...v0.3.15
 [v0.3.14]: https://github.com/xmidt-org/argus/compare/v0.3.13...v0.3.14
