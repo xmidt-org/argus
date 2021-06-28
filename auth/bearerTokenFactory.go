@@ -44,13 +44,13 @@ func (a accessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 		return nil, emperror.Wrap(err, "failed to parse JWS")
 	}
 	if !jwsToken.Valid {
-		return nil, basculehttp.ErrorInvalidToken
+		return nil, basculehttp.ErrInvalidToken
 	}
 
 	claims, ok := jwsToken.Claims.(*bascule.ClaimsWithLeeway)
 
 	if !ok {
-		return nil, emperror.Wrap(basculehttp.ErrorUnexpectedClaims, "failed to parse JWS")
+		return nil, emperror.Wrap(basculehttp.ErrUnexpectedClaims, "failed to parse JWS")
 	}
 
 	claimsMap, err := claims.GetMap()
@@ -62,11 +62,11 @@ func (a accessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 
 	principalVal, ok := jwtClaims.Get(jwtPrincipalKey)
 	if !ok {
-		return nil, emperror.WrapWith(basculehttp.ErrorInvalidPrincipal, "principal value not found", "principal key", jwtPrincipalKey, "jwtClaims", claimsMap)
+		return nil, emperror.WrapWith(basculehttp.ErrInvalidPrincipal, "principal value not found", "principal key", jwtPrincipalKey, "jwtClaims", claimsMap)
 	}
 	principal, ok := principalVal.(string)
 	if !ok {
-		return nil, emperror.WrapWith(basculehttp.ErrorInvalidPrincipal, "principal value not a string", "principal", principalVal)
+		return nil, emperror.WrapWith(basculehttp.ErrInvalidPrincipal, "principal value not a string", "principal", principalVal)
 	}
 
 	if a.AccessLevel.Resolve != nil {
