@@ -1,8 +1,27 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package auth
 
 import (
 	"github.com/spf13/cast"
+	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
+	"go.uber.org/fx"
 )
 
 // Exported access level default values which application code may want to use.
@@ -26,7 +45,7 @@ var defaultAccessLevelPath = []string{"capabilities"}
 // request given its bascule attributes.
 type AccessLevel struct {
 	Resolve      accessLevelResolver
-	AttributeKey string
+	AttributeKey string `name:"access_attribute_key"`
 }
 
 // accessLevelResolver lets users of accessLevelBearerTokenFactory determine what access level value is assigned to a
@@ -95,4 +114,18 @@ func newContainsAttributeAccessLevel(config *accessLevelConfig) AccessLevel {
 		AttributeKey: config.AttributeKey,
 		Resolve:      resolve,
 	}
+}
+
+func provideAccessLevel(key string) fx.Option {
+	return fx.Options(
+		fx.Provide(
+			arrange.UnmarshalKey(key, &accessLevelConfig{}),
+			func(c *accessLevelConfig) AccessLevel {
+				if c == nil {
+					return defaultAccessLevel()
+				}
+				return newContainsAttributeAccessLevel(c)
+			},
+		),
+	)
 }

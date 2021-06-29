@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/xmidt-org/argus/auth"
-	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 )
 
@@ -79,7 +78,7 @@ func newAccessLevelAttributeKeyAnnotated() fx.Annotated {
 	}
 }
 
-type userInputValidationConfig struct {
+type UserInputValidationConfig struct {
 	ItemMaxTTL        time.Duration
 	BucketFormatRegex string
 	OwnerFormatRegex  string
@@ -88,33 +87,29 @@ type userInputValidationConfig struct {
 
 type transportConfigIn struct {
 	fx.In
-	Unmarshaler             config.Unmarshaller
+	UserInputValidation     UserInputValidationConfig
 	AccessLevelAttributeKey string `name:"access_level_attribute_key"`
 }
 
 func newTransportConfig(in transportConfigIn) (*transportConfig, error) {
-	var userInputValidation userInputValidationConfig
+	v := in.UserInputValidation
 
-	if err := in.Unmarshaler.UnmarshalKey("userInputValidation", &userInputValidation); err != nil {
-		return nil, err
+	if v.ItemMaxTTL == 0 {
+		v.ItemMaxTTL = time.Hour * 24
 	}
 
-	if userInputValidation.ItemMaxTTL == 0 {
-		userInputValidation.ItemMaxTTL = time.Hour * 24
-	}
-
-	if userInputValidation.ItemDataMaxDepth == 0 {
-		userInputValidation.ItemDataMaxDepth = defaultItemDataMaxDepth
+	if v.ItemDataMaxDepth == 0 {
+		v.ItemDataMaxDepth = defaultItemDataMaxDepth
 	}
 
 	config := &transportConfig{
 		AccessLevelAttributeKey: in.AccessLevelAttributeKey,
-		ItemMaxTTL:              userInputValidation.ItemMaxTTL,
-		ItemDataMaxDepth:        userInputValidation.ItemDataMaxDepth,
+		ItemMaxTTL:              v.ItemMaxTTL,
+		ItemDataMaxDepth:        v.ItemDataMaxDepth,
 	}
 
-	buildInputRegexValidators(userInputValidation, config)
-	return config, nil
+	err := buildInputRegexValidators(v, config)
+	return config, err
 }
 
 // useOrDefault returns the value if it's not the empty string. Otherwise, it returns the defaultValue.
@@ -125,7 +120,7 @@ func useOrDefault(value, defaultValue string) string {
 	return defaultValue
 }
 
-func buildInputRegexValidators(userInputValidation userInputValidationConfig, config *transportConfig) error {
+func buildInputRegexValidators(userInputValidation UserInputValidationConfig, config *transportConfig) error {
 	bucketFormatRegex := useOrDefault(userInputValidation.BucketFormatRegex, BucketFormatRegexSource)
 	bucketRegex, err := regexp.Compile(bucketFormatRegex)
 	if err != nil {

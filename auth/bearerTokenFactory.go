@@ -1,15 +1,35 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package auth
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"emperror.dev/emperror"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/bascule/key"
+	"go.uber.org/fx"
 )
 
 const jwtPrincipalKey = "sub"
@@ -18,10 +38,11 @@ const jwtPrincipalKey = "sub"
 // the user of the factory inject an access level attribute to the jwt token.
 // Application code should handle case in which the value is not injected (i.e. basic auth tokens).
 type accessLevelBearerTokenFactory struct {
-	DefaultKeyID string
-	Resolver     key.Resolver
-	Parser       bascule.JWTParser
-	Leeway       bascule.Leeway
+	fx.In
+	DefaultKeyID string            `name:"default_key_id"`
+	Resolver     key.Resolver      `name:"key_resolver"`
+	Parser       bascule.JWTParser `optional:"true"`
+	Leeway       bascule.Leeway    `name:"jwt_leeway" optional:"true"`
 	AccessLevel  AccessLevel
 }
 
@@ -90,4 +111,30 @@ func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver key.Re
 		}
 		return pair.Public(), nil
 	}
+}
+
+func provideBearerTokenFactory(configKey string) fx.Option {
+	return fx.Options(
+		key.ProvideResolver(fmt.Sprintf("%s.bearer.key", configKey), true),
+		provideAccessLevel(fmt.Sprintf("%v.accessLevel", configKey)),
+		fx.Provide(
+			fx.Annotated{
+				Name: "jwt_leeway",
+				Target: arrange.UnmarshalKey(fmt.Sprintf("%s.bearer.leeway", configKey),
+					bascule.Leeway{}),
+			},
+			fx.Annotated{
+				Group: "bascule_constructor_options",
+				Target: func(f accessLevelBearerTokenFactory) (basculehttp.COption, error) {
+					if f.Parser == nil {
+						f.Parser = bascule.DefaultJWTParser
+					}
+					if f.Resolver == nil {
+						return nil, nil
+					}
+					return basculehttp.WithTokenFactory(basculehttp.BearerAuthorization, f), nil
+				},
+			},
+		),
+	)
 }
