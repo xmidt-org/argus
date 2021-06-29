@@ -108,7 +108,7 @@ func (i *InMem) itemExpired(storedItem expireableItem) bool {
 		return false
 	}
 	durationToExpire := storedItem.expiration.Sub(i.now())
-	return durationToExpire > 0
+	return durationToExpire <= 0
 }
 
 func (i *InMem) transFormAndFilterExpired(items map[string]expireableItem) map[string]store.OwnableItem {
