@@ -37,9 +37,9 @@ type PrimaryRouterIn struct {
 	fx.In
 	Router    *mux.Router `name:"server_primary"`
 	APIBase   string      `name:"api_base"`
-	AuthChain alice.Chain `name:"auth_chain" optional:"true"`
+	AuthChain alice.Chain `name:"auth_chain"`
 	// Tracing will be used to set up tracing instrumentation code.
-	Tracing  candlelight.Tracing `optional:"true"`
+	Tracing  candlelight.Tracing
 	Handlers PrimaryHandlersIn
 }
 
@@ -55,11 +55,6 @@ type MetricRouterIn struct {
 	fx.In
 	Router  *mux.Router `name:"server_metrics"`
 	Handler touchhttp.Handler
-}
-
-type SubRouterOut struct {
-	fx.Out
-	Router *mux.Router `name:"server_primary_accounts"`
 }
 
 type PrimaryMMIn struct {
@@ -129,18 +124,10 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 
 	bucketPath := fmt.Sprintf("/%s/store/{bucket}", in.APIBase)
 	itemPath := fmt.Sprintf("%s/{id}", bucketPath)
-	if in.Handlers.Set != nil {
-		in.Router.Handle(itemPath, in.Handlers.Set).Methods(http.MethodPut)
-	}
-	if in.Handlers.Get != nil {
-		in.Router.Handle(itemPath, in.Handlers.Get).Methods(http.MethodGet)
-	}
-	if in.Handlers.GetAll != nil {
-		in.Router.Handle(bucketPath, in.Handlers.GetAll).Methods(http.MethodGet)
-	}
-	if in.Handlers.Delete != nil {
-		in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
-	}
+	in.Router.Handle(itemPath, in.Handlers.Set).Methods(http.MethodPut)
+	in.Router.Handle(itemPath, in.Handlers.Get).Methods(http.MethodGet)
+	in.Router.Handle(bucketPath, in.Handlers.GetAll).Methods(http.MethodGet)
+	in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
 }
 
 func metricMiddleware(bundle touchhttp.ServerBundle) (out MetricMiddlewareOut) {
