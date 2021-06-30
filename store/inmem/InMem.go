@@ -29,7 +29,7 @@ type InMem struct {
 	lock sync.RWMutex
 }
 
-func ProvideInMem() store.S {
+func NewInMem() store.S {
 	return &InMem{
 		data: map[string]map[string]store.OwnableItem{},
 	}

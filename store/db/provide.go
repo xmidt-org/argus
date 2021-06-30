@@ -23,19 +23,40 @@ import (
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/argus/store/dynamodb"
 	"github.com/xmidt-org/argus/store/inmem"
-	"github.com/xmidt-org/themis/config"
+	"github.com/xmidt-org/arrange"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 const DynamoDB = "dynamo"
 
-func Provide(unmarshaller config.Unmarshaller, measures metric.Measures, lc fx.Lifecycle, logger *zap.Logger) (store.S, error) {
-	if unmarshaller.IsSet(dynamodb.DynamoDB) {
-		return dynamodb.ProvideDynamoDB(unmarshaller, measures)
+type Configs struct {
+	Dynamo   *dynamodb.Config
+	Yugabyte *cassandra.Config
+}
+
+type SetupIn struct {
+	fx.In
+	Configs  Configs
+	Measures metric.Measures
+	LC       fx.Lifecycle
+	Logger   *zap.Logger
+}
+
+func Provide() fx.Option {
+	return fx.Provide(
+		arrange.UnmarshalKey("", Configs{}),
+		SetupStore,
+	)
+}
+
+func SetupStore(in SetupIn) (store.S, error) {
+	if in.Configs.Dynamo != nil {
+		return dynamodb.NewDynamoDB(*in.Configs.Dynamo, in.Measures)
 	}
-	if unmarshaller.IsSet(cassandra.Yugabyte) {
-		return cassandra.ProvideCassandra(unmarshaller, measures, lc, logger)
+	if in.Configs.Yugabyte != nil {
+		return cassandra.NewCassandra(*in.Configs.Yugabyte, in.Measures, in.LC,
+			in.Logger)
 	}
-	return inmem.ProvideInMem(), nil
+	return inmem.NewInMem(), nil
 }

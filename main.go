@@ -69,13 +69,13 @@ func main() {
 		touchhttp.Provide(),
 		touchstone.Provide(),
 		store.ProvideHandlers(),
+		db.Provide(),
 		fx.Provide(
 			consts,
 			gokitLogger,
 			arrange.UnmarshalKey("userInputValidation", store.UserInputValidationConfig{}),
 			arrange.UnmarshalKey("prometheus", touchstone.Config{}),
 			arrange.UnmarshalKey("prometheus.handler", touchhttp.Config{}),
-			db.Provide,
 			fx.Annotated{
 				Name:   "tracing_initial_config",
 				Target: arrange.UnmarshalKey("tracing", candlelight.Config{}),
