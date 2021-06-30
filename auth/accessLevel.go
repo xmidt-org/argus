@@ -45,7 +45,7 @@ var defaultAccessLevelPath = []string{"capabilities"}
 // request given its bascule attributes.
 type AccessLevel struct {
 	Resolve      accessLevelResolver
-	AttributeKey string `name:"access_attribute_key"`
+	AttributeKey string
 }
 
 // accessLevelResolver lets users of accessLevelBearerTokenFactory determine what access level value is assigned to a

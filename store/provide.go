@@ -66,7 +66,7 @@ func ProvideHandlers() fx.Option {
 
 type accessLevelAttributeKeyIn struct {
 	fx.In
-	AccessLevel auth.AccessLevel `name:"primary_bearer_access_level"`
+	AccessLevel auth.AccessLevel
 }
 
 func newAccessLevelAttributeKeyAnnotated() fx.Annotated {

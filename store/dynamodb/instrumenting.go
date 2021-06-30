@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -89,7 +90,9 @@ type dynamoMeasuresUpdater struct {
 
 func (m *dynamoMeasuresUpdater) Update(request *measureUpdateRequest) {
 	queryDurationSeconds := time.Since(request.start).Seconds()
-	m.measures.QueryDurationSeconds.With(metric.QueryTypeLabelKey, request.queryType).Observe(queryDurationSeconds)
+	m.measures.QueryDurationSeconds.With(prometheus.Labels{
+		metric.QueryTypeLabelKey: request.queryType,
+	}).Observe(queryDurationSeconds)
 
 	m.updateDynamoCapacityMeasures(request.consumedCapacity, request.queryType)
 	m.updateQueryMeasures(request.err, request.queryType)
@@ -108,14 +111,23 @@ func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *d
 		capacityOp = metric.DynamoCapacityWriteOp
 	}
 
-	m.measures.DynamodbConsumedCapacity.With(metric.QueryTypeLabelKey, queryType, metric.DynamoCapacityOpLabelKey, capacityOp).Add(*consumedCapacity.CapacityUnits)
+	m.measures.DynamodbConsumedCapacity.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:        queryType,
+		metric.DynamoCapacityOpLabelKey: capacityOp,
+	}).Add(*consumedCapacity.CapacityUnits)
 }
 
 func (m *dynamoMeasuresUpdater) updateQueryMeasures(err error, queryType string) {
 	if err != nil && !errors.Is(err, store.ErrItemNotFound) {
-		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1)
+		m.measures.Queries.With(prometheus.Labels{
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+			metric.QueryTypeLabelKey:    queryType,
+		}).Add(1)
 	} else {
-		m.measures.Queries.With(metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, queryType).Add(1.0)
+		m.measures.Queries.With(prometheus.Labels{
+			metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+			metric.QueryTypeLabelKey:    queryType,
+		}).Add(1.0)
 	}
 }
 

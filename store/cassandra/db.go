@@ -24,10 +24,10 @@ import (
 
 	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
-	dbmetric "github.com/xmidt-org/argus/store/db/metric"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -173,10 +173,16 @@ func CreateCassandraClient(config Config, measures metric.Measures) (*Client, er
 func (s *Client) Push(key model.Key, item store.OwnableItem) error {
 	err := s.client.Push(key, item)
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.PushQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return err
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.PushQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return nil
 }
 
@@ -184,13 +190,22 @@ func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
 		if errors.Is(err, store.ErrItemNotFound) {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.GetQueryType,
+				metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+			}).Add(1)
 		} else {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.GetQueryType,
+				metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+			}).Add(1)
 		}
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.GetQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, nil
 }
 
@@ -198,23 +213,38 @@ func (s *Client) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
 		if errors.Is(err, store.ErrItemNotFound) {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+				metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+			}).Add(1)
 		} else {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+				metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+			}).Add(1)
 		}
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, err
 }
 
 func (s *Client) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.GetAllQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.GetAllQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, err
 }
 
@@ -226,10 +256,16 @@ func (s *Client) Close() {
 func (s *Client) Ping() error {
 	err := s.client.Ping()
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.PingQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return emperror.WrapWith(err, "Pinging connection failed")
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.PingQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return nil
 }
 
