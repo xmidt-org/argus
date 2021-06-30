@@ -32,7 +32,7 @@ type expireableItem struct {
 
 type InMem struct {
 	data map[string]map[string]expireableItem
-	lock sync.RWMutex
+	lock sync.Mutex
 	now  func() time.Time
 }
 
@@ -60,8 +60,8 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 }
 
 func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	bucket, ok := i.data[key.Bucket]
 	if !ok {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
@@ -71,7 +71,7 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
 	if i.itemExpired(item) {
-		i.pruneExpiredItem(key.Bucket, key.ID, bucket)
+		i.pruneItem(key.Bucket, key.ID, bucket)
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
 
@@ -79,8 +79,8 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 }
 
 func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	items := i.data[bucket]
 	if items == nil {
 		items = map[string]expireableItem{}
@@ -102,7 +102,7 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	}
 
 	if i.itemExpired(item) {
-		i.pruneExpiredItem(key.Bucket, key.ID, bucket)
+		i.pruneItem(key.Bucket, key.ID, bucket)
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
 	delete(bucket, key.ID)
@@ -112,7 +112,7 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 	return item.OwnableItem, nil
 }
 
-func (i *InMem) pruneExpiredItem(bucketName string, itemID string, bucket map[string]expireableItem) {
+func (i *InMem) pruneItem(bucketName string, itemID string, bucket map[string]expireableItem) {
 	delete(bucket, itemID)
 	if len(bucket) == 0 {
 		delete(i.data, bucketName)
