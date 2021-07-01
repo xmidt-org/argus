@@ -24,7 +24,6 @@ require (
 	github.com/xmidt-org/sallust v0.1.5
 	github.com/xmidt-org/themis v0.4.7
 	github.com/xmidt-org/touchstone v0.0.3
-	github.com/xmidt-org/webpa-common v1.11.7
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.19.0
 	go.uber.org/fx v1.13.1
 	go.uber.org/zap v1.16.0
