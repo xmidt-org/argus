@@ -3,6 +3,10 @@ prometheus:
   defaultSubsystem: argus
   constLabels:
     development: "true"
+  handler:
+    maxRequestsInFlight: 5
+    timeout: 5s
+    instrumentMetricHandler: true
 
 logging:
   level: debug
@@ -134,92 +138,87 @@ userInputValidation:
 ##############################################################################
 authx:
   inbound:
-    profiles:
-      -
-        # targetServers is the list of servers this bascule profile should be applied to.
-        targetServers: [primary]
+    # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
+    # WARNING! Be sure to remove this from your production config.
+    basic: ["dXNlcjpwYXNz"]
 
-        # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
-        # WARNING! Be sure to remove this from your production config.
-        basic: ["dXNlcjpwYXNz"]
+    # bearer contains all the configuration needed for a JWT validator.
+    bearer: 
+      key:
+        factory:
+          uri: "http://localhost:6500/keys/docker"
+        purpose: 0
+        updateInterval: 24h
 
-        # bearer contains all the configuration needed for a JWT validator.
-        bearer: 
-          keys:
-            Factory:
-                uri: "http://localhost:6500/keys/docker"
-            purpose: 0
-            updateInterval: 24h
+    # accessLevel defines config around the injection of an attribute to bascule tokens
+    # which application code can leverage to decide if a given request is allowed to execute some operation.
+    # Note that accessLevel differs from capabilityCheck in that it allows more complex access hierarchy. 
+    # That is, while capabilityCheck verifies whether a user is allowed to use an API endpoint, accessLevel 
+    # assigns a number to the user's request which application code can use for security purposes.
+    # An access level is defined as a non-negative number and the higher the number, the higher the access the 
+    # request has for the target application.
+    # (Optional). If section is not provided, the lowest access level value of 0 will be assigned to the attribute.
+    accessLevel:
+      # attributeKey is the key that application code can use to fetch the access level from the provided bascule token.
+      # (Optional) defaults to 'access-level'
+      attributeKey: access-level
 
-        # accessLevel defines config around the injection of an attribute to bascule tokens
-        # which application code can leverage to decide if a given request is allowed to execute some operation.
-        # Note that accessLevel differs from capabilityCheck in that it allows more complex access hierarchy. 
-        # That is, while capabilityCheck verifies whether a user is allowed to use an API endpoint, accessLevel 
-        # assigns a number to the user's request which application code can use for security purposes.
-        # An access level is defined as a non-negative number and the higher the number, the higher the access the 
-        # request has for the target application.
-        # (Optional). If section is not provided, the lowest access level value of 0 will be assigned to the attribute.
-        accessLevel:
-          # attributeKey is the key that application code can use to fetch the access level from the provided bascule token.
-          # (Optional) defaults to 'access-level'
-          attributeKey: access-level
-
-          # capabilitySource provides configuration to the component which generates the access level for an incoming request
-          # based on its endpoint capabilities. This component assigns only two access levels: 1 for elevated access and 0 otherwise.
-          # Components that assign more than two values might be added in the future.
-          # (Optional)
-          capabilitySource:
-            # name is the capability we will search for inside the capability list pointed by path.
-            # If this value is found in the list, the access level assigned to the request will be 1. Otherwise, it will be 0.
-            # (Optional) defaults to 'xmidt:svc:admin'
-            name:  "xmidt:svc:admin"
+      # capabilitySource provides configuration to the component which generates the access level for an incoming request
+      # based on its endpoint capabilities. This component assigns only two access levels: 1 for elevated access and 0 otherwise.
+      # Components that assign more than two values might be added in the future.
+      # (Optional)
+      capabilitySource:
+        # name is the capability we will search for inside the capability list pointed by path.
+        # If this value is found in the list, the access level assigned to the request will be 1. Otherwise, it will be 0.
+        # (Optional) defaults to 'xmidt:svc:admin'
+        name:  "xmidt:svc:admin"
         
-            # path is the list of nested keys to get to the claim which contains the capabilities.
-            # For example, if your JWT payload looks like this:
-            # ```
-            # {
-            #   "iat": 1234567899,
-            #   "nbf": 1234567899,
-            #   "my_company": {
-            #     "capabilities": ["capability0", "capability1"]
-            #   }
-            # } 
-            # ```  
-            # you'll want to set path to ["my_company", "capabilities"]
-            # (Optional) default: ["capabilities"]
-            path: ["capabilities"]
+        # path is the list of nested keys to get to the claim which contains the capabilities.
+        # For example, if your JWT payload looks like this:
+        # ```
+        # {
+        #   "iat": 1234567899,
+        #   "nbf": 1234567899,
+        #   "my_company": {
+        #     "capabilities": ["capability0", "capability1"]
+        #   }
+        # } 
+        # ```  
+        # you'll want to set path to ["my_company", "capabilities"]
+        # (Optional) default: ["capabilities"]
+        path: ["capabilities"]
 
 
-        # # capabilityCheck provides the details needed for checking an incoming JWT's
-        # # capabilities.  If the type of check isn't provided, no checking is done.  The
-        # # type can be "monitor" or "enforce". If "monitor" is provided, the capabilities 
-        # # are checked but the request isn't rejected when there isn't a valid capability 
-        # # for the request. Instead, a message is logged.  When "enforce" is provided, a 
-        # # request that doesn't have the needed capability is rejected.
-        
-        # # The capability is expected to have the format:
-        
-        # # {prefix}{endpoint}:{method}
-        
-        # # The prefix can be a regular expression.  If it's empty, no capability check
-        # # is done.  The endpoint is a regular expression that should match the endpoint
-        # # the request was sent to. The method is usually the method of the request, such as
-        # # GET.  The accept all method is a catchall string that indicates the capability
-        # # is approved for all methods.
-        # # (Optional)
-        # capabilityCheck:
-        #   # type provides the mode for capability checking.
-        #   type: "monitor"
-        #   # prefix provides the regex to match the capability before the endpoint.
-        #   prefix: "xmidt"
-        #   # acceptAllMethod provides a way to have a capability that allows all
-        #   # methods for a specific endpoint.
-        #   acceptAllMethod: "all"
-        #   # endpointBuckets provides regular expressions to use against the request
-        #   # endpoint in order to group requests for a metric label.
-        #   endpointBuckets:
-        #     - "store\\b"
-        #     - "store/.*\\b"
+    # # capabilities provides the details needed for checking an incoming JWT's
+    # # capabilities.  If the type of check isn't provided, no checking is done.  The
+    # # type can be "monitor" or "enforce". If "monitor" is provided, the capabilities 
+    # # are checked but the request isn't rejected when there isn't a valid capability 
+    # # for the request. Instead, a message is logged.  When "enforce" is provided, a 
+    # # request that doesn't have the needed capability is rejected.
+    
+    # # The capability is expected to have the format:
+    
+    # # {prefix}{endpoint}:{method}
+    
+    # # The prefix can be a regular expression.  If it's empty, no capability check
+    # # is done.  The endpoint is a regular expression that should match the endpoint
+    # # the request was sent to. The method is usually the method of the request, such as
+    # # GET.  The accept all method is a catchall string that indicates the capability
+    # # is approved for all methods.
+    # # (Optional)
+    # capabilities:
+    #   # type provides the mode for capability checking.
+    #   type: "monitor"
+    #   # prefix provides the regex to match the capability before the endpoint.
+    #   prefix: "xmidt"
+    #   # acceptAllMethod provides a way to have a capability that allows all
+    #   # methods for a specific endpoint.
+    #   acceptAllMethod: "all"
+    #   # endpointBuckets provides regular expressions to use against the request
+    #   # endpoint in order to group requests for a metric label.
+    #   endpointBuckets:
+    #     - "store\\b"
+    #     - "store/.*\\b"
 
 # tracing provides configuration around traces using OpenTelemetry.
 # (Optional). By default, a 'noop' tracer provider is used and tracing is disabled.

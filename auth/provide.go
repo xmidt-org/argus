@@ -1,52 +1,49 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package auth
 
 import (
-	"reflect"
+	"fmt"
 
-	"github.com/justinas/alice"
+	"github.com/xmidt-org/bascule/basculechecks"
 	"github.com/xmidt-org/bascule/basculehttp"
-	"github.com/xmidt-org/webpa-common/basculemetrics"
 	"go.uber.org/fx"
 )
 
-type primaryChainIn struct {
+type APIBaseIn struct {
 	fx.In
-	SetLogger   alice.Constructor `name:"primary_alice_set_logger"`
-	Constructor alice.Constructor `name:"primary_alice_constructor"`
-	Enforcer    alice.Constructor `name:"primary_alice_enforcer"`
-	Listener    alice.Constructor `name:"primary_alice_listener"`
+	Val string `name:"api_base"`
 }
 
-// ProvidePrimaryServerChain provides the auth alice.Chain for the primary server.
-func ProvidePrimaryServerChain(apiBase string) fx.Option {
+// Provide provides the auth alice.Chain for the primary server.
+func Provide(configKey string) fx.Option {
 	return fx.Options(
-		logOptionsProvider{serverName: "primary"}.provide(),
-		providePrimaryBasculeConstructor(apiBase),
-		providePrimaryBasculeEnforcer(),
+		basculehttp.ProvideMetrics(),
+		basculechecks.ProvideMetrics(),
 		fx.Provide(
-			profileFactory{serverName: "primary"}.annotated(),
-			basculemetrics.ListenerFactory{ServerName: "primary"}.Annotated(),
-			fx.Annotated{
-				Name: "primary_alice_listener",
-				Target: func(in primaryBasculeMetricListenerIn) alice.Constructor {
-					return basculehttp.NewListenerDecorator(in.Listener)
-				},
+			func(in APIBaseIn) basculehttp.ParseURL {
+				return basculehttp.CreateRemovePrefixURLFunc("/"+in.Val, nil)
 			},
-			fx.Annotated{
-				Name: "primary_auth_chain",
-				Target: func(in primaryChainIn) alice.Chain {
-					return alice.New(in.SetLogger, in.Constructor, in.Enforcer, in.Listener)
-				},
-			},
-		))
-}
-
-// anyNil returns true if any of the provided objects are nil, false otherwise.
-func anyNil(objects ...interface{}) bool {
-	for _, object := range objects {
-		if object == nil || reflect.ValueOf(object).IsNil() {
-			return true
-		}
-	}
-	return false
+		),
+		basculehttp.ProvideBasicAuth(configKey),
+		provideBearerTokenFactory(configKey),
+		basculechecks.ProvideRegexCapabilitiesValidator(fmt.Sprintf("%v.capabilities", configKey)),
+		basculehttp.ProvideBearerValidator(),
+		basculehttp.ProvideServerChain(),
+	)
 }

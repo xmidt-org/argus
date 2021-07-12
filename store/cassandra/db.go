@@ -24,12 +24,11 @@ import (
 
 	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
-	dbmetric "github.com/xmidt-org/argus/store/db/metric"
 
-	"github.com/xmidt-org/themis/config"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -44,7 +43,7 @@ const (
 	defaultMaxNumberConnsPerHost = 2
 )
 
-type CassandraConfig struct {
+type Config struct {
 	// Hosts to  connect to. Must have at least one
 	Hosts []string
 
@@ -80,19 +79,14 @@ type CassandraConfig struct {
 	MaxConnsPerHost int
 }
 
-type CassandraClient struct {
+type Client struct {
 	client   dbStore
-	config   CassandraConfig
+	config   Config
 	logger   *zap.Logger
 	measures metric.Measures
 }
 
-func ProvideCassandra(unmarshaller config.Unmarshaller, metricsIn metric.Measures, lc fx.Lifecycle, logger *zap.Logger) (store.S, error) {
-	var config CassandraConfig
-	err := unmarshaller.UnmarshalKey(Yugabyte, &config)
-	if err != nil {
-		return nil, err
-	}
+func NewCassandra(config Config, metricsIn metric.Measures, lc fx.Lifecycle, logger *zap.Logger) (store.S, error) {
 	client, err := CreateCassandraClient(config, metricsIn)
 	ticker := doEvery(time.Second*5, func(_ time.Time) {
 		err := client.Ping()
@@ -126,7 +120,7 @@ func doEvery(d time.Duration, f func(time.Time)) *time.Ticker {
 	return ticker
 }
 
-func CreateCassandraClient(config CassandraConfig, measures metric.Measures) (*CassandraClient, error) {
+func CreateCassandraClient(config Config, measures metric.Measures) (*Client, error) {
 	if len(config.Hosts) == 0 {
 		return nil, errors.New("number of hosts must be > 0")
 	}
@@ -169,77 +163,113 @@ func CreateCassandraClient(config CassandraConfig, measures metric.Measures) (*C
 		return nil, emperror.WrapWith(err, "Connecting to database failed", "hosts", config.Hosts)
 	}
 
-	return &CassandraClient{
+	return &Client{
 		client:   session,
 		config:   config,
 		measures: measures,
 	}, nil
 }
 
-func (s *CassandraClient) Push(key model.Key, item store.OwnableItem) error {
+func (s *Client) Push(key model.Key, item store.OwnableItem) error {
 	err := s.client.Push(key, item)
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.PushQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return err
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PushQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.PushQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return nil
 }
 
-func (s *CassandraClient) Get(key model.Key) (store.OwnableItem, error) {
+func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
 		if errors.Is(err, store.ErrItemNotFound) {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.GetQueryType,
+				metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+			}).Add(1)
 		} else {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.GetQueryType,
+				metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+			}).Add(1)
 		}
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.GetQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, nil
 }
 
-func (s *CassandraClient) Delete(key model.Key) (store.OwnableItem, error) {
+func (s *Client) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {
 		if errors.Is(err, store.ErrItemNotFound) {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+				metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+			}).Add(1)
 		} else {
-			s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+			s.measures.Queries.With(prometheus.Labels{
+				metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+				metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+			}).Add(1)
 		}
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.DeleteQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.DeleteQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, err
 }
 
-func (s *CassandraClient) GetAll(bucket string) (map[string]store.OwnableItem, error) {
+func (s *Client) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	item, err := s.client.GetAll(bucket)
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.GetAllQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return item, store.SanitizeError(err)
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.GetAllQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.GetAllQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return item, err
 }
 
-func (s *CassandraClient) Close() {
+func (s *Client) Close() {
 	s.client.Close()
 }
 
 // Ping is for pinging the database to verify that the connection is still good.
-func (s *CassandraClient) Ping() error {
+func (s *Client) Ping() error {
 	err := s.client.Ping()
 	if err != nil {
-		s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.FailQueryOutcome).Add(1)
+		s.measures.Queries.With(prometheus.Labels{
+			metric.QueryTypeLabelKey:    metric.PingQueryType,
+			metric.QueryOutcomeLabelKey: metric.FailQueryOutcome,
+		}).Add(1)
 		return emperror.WrapWith(err, "Pinging connection failed")
 	}
-	s.measures.Queries.With(dbmetric.QueryTypeLabelKey, dbmetric.PingQueryType, dbmetric.QueryOutcomeLabelKey, dbmetric.SuccessQueryOutcome).Add(1)
+	s.measures.Queries.With(prometheus.Labels{
+		metric.QueryTypeLabelKey:    metric.PingQueryType,
+		metric.QueryOutcomeLabelKey: metric.SuccessQueryOutcome,
+	}).Add(1)
 	return nil
 }
 
-func validateConfig(config *CassandraConfig) {
+func validateConfig(config *Config) {
 	zeroDuration := time.Duration(0) * time.Second
 
 	if config.OpTimeout == zeroDuration {

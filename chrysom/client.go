@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Comcast Cable Communications Management, LLC
+ * Copyright 2021 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,12 +29,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xmidt-org/webpa-common/logging"
-
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-kit/kit/metrics"
-	"github.com/go-kit/kit/metrics/provider"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
@@ -52,6 +49,7 @@ const (
 // Some internal errors might be unwrapped from output errors but unless these errors become exported,
 // they are not part of the library API and may change in future versions.
 var (
+	ErrNilMeasures             = errors.New("measures cannot be nil")
 	ErrAddressEmpty            = errors.New("argus address is required")
 	ErrBucketEmpty             = errors.New("bucket name is required")
 	ErrItemIDEmpty             = errors.New("item ID is required")
@@ -131,6 +129,7 @@ type Client struct {
 	bucket       string
 	observer     *observerConfig
 	getLogger    func(context.Context) log.Logger
+	setLogger    func(context.Context, log.Logger) context.Context
 }
 
 // listening states
@@ -150,22 +149,25 @@ type ListenerConfig struct {
 	// PullInterval is how often listeners should get updates.
 	// (Optional). Defaults to 5 seconds.
 	PullInterval time.Duration
-
-	// MetricsProvider helps initialize metrics collectors.
-	// (Optional). By default a discard provider will be used.
-	MetricsProvider provider.Provider
 }
 
 type observerConfig struct {
 	listener     Listener
 	ticker       *time.Ticker
 	pullInterval time.Duration
-	pollCount    metrics.Counter
+	measures     *Measures
 	shutdown     chan struct{}
 	state        int32
 }
 
-func NewClient(config ClientConfig, getLogger func(ctx context.Context) log.Logger) (*Client, error) {
+func NewClient(config ClientConfig, measures *Measures,
+	getLogger func(context.Context) log.Logger,
+	setLogger func(context.Context, log.Logger) context.Context,
+) (*Client, error) {
+	if measures == nil {
+		return nil, ErrNilMeasures
+	}
+
 	err := validateConfig(&config)
 	if err != nil {
 		return nil, err
@@ -173,6 +175,11 @@ func NewClient(config ClientConfig, getLogger func(ctx context.Context) log.Logg
 	if getLogger == nil {
 		getLogger = func(ctx context.Context) log.Logger {
 			return log.NewNopLogger()
+		}
+	}
+	if setLogger == nil {
+		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
+			return ctx
 		}
 	}
 	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
@@ -183,10 +190,11 @@ func NewClient(config ClientConfig, getLogger func(ctx context.Context) log.Logg
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
 		logger:       config.Logger,
-		observer:     newObserver(config.Logger, config.Listen),
+		observer:     newObserver(config.Logger, config.Listen, measures),
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 		getLogger:    getLogger,
+		setLogger:    setLogger,
 	}
 
 	return clientStore, nil
@@ -205,7 +213,7 @@ func translateNonSuccessStatusCode(code int) error {
 	}
 }
 
-func newObserver(logger log.Logger, config ListenerConfig) *observerConfig {
+func newObserver(logger log.Logger, config ListenerConfig, measures *Measures) *observerConfig {
 	if config.Listener == nil {
 		return nil
 	}
@@ -213,7 +221,7 @@ func newObserver(logger log.Logger, config ListenerConfig) *observerConfig {
 		listener:     config.Listener,
 		ticker:       time.NewTicker(config.PullInterval),
 		pullInterval: config.PullInterval,
-		pollCount:    config.MetricsProvider.NewCounter(PollCounter),
+		measures:     measures,
 		shutdown:     make(chan struct{}),
 	}
 }
@@ -229,10 +237,6 @@ func validateConfig(config *ClientConfig) error {
 
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
-	}
-
-	if config.Listen.MetricsProvider == nil {
-		config.Listen.MetricsProvider = provider.NewDiscardProvider()
 	}
 
 	if config.Listen.PullInterval == 0 {
@@ -393,7 +397,7 @@ func (c *Client) Start(ctx context.Context) error {
 				return
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
-				ctx := logging.WithLogger(context.Background(), c.logger)
+				ctx := c.setLogger(context.Background(), c.logger)
 				items, err := c.GetItems(ctx, "")
 				if err == nil {
 					c.observer.listener.Update(items)
@@ -401,7 +405,8 @@ func (c *Client) Start(ctx context.Context) error {
 					outcome = FailureOutcome
 					level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
 				}
-				c.observer.pollCount.With(OutcomeLabel, outcome).Add(1)
+				c.observer.measures.Polls.With(prometheus.Labels{
+					OutcomeLabel: outcome}).Add(1)
 			}
 		}
 	}()

@@ -30,7 +30,6 @@ import (
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/httpaux/erraux"
-	"github.com/xmidt-org/themis/config"
 )
 
 // DynamoDB is the path to the configuration structure
@@ -89,13 +88,14 @@ type dao struct {
 	s service
 }
 
-func ProvideDynamoDB(unmarshaller config.Unmarshaller, measures metric.Measures) (store.S, error) {
-	config, err := getConfig(unmarshaller)
-	if err != nil {
-		return nil, err
+func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
+	if config.Table == "" {
+		config.Table = defaultTable
 	}
-
-	err = validate.Struct(config)
+	if config.MaxRetries == 0 {
+		config.MaxRetries = defaultMaxRetries
+	}
+	err := validate.Struct(config)
 	if err != nil {
 		return nil, err
 	}
@@ -140,23 +140,6 @@ func (d *dao) Delete(key model.Key) (store.OwnableItem, error) {
 func (d *dao) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	items, _, err := d.s.GetAll(bucket)
 	return items, sanitizeError(err)
-}
-
-func getConfig(unmarshaller config.Unmarshaller) (*Config, error) {
-	var config Config
-	err := unmarshaller.UnmarshalKey(DynamoDB, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	if config.Table == "" {
-		config.Table = defaultTable
-	}
-	if config.MaxRetries == 0 {
-		config.MaxRetries = defaultMaxRetries
-	}
-
-	return &config, nil
 }
 
 func sanitizeError(err error) error {

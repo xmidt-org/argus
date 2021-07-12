@@ -18,9 +18,8 @@
 package metric
 
 import (
-	"github.com/go-kit/kit/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/xmidt-org/themis/xmetrics"
+	"github.com/xmidt-org/touchstone"
 	"go.uber.org/fx"
 )
 
@@ -64,8 +63,8 @@ const (
 
 // ProvideMetrics returns the Metrics relevant to this package
 func ProvideMetrics() fx.Option {
-	return fx.Provide(
-		xmetrics.ProvideCounter(
+	return fx.Options(
+		touchstone.CounterVec(
 			prometheus.CounterOpts{
 				Name: QueriesCounter,
 				Help: "The total number of DB queries Argus has performed.",
@@ -74,7 +73,7 @@ func ProvideMetrics() fx.Option {
 			QueryTypeLabelKey,
 		),
 
-		xmetrics.ProvideHistogram(
+		touchstone.HistogramVec(
 			prometheus.HistogramOpts{
 				Name:    QueryDurationSecondsHistogram,
 				Help:    "A histogram of latencies for queries.",
@@ -83,7 +82,7 @@ func ProvideMetrics() fx.Option {
 			QueryTypeLabelKey,
 		),
 
-		xmetrics.ProvideCounter(
+		touchstone.CounterVec(
 			prometheus.CounterOpts{
 				Name: DynamodbConsumedCapacityCounter,
 				Help: "Capacity units consumed by the DynamoDB operation.",
@@ -96,7 +95,7 @@ func ProvideMetrics() fx.Option {
 
 type Measures struct {
 	fx.In
-	Queries                  metrics.Counter   `name:"db_queries_total"`
-	QueryDurationSeconds     metrics.Histogram `name:"db_query_duration_seconds"`
-	DynamodbConsumedCapacity metrics.Counter   `name:"dynamodb_consumed_capacity_total"`
+	Queries                  *prometheus.CounterVec `name:"db_queries_total"`
+	QueryDurationSeconds     prometheus.ObserverVec `name:"db_query_duration_seconds"`
+	DynamodbConsumedCapacity *prometheus.CounterVec `name:"dynamodb_consumed_capacity_total"`
 }
