@@ -116,7 +116,7 @@ func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver key.Re
 func provideBearerTokenFactory(configKey string) fx.Option {
 	return fx.Options(
 		key.ProvideResolver(fmt.Sprintf("%s.bearer.key", configKey), true),
-		provideAccessLevel(fmt.Sprintf("%v.accessLevel", configKey)),
+		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
 		fx.Provide(
 			fx.Annotated{
 				Name: "jwt_leeway",

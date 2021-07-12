@@ -37,7 +37,7 @@ func Provide(configKey string) fx.Option {
 		basculechecks.ProvideMetrics(),
 		fx.Provide(
 			func(in APIBaseIn) basculehttp.ParseURL {
-				return basculehttp.CreateRemovePrefixURLFunc(in.Val, nil)
+				return basculehttp.CreateRemovePrefixURLFunc("/"+in.Val, nil)
 			},
 		),
 		basculehttp.ProvideBasicAuth(configKey),

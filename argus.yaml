@@ -3,6 +3,10 @@ prometheus:
   defaultSubsystem: argus
   constLabels:
     development: "true"
+  handler:
+    maxRequestsInFlight: 5
+    timeout: 5s
+    instrumentMetricHandler: true
 
 logging:
   level: debug

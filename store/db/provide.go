@@ -44,9 +44,11 @@ type SetupIn struct {
 }
 
 func Provide() fx.Option {
-	return fx.Provide(
-		arrange.UnmarshalKey("", Configs{}),
-		SetupStore,
+	return fx.Options(
+		fx.Provide(
+			arrange.UnmarshalKey("", Configs{}),
+			SetupStore,
+		),
 	)
 }
 
