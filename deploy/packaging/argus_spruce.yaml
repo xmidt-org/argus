@@ -109,28 +109,29 @@ servers:
 #  # (Optional) defaults to false
 #  #enableHostVerification: false
 
-# dyanmo is the configuration block to communicate with dynamoDB.
-dynamo:
+store: 
+  # dyanmo is the configuration block to communicate with dynamoDB.
+  dynamo:
 
-  # endpoint is used to set a custom aws endpoint.
-  # (Optional)
-  endpoint: (( grab $AWS_ENDPOINT || "" ))
+    # endpoint is used to set a custom aws endpoint.
+    # (Optional)
+    endpoint: (( grab $AWS_ENDPOINT || "" ))
 
-  # table is the name of the table that is already configured with bucket and id as the key.
-  table: (( grab $DYNAMO_TABLE || "gifnoc" ))
+    # table is the name of the table that is already configured with bucket and id as the key.
+    table: (( grab $DYNAMO_TABLE || "gifnoc" ))
 
-  # region is where request should go to.
-  region: (( grab $AWS_DEFAULT_REGION || "us-east-2" ))
+    # region is where request should go to.
+    region: (( grab $AWS_DEFAULT_REGION || "us-east-2" ))
 
-  # maxRetires is the maximum times the application will retry the request to the db.
-  # (Optional) default: 3
-  maxRetries: (( grab $AWS_RETRIES || "3" ))
+    # maxRetires is the maximum times the application will retry the request to the db.
+    # (Optional) default: 3
+    maxRetries: (( grab $AWS_RETRIES || "3" ))
 
-  # accessKey is the AWS accessKey to access dynamodb.
-  accessKey: (( grab $AWS_ACCESS_KEY_ID || "accessKey" ))
+    # accessKey is the AWS accessKey to access dynamodb.
+    accessKey: (( grab $AWS_ACCESS_KEY_ID || "accessKey" ))
 
-  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
-  secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
+    # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
+    secretKey: (( grab $AWS_ACCESS_SECRET || "secretKey" ))
 
 
 # userInputValidation groups options around validating data on incoming requests.
