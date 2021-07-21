@@ -13,6 +13,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/touchstone/touchtest"
 )
 
 func setupUpdateCalls(u *mockMeasuresUpdater, consumedCapacity *dynamodb.ConsumedCapacity, err error, now time.Time) {
@@ -100,66 +101,100 @@ func TestMeasuresUpdate(t *testing.T) {
 		errDummy              = errors.New("bummer")
 	)
 	tcs := []struct {
-		Name                  string
-		QueryType             string
-		IncludeCapacity       bool
-		Err                   error
-		ExpectedSuccessCount  float64
-		ExpectedFailCount     float64
-		ExpectedReadCapacity  float64
-		ExpectedWriteCapacity float64
+		Name            string
+		QueryType       string
+		IncludeCapacity bool
+		Err             error
+		ExpectedOutcome string
+		ExpectedOpType  string
 	}{
 		{
-			Name:                 "Consumed Capacity Missing",
-			ExpectedSuccessCount: 1,
+			Name:            "Consumed Capacity Missing",
+			ExpectedOutcome: metric.SuccessQueryOutcome,
 		},
 
 		{
-			Name:                 "Successful Get Query",
-			IncludeCapacity:      true,
-			ExpectedSuccessCount: 1,
-			QueryType:            metric.GetQueryType,
-			ExpectedReadCapacity: capacityUnits,
+			Name:            "Successful Get Query",
+			IncludeCapacity: true,
+			ExpectedOutcome: metric.SuccessQueryOutcome,
+			ExpectedOpType:  metric.DynamoCapacityReadOp,
+			QueryType:       metric.GetQueryType,
 		},
 
 		{
-			Name:                 "Successful GetAll Query",
-			IncludeCapacity:      true,
-			ExpectedSuccessCount: 1,
-			QueryType:            metric.GetAllQueryType,
-			ExpectedReadCapacity: capacityUnits,
+			Name:            "Successful GetAll Query",
+			IncludeCapacity: true,
+			ExpectedOutcome: metric.SuccessQueryOutcome,
+			QueryType:       metric.GetAllQueryType,
+			ExpectedOpType:  metric.DynamoCapacityReadOp,
 		},
 
 		{
-			Name:                  "Successful Delete Query",
-			IncludeCapacity:       true,
-			ExpectedSuccessCount:  1,
-			QueryType:             metric.DeleteQueryType,
-			ExpectedWriteCapacity: capacityUnits,
+			Name:            "Successful Delete Query",
+			IncludeCapacity: true,
+			ExpectedOutcome: metric.SuccessQueryOutcome,
+			QueryType:       metric.DeleteQueryType,
+			ExpectedOpType:  metric.DynamoCapacityWriteOp,
 		},
 
 		{
-			Name:                  "Failed Push Query",
-			IncludeCapacity:       true,
-			Err:                   errDummy,
-			ExpectedFailCount:     1,
-			QueryType:             metric.PushQueryType,
-			ExpectedWriteCapacity: capacityUnits,
+			Name:            "Failed Push Query",
+			IncludeCapacity: true,
+			Err:             errDummy,
+			ExpectedOutcome: metric.FailQueryOutcome,
+			QueryType:       metric.PushQueryType,
+			ExpectedOpType:  metric.DynamoCapacityWriteOp,
 		},
 
 		{
-			Name:                 "Get Query. Item not found",
-			IncludeCapacity:      true,
-			ExpectedSuccessCount: 1,
-			Err:                  store.ErrItemNotFound,
-			QueryType:            metric.GetQueryType,
-			ExpectedReadCapacity: capacityUnits,
+			Name:            "Get Query. Item not found",
+			IncludeCapacity: true,
+			ExpectedOutcome: metric.SuccessQueryOutcome,
+			Err:             store.ErrItemNotFound,
+			QueryType:       metric.GetQueryType,
+			ExpectedOpType:  metric.DynamoCapacityReadOp,
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
-
+			assert := assert.New(t)
+			testAssert := touchtest.New(t)
+			expectedRegistry := prometheus.NewPedanticRegistry()
+			expectedMeasures := &metric.Measures{
+				Queries: prometheus.NewCounterVec(
+					prometheus.CounterOpts{
+						Name: "testQueriesCounter",
+						Help: "testQueriesCounter",
+					},
+					[]string{
+						metric.QueryOutcomeLabelKey,
+						metric.QueryTypeLabelKey,
+					},
+				),
+				DynamodbConsumedCapacity: prometheus.NewCounterVec(
+					prometheus.CounterOpts{
+						Name: "testDynamoCounter",
+						Help: "testDynamoCounter",
+					},
+					[]string{
+						metric.DynamoCapacityOpLabelKey,
+						metric.QueryTypeLabelKey,
+					},
+				),
+			}
+			expectedRegistry.MustRegister(expectedMeasures.DynamodbConsumedCapacity,
+				expectedMeasures.Queries)
+			expectedMeasures.Queries.With(prometheus.Labels{
+				metric.QueryOutcomeLabelKey: tc.ExpectedOutcome,
+				metric.QueryTypeLabelKey:    tc.QueryType,
+			}).Inc()
+			if tc.IncludeCapacity {
+				expectedMeasures.DynamodbConsumedCapacity.With(prometheus.Labels{
+					metric.DynamoCapacityOpLabelKey: tc.ExpectedOpType,
+					metric.QueryTypeLabelKey:        tc.QueryType,
+				}).Add(capacityUnits)
+			}
 			actualRegistry := prometheus.NewPedanticRegistry()
 			m := &metric.Measures{
 				Queries: prometheus.NewCounterVec(
@@ -218,7 +253,11 @@ func TestMeasuresUpdate(t *testing.T) {
 			// p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(tc.ExpectedReadCapacity))
 			// p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(tc.ExpectedWriteCapacity))
 
-			//TODO: due to limitations in xmetricstest, we can't explore the values observed in a histogram for the QueryDurationSeconds
+			testAssert.Expect(expectedRegistry)
+			assert.True(testAssert.GatherAndCompare(actualRegistry,
+				"testQueriesCounter", "testDynamoCounter"))
+
+			//TODO: explore the values observed in a histogram for the QueryDurationSeconds
 		})
 	}
 }
