@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Comcast Cable Communications Management, LLC
+ * Copyright 2021 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,28 +21,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/pflag"
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/arrange"
-	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/sallust/sallustkit"
-	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
-	"github.com/xmidt-org/webpa-common/basculechecks"
-	"github.com/xmidt-org/webpa-common/basculemetrics"
-
-	"github.com/InVisionApp/go-health"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-	"github.com/xmidt-org/themis/config"
-	"github.com/xmidt-org/themis/xhealth"
-	"github.com/xmidt-org/themis/xhttp/xhttpserver"
+	"github.com/xmidt-org/touchstone"
+	"github.com/xmidt-org/touchstone/touchhttp"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -50,6 +40,7 @@ import (
 const (
 	applicationName = "argus"
 	apiBase         = "api/v1"
+	defaultKeyID    = "current"
 )
 
 var (
@@ -57,6 +48,11 @@ var (
 	Version   = "undefined"
 	BuildTime = "undefined"
 )
+
+type CandlelightConfigIn struct {
+	fx.In
+	C candlelight.Config `name:"tracing_initial_config" optional:"true"`
+}
 
 func main() {
 	v, logger, err := setup(os.Args[1:])
@@ -67,60 +63,30 @@ func main() {
 	app := fx.New(
 		arrange.LoggerFunc(logger.Sugar().Infof),
 		arrange.ForViper(v),
-		fx.Supply(logger, v),
-		provideMetrics(),
+		fx.Supply(logger),
 		metric.ProvideMetrics(),
-		basculechecks.ProvideMetricsVec(),
-		basculemetrics.ProvideMetricsVec(),
-		auth.ProvidePrimaryServerChain(apiBase),
+		auth.Provide("authx.inbound"),
+		touchhttp.Provide(),
+		touchstone.Provide(),
 		store.ProvideHandlers(),
+		db.Provide(),
 		fx.Provide(
+			consts,
 			gokitLogger,
-			unmarshaller,
-			auth.ProfilesUnmarshaler{
-				ConfigKey:        "authx.inbound.profiles",
-				SupportedServers: []string{"primary"}}.Annotated(),
-			db.Provide,
-			xhealth.Unmarshal("health"),
-			provideServerChainFactory,
-			xmetricshttp.Unmarshal("prometheus", promhttp.HandlerOpts{}),
-			xhttpserver.Unmarshal{Key: "servers.primary", Optional: true}.Annotated(),
-			xhttpserver.Unmarshal{Key: "servers.metrics", Optional: true}.Annotated(),
-			xhttpserver.Unmarshal{Key: "servers.health", Optional: true}.Annotated(),
-			candlelight.New,
-			func(u config.Unmarshaller) (candlelight.Config, error) {
-				var config candlelight.Config
-				err := u.UnmarshalKey("tracing", &config)
-				if err != nil {
-					return candlelight.Config{}, err
-				}
-				config.ApplicationName = applicationName
-				return config, nil
-			},
+			arrange.UnmarshalKey("userInputValidation", store.UserInputValidationConfig{}),
+			arrange.UnmarshalKey("prometheus", touchstone.Config{}),
+			arrange.UnmarshalKey("prometheus.handler", touchhttp.Config{}),
 			fx.Annotated{
-				Name: "primary_bascule_parse_url",
-				Target: func() basculehttp.ParseURL {
-					return basculehttp.CreateRemovePrefixURLFunc("/"+apiBase+"/", basculehttp.DefaultParseURLFunc)
-				},
+				Name:   "tracing_initial_config",
+				Target: arrange.UnmarshalKey("tracing", candlelight.Config{}),
 			},
+			func(in CandlelightConfigIn) candlelight.Config {
+				in.C.ApplicationName = applicationName
+				return in.C
+			},
+			candlelight.New,
 		),
-
-		fx.Invoke(
-			xhealth.ApplyChecks(
-				&health.Config{
-					Name:     applicationName,
-					Interval: 24 * time.Hour,
-					Checker: xhealth.NopCheckable{
-						Details: map[string]interface{}{
-							"StartTime": time.Now().UTC().Format(time.RFC3339),
-						},
-					},
-				},
-			),
-			BuildPrimaryRoutes,
-			BuildMetricsRoutes,
-			BuildHealthRoutes,
-		),
+		provideServers(),
 	)
 
 	switch err := app.Err(); {
@@ -140,8 +106,16 @@ func gokitLogger(l *zap.Logger) log.Logger {
 	}
 }
 
-func unmarshaller(v *viper.Viper) config.Unmarshaller {
-	return config.ViperUnmarshaller{
-		Viper: v,
+// Provide the constants in the main package for other uber fx components to use.
+type ConstOut struct {
+	fx.Out
+	APIBase      string `name:"api_base"`
+	DefaultKeyID string `name:"default_key_id"`
+}
+
+func consts() ConstOut {
+	return ConstOut{
+		APIBase:      apiBase,
+		DefaultKeyID: defaultKeyID,
 	}
 }

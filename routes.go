@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Comcast Cable Communications Management, LLC
+ * Copyright 2021 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,74 +23,27 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/themis/xhealth"
-	"github.com/xmidt-org/themis/xhttp/xhttpserver"
-	"github.com/xmidt-org/themis/xmetrics"
-	"github.com/xmidt-org/themis/xmetrics/xmetricshttp"
+	"github.com/xmidt-org/arrange"
+	"github.com/xmidt-org/arrange/arrangehttp"
+	"github.com/xmidt-org/candlelight"
+	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/touchstone/touchhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/fx"
 )
 
-type ServerChainIn struct {
+type PrimaryRouterIn struct {
 	fx.In
-
-	RequestCount     *prometheus.CounterVec   `name:"server_request_count"`
-	RequestDuration  *prometheus.HistogramVec `name:"server_request_duration_ms"`
-	RequestsInFlight *prometheus.GaugeVec     `name:"server_requests_in_flight"`
+	Router    *mux.Router `name:"server_primary"`
+	APIBase   string      `name:"api_base"`
+	AuthChain alice.Chain `name:"auth_chain"`
+	// Tracing will be used to set up tracing instrumentation code.
+	Tracing  candlelight.Tracing
+	Handlers PrimaryHandlersIn
 }
 
-func provideServerChainFactory(in ServerChainIn) xhttpserver.ChainFactory {
-	return xhttpserver.ChainFactoryFunc(func(name string, o xhttpserver.Options) (alice.Chain, error) {
-		var (
-			curryLabel = prometheus.Labels{
-				ServerLabel: name,
-			}
-
-			serverLabellers = xmetricshttp.NewServerLabellers(
-				xmetricshttp.CodeLabeller{},
-				xmetricshttp.MethodLabeller{},
-			)
-		)
-
-		requestCount, err := in.RequestCount.CurryWith(curryLabel)
-		if err != nil {
-			return alice.Chain{}, err
-		}
-
-		requestDuration, err := in.RequestDuration.CurryWith(curryLabel)
-		if err != nil {
-			return alice.Chain{}, err
-		}
-
-		requestsInFlight, err := in.RequestsInFlight.CurryWith(curryLabel)
-		if err != nil {
-			return alice.Chain{}, err
-		}
-
-		return alice.New(
-			xmetricshttp.HandlerCounter{
-				Metric:   xmetrics.LabelledCounterVec{CounterVec: requestCount},
-				Labeller: serverLabellers,
-			}.Then,
-			xmetricshttp.HandlerDuration{
-				Metric:   xmetrics.LabelledObserverVec{ObserverVec: requestDuration},
-				Labeller: serverLabellers,
-			}.Then,
-			xmetricshttp.HandlerInFlight{
-				Metric: xmetrics.LabelledGaugeVec{GaugeVec: requestsInFlight},
-			}.Then,
-		), nil
-	})
-}
-
-type PrimaryRouter struct {
-	fx.In
-	Router    *mux.Router `name:"servers.primary"`
-	AuthChain alice.Chain `name:"primary_auth_chain"`
-}
-
-type PrimaryRoutes struct {
+type PrimaryHandlersIn struct {
 	fx.In
 	Set    store.Handler `name:"set_handler"`
 	Delete store.Handler `name:"delete_handler"`
@@ -98,44 +51,91 @@ type PrimaryRoutes struct {
 	GetAll store.Handler `name:"get_all_handler"`
 }
 
-func BuildPrimaryRoutes(router PrimaryRouter, routes PrimaryRoutes) {
-	router.Router.Use(router.AuthChain.Then)
-	itemPathFormat := "/%s/store/{bucket}/{id}"
-
-	if routes.Set != nil {
-		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Set).Methods(http.MethodPut)
-	}
-	if routes.Get != nil {
-		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Get).Methods(http.MethodGet)
-	}
-	if routes.GetAll != nil {
-		router.Router.Handle(fmt.Sprintf("/%s/store/{bucket}", apiBase), routes.GetAll).Methods(http.MethodGet)
-	}
-	if routes.Delete != nil {
-		router.Router.Handle(fmt.Sprintf(itemPathFormat, apiBase), routes.Delete).Methods(http.MethodDelete)
-	}
-}
-
-type MetricsRoutesIn struct {
+type MetricRouterIn struct {
 	fx.In
-	Router  *mux.Router `name:"servers.metrics"`
-	Handler xmetricshttp.Handler
+	Router  *mux.Router `name:"server_metrics"`
+	Handler touchhttp.Handler
 }
 
-func BuildMetricsRoutes(in MetricsRoutesIn) {
-	if in.Router != nil && in.Handler != nil {
-		in.Router.Handle("/metrics", in.Handler).Methods("GET")
-	}
-}
-
-type HealthRoutesIn struct {
+type PrimaryMMIn struct {
 	fx.In
-	Router  *mux.Router `name:"servers.health"`
-	Handler xhealth.Handler
+	Primary alice.Chain `name:"middleware_primary_metrics"`
 }
 
-func BuildHealthRoutes(in HealthRoutesIn) {
-	if in.Router != nil && in.Handler != nil {
-		in.Router.Handle("/health", in.Handler).Methods("GET")
+type HealthMMIn struct {
+	fx.In
+	Health alice.Chain `name:"middleware_health_metrics"`
+}
+
+type MetricMiddlewareOut struct {
+	fx.Out
+	Primary alice.Chain `name:"middleware_primary_metrics"`
+	Health  alice.Chain `name:"middleware_health_metrics"`
+}
+
+func provideServers() fx.Option {
+	return fx.Options(
+		arrangehttp.Server{
+			Name: "server_primary",
+			Key:  "servers.primary",
+			Inject: arrange.Inject{
+				PrimaryMMIn{},
+			},
+		}.Provide(),
+		fx.Provide(
+			metricMiddleware,
+		),
+		arrangehttp.Server{
+			Name: "server_health",
+			Key:  "servers.health",
+			Inject: arrange.Inject{
+				HealthMMIn{},
+			},
+			Invoke: arrange.Invoke{
+				func(r *mux.Router) {
+					r.Handle("/health", httpaux.ConstantHandler{
+						StatusCode: http.StatusOK,
+					}).Methods("GET")
+				},
+			},
+		}.Provide(),
+		arrangehttp.Server{
+			Name: "server_metrics",
+			Key:  "servers.metrics",
+		}.Provide(),
+
+		fx.Invoke(
+			handlePrimaryEndpoint,
+			handleMetricEndpoint,
+		),
+	)
+}
+
+func handlePrimaryEndpoint(in PrimaryRouterIn) {
+	options := []otelmux.Option{
+		otelmux.WithTracerProvider(in.Tracing.TracerProvider()),
+		otelmux.WithPropagators(in.Tracing.Propagator()),
 	}
+	in.Router.Use(
+		in.AuthChain.Then,
+		otelmux.Middleware("servers_primary", options...),
+		candlelight.EchoFirstTraceNodeInfo(in.Tracing.Propagator()),
+	)
+
+	bucketPath := fmt.Sprintf("/%s/store/{bucket}", in.APIBase)
+	itemPath := fmt.Sprintf("%s/{id}", bucketPath)
+	in.Router.Handle(itemPath, in.Handlers.Set).Methods(http.MethodPut)
+	in.Router.Handle(itemPath, in.Handlers.Get).Methods(http.MethodGet)
+	in.Router.Handle(bucketPath, in.Handlers.GetAll).Methods(http.MethodGet)
+	in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
+}
+
+func metricMiddleware(bundle touchhttp.ServerBundle) (out MetricMiddlewareOut) {
+	out.Primary = alice.New(bundle.ForServer("server_primary").Then)
+	out.Health = alice.New(bundle.ForServer("server_health").Then)
+	return
+}
+
+func handleMetricEndpoint(in MetricRouterIn) {
+	in.Router.Handle("/metrics", in.Handler).Methods("GET")
 }

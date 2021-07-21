@@ -1,3 +1,20 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package chrysom
 
 import (
@@ -15,7 +32,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics/provider"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
@@ -47,8 +64,7 @@ func TestValidateConfig(t *testing.T) {
 	allDefaultsCaseConfig := &ClientConfig{
 		HTTPClient: http.DefaultClient,
 		Listen: ListenerConfig{
-			MetricsProvider: provider.NewDiscardProvider(),
-			PullInterval:    time.Second * 5,
+			PullInterval: time.Second * 5,
 		},
 		Logger:  log.NewNopLogger(),
 		Address: "http://awesome-argus-hostname.io",
@@ -59,8 +75,7 @@ func TestValidateConfig(t *testing.T) {
 	allDefinedCaseConfig := &ClientConfig{
 		HTTPClient: myAmazingClient,
 		Listen: ListenerConfig{
-			PullInterval:    time.Hour * 24,
-			MetricsProvider: provider.NewExpvarProvider(),
+			PullInterval: time.Hour * 24,
 		},
 		Address: "http://legit-argus-hostname.io",
 		Auth:    Auth{},
@@ -95,8 +110,7 @@ func TestValidateConfig(t *testing.T) {
 			Description: "All defined",
 			Input: &ClientConfig{
 				Listen: ListenerConfig{
-					PullInterval:    time.Hour * 24,
-					MetricsProvider: provider.NewExpvarProvider(),
+					PullInterval: time.Hour * 24,
 				},
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
@@ -184,9 +198,7 @@ func TestSendRequest(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, func(ctx context.Context) log.Logger {
-				return log.NewNopLogger()
-			})
+			}, &Measures{}, nil, nil)
 
 			if tc.AcquirerFails {
 				client.auth = acquirerFunc(failAcquirer)
@@ -284,9 +296,7 @@ func TestGetItems(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, func(ctx context.Context) log.Logger {
-				return log.NewNopLogger()
-			})
+			}, &Measures{}, nil, nil)
 
 			require.Nil(err)
 
@@ -422,7 +432,7 @@ func TestPushItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil)
+			}, &Measures{}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -520,9 +530,7 @@ func TestRemoveItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, func(ctx context.Context) log.Logger {
-				return log.NewNopLogger()
-			})
+			}, &Measures{}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -666,8 +674,7 @@ func newStartStopClient(includeListener bool) (*Client, func()) {
 		Bucket:     "parallel-test-bucket",
 		Logger:     xlog.Default(),
 		Listen: ListenerConfig{
-			MetricsProvider: provider.NewDiscardProvider(),
-			PullInterval:    time.Millisecond * 200,
+			PullInterval: time.Millisecond * 200,
 		},
 	}
 	if includeListener {
@@ -677,7 +684,15 @@ func newStartStopClient(includeListener bool) (*Client, func()) {
 		}))
 	}
 
-	client, err := NewClient(config, nil)
+	client, err := NewClient(config, &Measures{
+		Polls: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "testPollsCounter",
+				Help: "testPollsCounter",
+			},
+			[]string{OutcomeLabel},
+		),
+	}, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -708,14 +723,20 @@ func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) 
 				fmt.Println("Capturing all items")
 				g.items = append(g.items, items...)
 			})),
-			MetricsProvider: provider.NewDiscardProvider(),
-			PullInterval:    time.Millisecond * 200,
+			PullInterval: time.Millisecond * 200,
 		},
 		Bucket: "parallel-test-bucket",
 		Logger: xlog.Default(),
 	}
 
-	client, err := NewClient(config, nil)
+	client, err := NewClient(config, &Measures{
+		Polls: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "testPollsCounter",
+				Help: "testPollsCounter",
+			},
+			[]string{OutcomeLabel},
+		)}, nil, nil)
 
 	if err != nil {
 		panic(err)

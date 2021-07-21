@@ -36,7 +36,7 @@ type InMem struct {
 	now  func() time.Time
 }
 
-func ProvideInMem() store.S {
+func NewInMem() store.S {
 	return &InMem{
 		data: map[string]map[string]expireableItem{},
 		now:  time.Now,
