@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Removed dependency on webpa-common, fixing circular dependency issue. This includes using bascule package for all auth related middleware. [#90](https://github.com/xmidt-org/argus/pull/190)
+- Use arrange package for servers. [#90](https://github.com/xmidt-org/argus/pull/190)
+- Use arrange to unmarshal some config structs. [#90](https://github.com/xmidt-org/argus/pull/190)
+- Use touchstone for metrics. [#90](https://github.com/xmidt-org/argus/pull/190)
 
 ## [v0.4.1]
 - Changed nothing.
