@@ -246,13 +246,6 @@ func TestMeasuresUpdate(t *testing.T) {
 
 			updater.Update(r)
 
-			// TODO: check metric values again.
-			// p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.SuccessQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedSuccessCount))
-			// p.Assert(t, "queries", metric.QueryOutcomeLabelKey, metric.FailQueryOutcome, metric.QueryTypeLabelKey, tc.QueryType)(xmetricstest.Value(tc.ExpectedFailCount))
-
-			// p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityReadOp)(xmetricstest.Value(tc.ExpectedReadCapacity))
-			// p.Assert(t, "dynamo", metric.QueryTypeLabelKey, tc.QueryType, metric.DynamoCapacityOpLabelKey, metric.DynamoCapacityWriteOp)(xmetricstest.Value(tc.ExpectedWriteCapacity))
-
 			testAssert.Expect(expectedRegistry)
 			assert.True(testAssert.GatherAndCompare(actualRegistry,
 				"testQueriesCounter", "testDynamoCounter"))
