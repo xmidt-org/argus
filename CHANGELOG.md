@@ -5,7 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Removed dependency on webpa-common, fixing circular dependency issue. This includes using bascule package for all auth related middleware. [#190](https://github.com/xmidt-org/argus/pull/190)
+
+## [v0.5.0]
+- Removed dependency on webpa-common, fixing circular dependency issue. [#190](https://github.com/xmidt-org/argus/pull/190)
+- Bump bascule version and use it for all auth related middleware, modifying the authx configuration. [#190](https://github.com/xmidt-org/argus/pull/190)
 - Use arrange package for servers. [#190](https://github.com/xmidt-org/argus/pull/190)
 - Use arrange to unmarshal some config structs. [#190](https://github.com/xmidt-org/argus/pull/190)
 - Use touchstone for metrics. [#190](https://github.com/xmidt-org/argus/pull/190)
@@ -166,7 +169,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/xmidt-org/argus/compare/v0.4.1...v0.5.0
 [v0.4.1]: https://github.com/xmidt-org/argus/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/xmidt-org/argus/compare/v0.3.16...v0.4.0
 [v0.3.16]: https://github.com/xmidt-org/argus/compare/v0.3.15...v0.3.16
