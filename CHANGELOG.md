@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Fix github actions config for uploading test and coverage reports for sonarcloud. [#192](https://github.com/xmidt-org/argus/pull/192)
 
 ## [v0.5.0]
 - Removed dependency on webpa-common, fixing circular dependency issue. [#190](https://github.com/xmidt-org/argus/pull/190)
