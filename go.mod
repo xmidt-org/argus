@@ -5,10 +5,10 @@ go 1.13
 require (
 	emperror.dev/emperror v0.30.0
 	github.com/aws/aws-sdk-go v1.31.6
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-kit/kit v0.10.0
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
+	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/justinas/alice v1.2.0
@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/xmidt-org/arrange v0.3.0
-	github.com/xmidt-org/bascule v0.10.1
+	github.com/xmidt-org/bascule v0.10.2
 	github.com/xmidt-org/candlelight v0.0.5
 	github.com/xmidt-org/httpaux v0.2.1
 	github.com/xmidt-org/sallust v0.1.5
