@@ -4,7 +4,7 @@ The client library for communicating with Argus over HTTP.
 [![Go Reference](https://pkg.go.dev/badge/github.com/xmidt-org/argus/chrysom.svg)](https://pkg.go.dev/github.com/xmidt-org/argus/chrysom)
 
 ## Summary
-This package enables CRUD operations on the items stored in Argus  The items being stored are valid JSON objects. The package also provides a listener that is able to poll from Argus on an interval.
+This package enables CRUD operations on the items stored in Argus.  The items being stored are valid JSON objects. The package also provides a listener that is able to poll from Argus on an interval.
 
 ## CRUD Operations
 
