@@ -18,4 +18,5 @@ The client contains a listener that will listen for item updates from Argus on a
 Listener provides a mechanism to fetch a copy of all items within a bucket on an interval. If not provided, listening won't be enable for this client.
 
 Start begins listening for updates on an interval. A Listener must be given in the ListenerConfig for this to work. If a listener process is already in progress, calling Start() is a NoOp. If you want to restart the current listener process, call Stop() first.
+
 Stop requests the current listener process to stop and waits for its goroutine to complete. Calling Stop() when a listener is not running (or while one is getting stopped) returns an  error.
