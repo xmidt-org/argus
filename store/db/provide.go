@@ -54,11 +54,14 @@ func Provide() fx.Option {
 
 func SetupStore(in SetupIn) (store.S, error) {
 	if in.Configs.Dynamo != nil {
+		in.Logger.Info("using dynamodb store implementation")
 		return dynamodb.NewDynamoDB(*in.Configs.Dynamo, in.Measures)
 	}
 	if in.Configs.Yugabyte != nil {
+		in.Logger.Info("using yugabyte store implementation")
 		return cassandra.NewCassandra(*in.Configs.Yugabyte, in.Measures, in.LC,
 			in.Logger)
 	}
+	in.Logger.Info("using in memory store implementation")
 	return inmem.NewInMem(), nil
 }

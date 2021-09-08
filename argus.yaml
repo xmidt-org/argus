@@ -47,67 +47,68 @@ servers:
       X-Midt-Version:
         - development
 
-#yugabyte:
-#  # hosts is and array of address and port used to connect to the cluster.
-#  hosts:
-#    - "localhost:9042"
-#  # database is the name of the database being connected to.
-#  database: "argus"
-#  # opTimeout is the timeout for database calls after argus is connected.
-#  # If the opTimeout is set to 0, it defaults to 10s.
-#  # (Optional) defaults to 10s
-#  opTimeout: 100ms
+store:
+  # dynamo is the configuration block to communicate with dynamoDB.
+  dynamo:
+    # endpoint is used to set a custom aws endpoint.
+    # (Optional)
+    endpoint: "http://localhost:8000"
+  
+    # table is the name of the table that is already configured with bucket and id as the key.
+    table: "gifnoc"
+  
+    # region is where request should go to.
+    region: "us-east-2"
+  
+    # maxRetires is the maximum times the application will retry the request to the db.
+    # (Optional) default: 3
+    maxRetries: 3
+  
+    # accessKey is the AWS accessKey to access dynamodb.
+    accessKey: "accessKey"
+  
+    # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
+    secretKey: "secretKey"
 
-#  # username is the username to use when connecting to the database.
-#  # (Optional)
-#  username: "cassandra"
-#
-#  # password is the password to use when connecting to the database.
-#  # (Optional)
-#  password: "cassandra"
-#
-#  # SSLRootCert is the root cert to use when connecting to the database.
-#  # The SSLKey and SSLCert must also be provided in order to connect securely.
-#  # (Optional)
-#  #sslRootCert: "/etc/argus/ca.crt"
-#
-#  # SSLKey is the SSL key to use when connecting to the database.  The
-#  # SSLRootCert and SSLCert must also be provided in order to connect securely.
-#  # (Optional)
-#  #sslKey: "/etc/argus/node.0.0.0.0.key"
-#
-#  # SSLCert is the SSL cert to use when connecting to the database.  The SSLKey
-#  # and SSLRootCert must also be provided in order to connect securely.
-#  # (Optional)
-#  #sslCert: "/etc/argus/node.0.0.0.0.crt"
-#
-#  # If you want to verify the hostname and server cert (like a wildcard for cass cluster) then you should turn this on
-#  # This option is basically the inverse of InSecureSkipVerify
-#  # See InSecureSkipVerify in http://golang.org/pkg/crypto/tls/ for more info
-#  # (Optional) defaults to false
-#  #enableHostVerification: false
-
-# dynamo is the configuration block to communicate with dynamoDB.
-dynamo:
-  # endpoint is used to set a custom aws endpoint.
-  # (Optional)
-  endpoint: "http://localhost:8000"
-
-  # table is the name of the table that is already configured with bucket and id as the key.
-  table: "gifnoc"
-
-  # region is where request should go to.
-  region: "us-east-2"
-
-  # maxRetires is the maximum times the application will retry the request to the db.
-  # (Optional) default: 3
-  maxRetries: 3
-
-  # accessKey is the AWS accessKey to access dynamodb.
-  accessKey: "accessKey"
-
-  # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
-  secretKey: "secretKey"
+  #yugabyte:
+  #  # hosts is and array of address and port used to connect to the cluster.
+  #  hosts:
+  #    - "localhost:9042"
+  #  # database is the name of the database being connected to.
+  #  database: "argus"
+  #  # opTimeout is the timeout for database calls after argus is connected.
+  #  # If the opTimeout is set to 0, it defaults to 10s.
+  #  # (Optional) defaults to 10s
+  #  opTimeout: 100ms
+  
+  #  # username is the username to use when connecting to the database.
+  #  # (Optional)
+  #  username: "cassandra"
+  #
+  #  # password is the password to use when connecting to the database.
+  #  # (Optional)
+  #  password: "cassandra"
+  #
+  #  # SSLRootCert is the root cert to use when connecting to the database.
+  #  # The SSLKey and SSLCert must also be provided in order to connect securely.
+  #  # (Optional)
+  #  #sslRootCert: "/etc/argus/ca.crt"
+  #
+  #  # SSLKey is the SSL key to use when connecting to the database.  The
+  #  # SSLRootCert and SSLCert must also be provided in order to connect securely.
+  #  # (Optional)
+  #  #sslKey: "/etc/argus/node.0.0.0.0.key"
+  #
+  #  # SSLCert is the SSL cert to use when connecting to the database.  The SSLKey
+  #  # and SSLRootCert must also be provided in order to connect securely.
+  #  # (Optional)
+  #  #sslCert: "/etc/argus/node.0.0.0.0.crt"
+  #
+  #  # If you want to verify the hostname and server cert (like a wildcard for cass cluster) then you should turn this on
+  #  # This option is basically the inverse of InSecureSkipVerify
+  #  # See InSecureSkipVerify in http://golang.org/pkg/crypto/tls/ for more info
+  #  # (Optional) defaults to false
+  #  #enableHostVerification: false
 
 
 # userInputValidation groups options around validating data on incoming requests.
