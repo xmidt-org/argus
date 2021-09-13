@@ -100,6 +100,8 @@ func (s *InMemTestSuite) SetupSuite() {
 	}
 	s.ItemOneKey = model.Key{ID: s.ItemOneID, Bucket: s.BucketName}
 	s.ItemTwoID = "test-item-id-2"
+	itemTwoExpiration := s.getItemTwoExpiration()
+	itemTwoTTLSeconds := int64(itemTwoExpiration.Sub(s.Now).Seconds())
 	s.ItemTwo = expireableItem{
 		OwnableItem: store.OwnableItem{
 			Owner: "test-owner-2",
@@ -108,6 +110,7 @@ func (s *InMemTestSuite) SetupSuite() {
 				Data: map[string]interface{}{
 					"k": "v",
 				},
+				TTL: &itemTwoTTLSeconds,
 			},
 		},
 		expiration: s.getItemTwoExpiration(),
