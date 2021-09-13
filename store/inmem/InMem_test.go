@@ -377,6 +377,10 @@ func (s *InMemTestSuite) TestDelete() {
 	}
 }
 
+func (s *InMemTestSuite) TestNewInMem() {
+	assert.NotNil(s.T(), NewInMem())
+}
+
 func TestInMem(t *testing.T) {
 	suite.Run(t, new(InMemTestSuite))
 }
