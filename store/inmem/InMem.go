@@ -59,6 +59,22 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	return nil
 }
 
+// updateTTL updates the TTL of the item based on the expiration date and returns
+// a boolean which is set to true if the item has expired and false otherwise.
+// Note: expired items are automatically removed from the internal map.
+func (i *InMem) updateTTL(item *expireableItem, bucket map[string]expireableItem, bucketName, ID string) bool {
+	if item.expiration == nil {
+		return false
+	}
+	secondsBeforeExpiry := int64(item.expiration.Sub(i.now()).Seconds())
+	if secondsBeforeExpiry <= 0 {
+		i.deleteItem(bucketName, ID, bucket)
+		return true
+	}
+	item.TTL = &secondsBeforeExpiry
+	return false
+}
+
 func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
@@ -70,8 +86,8 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 	if !ok {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
-	if i.itemExpired(item) {
-		i.pruneItem(key.Bucket, key.ID, bucket)
+
+	if expired := i.updateTTL(&item, bucket, key.Bucket, key.ID); expired {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
 
@@ -82,11 +98,14 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	items := i.data[bucket]
-	if items == nil {
-		items = map[string]expireableItem{}
+	result := make(map[string]store.OwnableItem)
+	for idx := range items {
+		item := items[idx]
+		if expired := i.updateTTL(&item, items, bucket, item.ID); !expired {
+			result[item.ID] = item.OwnableItem
+		}
 	}
-	i.pruneExpiredItems(bucket, items)
-	return i.transform(items), nil
+	return result, nil
 }
 
 func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
@@ -101,47 +120,16 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
 
-	if i.itemExpired(item) {
-		i.pruneItem(key.Bucket, key.ID, bucket)
+	if expired := i.updateTTL(&item, bucket, key.Bucket, key.ID); expired {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
-	delete(bucket, key.ID)
-	if len(bucket) == 0 {
-		delete(i.data, key.Bucket)
-	}
+	i.deleteItem(key.Bucket, key.ID, bucket)
 	return item.OwnableItem, nil
 }
 
-func (i *InMem) pruneItem(bucketName string, itemID string, bucket map[string]expireableItem) {
+func (i *InMem) deleteItem(bucketName string, itemID string, bucket map[string]expireableItem) {
 	delete(bucket, itemID)
 	if len(bucket) == 0 {
 		delete(i.data, bucketName)
 	}
-}
-
-func (i *InMem) pruneExpiredItems(bucketName string, bucket map[string]expireableItem) {
-	for itemID, item := range bucket {
-		if i.itemExpired(item) {
-			delete(bucket, itemID)
-		}
-	}
-	if len(bucket) == 0 {
-		delete(i.data, bucketName)
-	}
-}
-
-func (i *InMem) itemExpired(storedItem expireableItem) bool {
-	if storedItem.expiration == nil {
-		return false
-	}
-	durationToExpire := storedItem.expiration.Sub(i.now())
-	return durationToExpire <= 0
-}
-
-func (i *InMem) transform(items map[string]expireableItem) map[string]store.OwnableItem {
-	result := map[string]store.OwnableItem{}
-	for _, item := range items {
-		result[item.ID] = item.OwnableItem
-	}
-	return result
 }
