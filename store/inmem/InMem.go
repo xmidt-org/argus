@@ -59,10 +59,10 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	return nil
 }
 
-// updateTTL updates the TTL of the item based on the expiration date and returns
-// a boolean which is set to true if the item has expired and false otherwise.
+// hasExpired returns true if the given item has expired and false otherwise.
+// For an unexpired item with an expiration date, the current TTL is updated.
 // Note: expired items are automatically removed from the internal map.
-func (i *InMem) updateTTL(item *expireableItem, bucket map[string]expireableItem, bucketName, ID string) bool {
+func (i *InMem) hasExpired(item *expireableItem, bucket map[string]expireableItem, bucketName, ID string) bool {
 	if item.expiration == nil {
 		return false
 	}
@@ -87,7 +87,7 @@ func (i *InMem) Get(key model.Key) (store.OwnableItem, error) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
 
-	if expired := i.updateTTL(&item, bucket, key.Bucket, key.ID); expired {
+	if i.hasExpired(&item, bucket, key.Bucket, key.ID) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "get"})
 	}
 
@@ -101,7 +101,7 @@ func (i *InMem) GetAll(bucket string) (map[string]store.OwnableItem, error) {
 	result := make(map[string]store.OwnableItem)
 	for idx := range items {
 		item := items[idx]
-		if expired := i.updateTTL(&item, items, bucket, item.ID); !expired {
+		if !i.hasExpired(&item, items, bucket, item.ID) {
 			result[item.ID] = item.OwnableItem
 		}
 	}
@@ -120,7 +120,7 @@ func (i *InMem) Delete(key model.Key) (store.OwnableItem, error) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
 
-	if expired := i.updateTTL(&item, bucket, key.Bucket, key.ID); expired {
+	if i.hasExpired(&item, bucket, key.Bucket, key.ID) {
 		return store.OwnableItem{}, store.SanitizeError(store.ItemOperationError{Err: store.ErrItemNotFound, Key: key, Operation: "delete"})
 	}
 	i.deleteItem(key.Bucket, key.ID, bucket)
