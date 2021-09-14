@@ -36,6 +36,7 @@ type InMemTestSuite struct {
 	ItemOneKey         model.Key
 	ItemOneID          string
 	ItemOne            expireableItem
+	ItemTwoKey         model.Key
 	ItemTwoID          string
 	ItemTwo            expireableItem
 	ItemThreeKey       model.Key
@@ -100,6 +101,9 @@ func (s *InMemTestSuite) SetupSuite() {
 	}
 	s.ItemOneKey = model.Key{ID: s.ItemOneID, Bucket: s.BucketName}
 	s.ItemTwoID = "test-item-id-2"
+	s.ItemTwoKey = model.Key{ID: s.ItemTwoID, Bucket: s.BucketName}
+	itemTwoExpiration := s.getItemTwoExpiration()
+	itemTwoTTLSeconds := int64(itemTwoExpiration.Sub(s.Now).Seconds())
 	s.ItemTwo = expireableItem{
 		OwnableItem: store.OwnableItem{
 			Owner: "test-owner-2",
@@ -108,6 +112,7 @@ func (s *InMemTestSuite) SetupSuite() {
 				Data: map[string]interface{}{
 					"k": "v",
 				},
+				TTL: &itemTwoTTLSeconds,
 			},
 		},
 		expiration: s.getItemTwoExpiration(),
@@ -139,24 +144,46 @@ func (s *InMemTestSuite) getItemThreeExpiration() *time.Time {
 }
 
 func (s *InMemTestSuite) TestPush() {
-	var expectedData = map[string]map[string]expireableItem{
-		s.BucketName: {
-			s.ItemOneID: s.ItemOne,
-		},
-	}
+	var (
+		expectedData = map[string]map[string]expireableItem{
+			s.BucketName: {
+				s.ItemTwoID: s.ItemTwo,
+			},
+		}
+		expectedDataNoTTL = map[string]map[string]expireableItem{
+			s.BucketName: {
+				s.ItemOneID: s.ItemOne,
+			},
+		}
+	)
 
 	tcs := []struct {
 		Description  string
 		Data         map[string]map[string]expireableItem
+		Key          model.Key
+		Item         store.OwnableItem
 		ExpectedData map[string]map[string]expireableItem
 	}{
 		{
-			Description: "Create bucket",
-			Data:        s.DataBucketNotFound,
+			Description:  "Create bucket",
+			Data:         s.DataBucketNotFound,
+			Key:          s.ItemOneKey,
+			Item:         s.ItemOne.OwnableItem,
+			ExpectedData: expectedDataNoTTL,
 		},
 		{
-			Description: "Push into existing bucket",
-			Data:        s.DataBucketFound,
+			Description:  "Push into existing bucket",
+			Data:         s.DataBucketFound,
+			Key:          s.ItemOneKey,
+			Item:         s.ItemOne.OwnableItem,
+			ExpectedData: expectedDataNoTTL,
+		},
+		{
+			Description:  "Push item with TTL into existing bucket",
+			Data:         dataMapCopy(s.DataBucketFound),
+			Key:          s.ItemTwoKey,
+			Item:         s.ItemTwo.OwnableItem,
+			ExpectedData: expectedData,
 		},
 	}
 
@@ -165,10 +192,11 @@ func (s *InMemTestSuite) TestPush() {
 			assert := assert.New(t)
 			storage := InMem{
 				data: tc.Data,
+				now:  s.NowFunc,
 			}
-			err := storage.Push(s.ItemOneKey, s.ItemOne.OwnableItem)
+			err := storage.Push(tc.Key, tc.Item)
 			assert.Nil(err)
-			assert.EqualValues(expectedData, storage.data)
+			assert.EqualValues(tc.ExpectedData, storage.data)
 		})
 	}
 }
@@ -349,6 +377,10 @@ func (s *InMemTestSuite) TestDelete() {
 	}
 }
 
+func (s *InMemTestSuite) TestNewInMem() {
+	assert.NotNil(s.T(), NewInMem())
+}
+
 func TestInMem(t *testing.T) {
 	suite.Run(t, new(InMemTestSuite))
 }
@@ -379,4 +411,20 @@ func TestInMemConcurrent(t *testing.T) {
 			Storage.Get(ItemOneKey)
 		})
 	}
+}
+
+func dataMapCopy(input map[string]map[string]expireableItem) map[string]map[string]expireableItem {
+	output := make(map[string]map[string]expireableItem)
+	for k, v := range input {
+		output[k] = mapCopy(v)
+	}
+	return output
+}
+
+func mapCopy(input map[string]expireableItem) map[string]expireableItem {
+	output := make(map[string]expireableItem)
+	for k, v := range input {
+		output[k] = v
+	}
+	return output
 }
