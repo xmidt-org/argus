@@ -52,7 +52,9 @@ The body must be in JSON format with the following attributes:
 * _ttl_ - Optional.  Specified in units of seconds.  Defaults to the value of the server configuration option `itemMaxTTL`. If a configuration value is not specified, the value would be a day (~ 24*60^2 seconds).
 )
 
-An optional header `X-Midt-Owner` can be sent to associate the object with an owner.  The value of this header will be bound to a new record, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications.  This in effect creates a secret attribute bound to the life of newly created records. When provided, Argus validates the length of the owner string to be in the range `[10,60]`. If you'd like to define your own validation format, check out the `userInputValidation.ownerFormatRegex` configuration option.
+An optional header `X-Midt-Owner` can be sent to associate the object with an owner. The value of this header will be bound to the new item, which would require the same value passed in a `X-Midt-Owner` header for subsequent reads or modifications. This in effect creates a secret attribute bound to the life of newly created items. When provided, Argus validates the length of the owner string to be in the range `[10,60]`. If you'd like to define your own validation format, check out the `userInputValidation.ownerFormatRegex` configuration option.
+
+When the header is not provided, the owner of the item will be the empty string.
 
 The exception to the above would be an authorized request.  The authorization method is not specified and is up to the implementation to decide.  Authorized requests shall be allowed to update all attributes except the `X-Midt-Owner` meta attribute.
 
