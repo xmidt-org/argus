@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 - Update store section in sample config files. [#200](https://github.com/xmidt-org/argus/pull/200)
+- Update sample config value so argus webhook integration works out of the box in test environments. [#203](https://github.com/xmidt-org/argus/pull/203)
 
 ## [v0.5.1]
 - Fix github actions config for uploading test and coverage reports for sonarcloud. [#192](https://github.com/xmidt-org/argus/pull/192)
