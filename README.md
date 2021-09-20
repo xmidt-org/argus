@@ -88,7 +88,7 @@ The above response would indicate an existing object has been updated (existing 
 ### List - `store/{bucket}` endpoint
 This endpoint allows for `GET` to retrieve all the items in the bucket organized by the id.
 
-An example response will look like the below where "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7" is the id of the only item in this collection. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. Only authorized requests can retrieve items from all owners.
+An example response will look like the below where "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7" is the id of the only item in this collection. An optional header `X-Midt-Owner` can be sent with the request.  If supplied, only items with secrets matching the supplied value will be returned in the list. If not supplied, all items created without an owner (owner value = "") will be returned. For authorized requests, if no owner header is provided, all items for the specified bucket will be returned.
 
 An example response:
 ```json
@@ -111,7 +111,7 @@ An example response:
 
 
 ### Individual Item - `store/{bucket}/{id}` endpoint
-This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, `nil` is assigned to comparison value.  A mismatch will result in a "403 Forbidden" error.  An authorized request may override this requirement, providing an administrative override.  The method of authorization is not specified.
+This endpoint allows for `GET`, and `DELETE` REST methods to interact with any object that was created with the previous `PUT` request.  An optional header `X-Midt-Owner` can be sent with the request.  All requests are validated by comparing the secret stored with the requested record with the value sent in the `X-Midt-Owner` header.  If the header is missing, the "" (empty string) is assigned as the item's owner during item creation.  A mismatch will result in a "403 Forbidden" error.  An authorized request may override this requirement, providing an administrative override.  The method of authorization is not specified.
 
 An example response:
 ```json
