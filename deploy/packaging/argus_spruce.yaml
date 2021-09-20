@@ -147,7 +147,7 @@ userInputValidation:
 
   # ownerFormatRegex helps define the validity of a bucket through a regular expression.
   # (Optional) default: ^.{10,60}$
-  ownerFormatRegex: (( grab $OWNER_FORMAT_REGEX || "^.{10,60}$" ))
+  ownerFormatRegex: (( grab $OWNER_FORMAT_REGEX || "^.{4,60}$" ))
 
   # itemDataMaxDepth is the max allowed depth of the Item JSON data field.
   # If your DB supports up to N nested objects, itemDataMaxDepth should be set to 
