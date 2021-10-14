@@ -1,0 +1,290 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package chrysom
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/bascule/acquire"
+	"github.com/xmidt-org/themis/xlog"
+)
+
+var (
+	ErrNilMeasures             = errors.New("measures cannot be nil")
+	ErrAddressEmpty            = errors.New("argus address is required")
+	ErrBucketEmpty             = errors.New("bucket name is required")
+	ErrItemIDEmpty             = errors.New("item ID is required")
+	ErrItemDataEmpty           = errors.New("data field in item is required")
+	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
+	ErrAuthAcquirerFailure     = errors.New("failed acquiring auth token")
+	ErrBadRequest              = errors.New("argus rejected the request as invalid")
+)
+
+var (
+	errNonSuccessResponse = errors.New("argus responded with a non-success status code")
+	errNewRequestFailure  = errors.New("failed creating an HTTP request")
+	errDoRequestFailure   = errors.New("http client failed while sending request")
+	errReadingBodyFailure = errors.New("failed while reading http response body")
+	errJSONUnmarshal      = errors.New("failed unmarshaling JSON response payload")
+	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
+)
+
+type BasicClient struct {
+	client       *http.Client
+	auth         acquire.Acquirer
+	storeBaseURL string
+	logger       log.Logger
+	bucket       string
+	getLogger    func(context.Context) log.Logger
+	setLogger    func(context.Context, log.Logger) context.Context
+}
+
+type Auth struct {
+	JWT   acquire.RemoteBearerTokenAcquirerOptions
+	Basic string
+}
+
+type response struct {
+	Body             []byte
+	ArgusErrorHeader string
+	Code             int
+}
+
+// PushResult is a simple type to indicate the result type for the
+// PushItem operation.
+type PushResult string
+
+// Types of pushItem successful results.
+const (
+	CreatedPushResult PushResult = "created"
+	UpdatedPushResult PushResult = "ok"
+)
+
+type Items []model.Item
+
+func NewBasicClient(config BasicClientConfig,
+	getLogger func(context.Context) log.Logger,
+	setLogger func(context.Context, log.Logger) context.Context,
+) (*BasicClient, error) {
+	err := validateBasicConfig(&config)
+	if err != nil {
+		return nil, err
+	}
+	if getLogger == nil {
+		getLogger = func(ctx context.Context) log.Logger {
+			return log.NewNopLogger()
+		}
+	}
+	if setLogger == nil {
+		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
+			return ctx
+		}
+	}
+	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
+	if err != nil {
+		return nil, err
+	}
+	clientStore := &BasicClient{
+		client:       config.HTTPClient,
+		auth:         tokenAcquirer,
+		logger:       config.Logger,
+		bucket:       config.Bucket,
+		storeBaseURL: config.Address + storeAPIPath,
+		getLogger:    getLogger,
+		setLogger:    setLogger,
+	}
+
+	return clientStore, nil
+}
+
+// GetItems fetches all items that belong to a given owner.
+func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error) {
+	response, err := c.sendRequest(ctx, owner, http.MethodGet, fmt.Sprintf("%s/%s", c.storeBaseURL, c.bucket), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Code != http.StatusOK {
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
+			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+	}
+
+	var items Items
+
+	err = json.Unmarshal(response.Body, &items)
+	if err != nil {
+		return nil, fmt.Errorf("GetItems: %w: %s", errJSONUnmarshal, err.Error())
+	}
+
+	return items, nil
+}
+
+// PushItem creates a new item if one doesn't already exist. If an item exists
+// and the ownership matches, the item is simply updated.
+func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Item) (PushResult, error) {
+	err := validatePushItemInput(owner, item)
+	if err != nil {
+		return "", err
+	}
+
+	data, err := json.Marshal(item)
+	if err != nil {
+		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
+	}
+
+	response, err := c.sendRequest(ctx, owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+
+	if response.Code == http.StatusCreated {
+		return CreatedPushResult, nil
+	}
+
+	if response.Code == http.StatusOK {
+		return UpdatedPushResult, nil
+	}
+
+	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
+		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+
+	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+}
+
+// RemoveItem removes the item if it exists and returns the data associated to it.
+func (c *BasicClient) RemoveItem(ctx context.Context, id, owner string) (model.Item, error) {
+	if len(id) < 1 {
+		return model.Item{}, ErrItemIDEmpty
+	}
+
+	resp, err := c.sendRequest(ctx, owner, http.MethodDelete, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, id), nil)
+	if err != nil {
+		return model.Item{}, err
+	}
+
+	if resp.Code != http.StatusOK {
+		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
+			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
+		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
+	}
+
+	var item model.Item
+	err = json.Unmarshal(resp.Body, &item)
+	if err != nil {
+		return item, fmt.Errorf("RemoveItem: %w: %s", errJSONUnmarshal, err.Error())
+	}
+	return item, nil
+}
+
+func validatePushItemInput(owner string, item model.Item) error {
+	if len(item.ID) < 1 {
+		return ErrItemIDEmpty
+	}
+
+	if len(item.Data) < 1 {
+		return ErrItemDataEmpty
+	}
+
+	return nil
+}
+
+func (c *BasicClient) sendRequest(ctx context.Context, owner, method, url string, body io.Reader) (response, error) {
+	r, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return response{}, fmt.Errorf(errWrappedFmt, errNewRequestFailure, err.Error())
+	}
+	err = acquire.AddAuth(r, c.auth)
+	if err != nil {
+		return response{}, fmt.Errorf(errWrappedFmt, ErrAuthAcquirerFailure, err.Error())
+	}
+	if len(owner) > 0 {
+		r.Header.Set(store.ItemOwnerHeaderKey, owner)
+	}
+	resp, err := c.client.Do(r)
+	if err != nil {
+		return response{}, fmt.Errorf(errWrappedFmt, errDoRequestFailure, err.Error())
+	}
+	defer resp.Body.Close()
+	var sqResp = response{
+		Code:             resp.StatusCode,
+		ArgusErrorHeader: resp.Header.Get(store.XmidtErrorHeaderKey),
+	}
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return sqResp, fmt.Errorf(errWrappedFmt, errReadingBodyFailure, err.Error())
+	}
+	sqResp.Body = bodyBytes
+	return sqResp, nil
+}
+
+func isEmpty(options acquire.RemoteBearerTokenAcquirerOptions) bool {
+	return len(options.AuthURL) < 1 || options.Buffer == 0 || options.Timeout == 0
+}
+
+// translateNonSuccessStatusCode returns as specific error
+// for known Argus status codes.
+func translateNonSuccessStatusCode(code int) error {
+	switch code {
+	case http.StatusBadRequest:
+		return ErrBadRequest
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return ErrFailedAuthentication
+	default:
+		return errNonSuccessResponse
+	}
+}
+
+func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
+	if !isEmpty(auth.JWT) {
+		return acquire.NewRemoteBearerTokenAcquirer(auth.JWT)
+	} else if len(auth.Basic) > 0 {
+		return acquire.NewFixedAuthAcquirer(auth.Basic)
+	}
+	return &acquire.DefaultAcquirer{}, nil
+}
+
+func validateBasicConfig(config *BasicClientConfig) error {
+	if config.Address == "" {
+		return ErrAddressEmpty
+	}
+
+	if config.Bucket == "" {
+		return ErrBucketEmpty
+	}
+
+	if config.HTTPClient == nil {
+		config.HTTPClient = http.DefaultClient
+	}
+
+	if config.Logger == nil {
+		config.Logger = log.NewNopLogger()
+	}
+	return nil
+}
