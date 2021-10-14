@@ -68,10 +68,39 @@ type observerConfig struct {
 	state        int32
 }
 
+func NewListenerClient(config ListenerClientConfig,
+	setLogger func(context.Context, log.Logger) context.Context,
+	measures *Measures,
+) (*ListenerClient, error) {
+	err := validateListenerConfig(&config)
+	if err != nil {
+		return nil, err
+	}
+	if measures == nil {
+		return nil, ErrNilMeasures
+	}
+	if setLogger == nil {
+		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
+			return ctx
+		}
+	}
+	return &ListenerClient{
+		observer: &observerConfig{
+			listener:     config.Listener,
+			ticker:       time.NewTicker(config.PullInterval),
+			pullInterval: config.PullInterval,
+			measures:     measures,
+			shutdown:     make(chan struct{}),
+		},
+		logger:    config.Logger,
+		setLogger: setLogger,
+	}, nil
+}
+
 // Start begins listening for updates on an interval given that client configuration
 // is setup correctly. If a listener process is already in progress, calling Start()
 // is a NoOp. If you want to restart the current listener process, call Stop() first.
-func (c *ListenerClient) Start(ctx context.Context) error {
+func (c *ListenerClient) Start(ctx context.Context, bc BasicClient) error {
 	if c.observer == nil || c.observer.listener == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
@@ -95,7 +124,7 @@ func (c *ListenerClient) Start(ctx context.Context) error {
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
 				ctx := c.setLogger(context.Background(), c.logger)
-				items, err := c.GetItems(ctx, "")
+				items, err := bc.GetItems(ctx, "")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -131,33 +160,12 @@ func (c *ListenerClient) Stop(ctx context.Context) error {
 	return nil
 }
 
-func NewListenerClient(config ListenerClientConfig,
-	setLogger func(context.Context, log.Logger) context.Context,
-	measures *Measures) (*ListenerClient, error) {
-	if measures == nil {
-		return nil, ErrNilMeasures
-	}
+func validateListenerConfig(config *ListenerClientConfig) error {
 	if config.Logger == nil {
 		config.Logger = log.NewNopLogger()
 	}
 	if config.PullInterval == 0 {
 		config.PullInterval = time.Second * 5
 	}
-
-	if setLogger == nil {
-		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
-			return ctx
-		}
-	}
-	return &ListenerClient{
-		observer: &observerConfig{
-			listener:     config.Listener,
-			ticker:       time.NewTicker(config.PullInterval),
-			pullInterval: config.PullInterval,
-			measures:     measures,
-			shutdown:     make(chan struct{}),
-		},
-		logger:    config.Logger,
-		setLogger: setLogger,
-	}, nil
+	return nil
 }
