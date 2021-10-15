@@ -54,12 +54,6 @@ func (listener ListenerFunc) Update(items Items) {
 type Reader interface {
 	// GeItems returns all the items that belong to this owner.
 	GetItems(ctx context.Context, owner string) (Items, error)
-
-	// Start kicks off listening for snapshots of all items in the store.
-	Start(ctx context.Context) error
-
-	// Stop will stop the listener provided there was an active one.
-	Stop(ctx context.Context) error
 }
 
 type ConfigureListener interface {

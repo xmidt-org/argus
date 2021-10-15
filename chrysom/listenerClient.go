@@ -44,6 +44,7 @@ var (
 
 	ErrListenerNotStopped = errors.New("listener is either running or starting")
 	ErrListenerNotRunning = errors.New("listener is either stopped or stopping")
+	ErrNoListenerProvided = errors.New("no listener provided")
 )
 
 // listening states
@@ -57,6 +58,7 @@ type ListenerClient struct {
 	observer  *observerConfig
 	logger    log.Logger
 	setLogger func(context.Context, log.Logger) context.Context
+	reader    Reader
 }
 
 type observerConfig struct {
@@ -70,7 +72,7 @@ type observerConfig struct {
 
 func NewListenerClient(config ListenerClientConfig,
 	setLogger func(context.Context, log.Logger) context.Context,
-	measures *Measures,
+	measures *Measures, r Reader,
 ) (*ListenerClient, error) {
 	err := validateListenerConfig(&config)
 	if err != nil {
@@ -94,13 +96,14 @@ func NewListenerClient(config ListenerClientConfig,
 		},
 		logger:    config.Logger,
 		setLogger: setLogger,
+		reader:    r,
 	}, nil
 }
 
 // Start begins listening for updates on an interval given that client configuration
 // is setup correctly. If a listener process is already in progress, calling Start()
 // is a NoOp. If you want to restart the current listener process, call Stop() first.
-func (c *ListenerClient) Start(ctx context.Context, bc BasicClient) error {
+func (c *ListenerClient) Start(ctx context.Context) error {
 	if c.observer == nil || c.observer.listener == nil {
 		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
 		return nil
@@ -124,7 +127,7 @@ func (c *ListenerClient) Start(ctx context.Context, bc BasicClient) error {
 			case <-c.observer.ticker.C:
 				outcome := SuccessOutcome
 				ctx := c.setLogger(context.Background(), c.logger)
-				items, err := bc.GetItems(ctx, "")
+				items, err := c.reader.GetItems(ctx, "")
 				if err == nil {
 					c.observer.listener.Update(items)
 				} else {
@@ -161,6 +164,9 @@ func (c *ListenerClient) Stop(ctx context.Context) error {
 }
 
 func validateListenerConfig(config *ListenerClientConfig) error {
+	if config.Listener == nil {
+		return ErrNoListenerProvided
+	}
 	if config.Logger == nil {
 		config.Logger = log.NewNopLogger()
 	}

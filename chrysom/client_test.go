@@ -44,7 +44,7 @@ const failingURL = "nowhere://"
 
 func TestInterface(t *testing.T) {
 	assert := assert.New(t)
-	var client interface{} = &Client{}
+	var client interface{} = &BasicClient{}
 	_, ok := client.(Pusher)
 	assert.True(ok, "not a pusher")
 	_, ok = client.(Reader)
@@ -56,51 +56,45 @@ func TestInterface(t *testing.T) {
 func TestValidateConfig(t *testing.T) {
 	type testCase struct {
 		Description    string
-		Input          *ClientConfig
+		Input          *BasicClientConfig
 		ExpectedErr    error
-		ExpectedConfig *ClientConfig
+		ExpectedConfig *BasicClientConfig
 	}
 
-	allDefaultsCaseConfig := &ClientConfig{
+	allDefaultsCaseConfig := &BasicClientConfig{
 		HTTPClient: http.DefaultClient,
-		Listen: ListenerConfig{
-			PullInterval: time.Second * 5,
-		},
-		Logger:  log.NewNopLogger(),
-		Address: "http://awesome-argus-hostname.io",
-		Bucket:  "bucket-name",
+		Logger:     log.NewNopLogger(),
+		Address:    "http://awesome-argus-hostname.io",
+		Bucket:     "bucket-name",
 	}
 
 	myAmazingClient := &http.Client{Timeout: time.Hour}
-	allDefinedCaseConfig := &ClientConfig{
+	allDefinedCaseConfig := &BasicClientConfig{
 		HTTPClient: myAmazingClient,
-		Listen: ListenerConfig{
-			PullInterval: time.Hour * 24,
-		},
-		Address: "http://legit-argus-hostname.io",
-		Auth:    Auth{},
-		Bucket:  "amazing-bucket",
-		Logger:  log.NewJSONLogger(ioutil.Discard),
+		Address:    "http://legit-argus-hostname.io",
+		Auth:       Auth{},
+		Bucket:     "amazing-bucket",
+		Logger:     log.NewJSONLogger(ioutil.Discard),
 	}
 
 	tcs := []testCase{
 		{
 			Description: "No address",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Bucket: "bucket-name",
 			},
 			ExpectedErr: ErrAddressEmpty,
 		},
 		{
 			Description: "No bucket",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 			},
 			ExpectedErr: ErrBucketEmpty,
 		},
 		{
 			Description: "All default values",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 				Bucket:  "bucket-name",
 			},
@@ -108,10 +102,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			Description: "All defined",
-			Input: &ClientConfig{
-				Listen: ListenerConfig{
-					PullInterval: time.Hour * 24,
-				},
+			Input: &BasicClientConfig{
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
@@ -124,7 +115,7 @@ func TestValidateConfig(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
-			err := validateConfig(tc.Input)
+			err := validateBasicConfig(tc.Input)
 			assert.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedErr == nil {
 				assert.Equal(tc.ExpectedConfig, tc.Input)
@@ -194,11 +185,11 @@ func TestSendRequest(t *testing.T) {
 			server := httptest.NewServer(echoHandler)
 			defer server.Close()
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.AcquirerFails {
 				client.auth = acquirerFunc(failAcquirer)
@@ -292,11 +283,11 @@ func TestGetItems(t *testing.T) {
 				rw.Write(tc.ResponsePayload)
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			require.Nil(err)
 
@@ -428,11 +419,11 @@ func TestPushItem(t *testing.T) {
 				}
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -526,11 +517,11 @@ func TestRemoveItem(t *testing.T) {
 				rw.Write(tc.ResponsePayload)
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -588,7 +579,8 @@ func TestTranslateStatusCode(t *testing.T) {
 
 func TestListenerStartStopPairsParallel(t *testing.T) {
 	require := require.New(t)
-	client, close := newStartStopClient(true)
+	client, close, err := newStartStopClient(true)
+	assert.Nil(t, err)
 	defer close()
 
 	t.Run("ParallelGroup", func(t *testing.T) {
@@ -617,7 +609,8 @@ func TestListenerStartStopPairsParallel(t *testing.T) {
 
 func TestListenerStartStopPairsSerial(t *testing.T) {
 	require := require.New(t)
-	client, close := newStartStopClient(true)
+	client, close, err := newStartStopClient(true)
+	assert.Nil(t, err)
 	defer close()
 
 	for i := 0; i < 5; i++ {
@@ -635,16 +628,14 @@ func TestListenerStartStopPairsSerial(t *testing.T) {
 
 func TestListenerEdgeCases(t *testing.T) {
 	t.Run("NoListener", func(t *testing.T) {
-		client, stopServer := newStartStopClient(false)
-		defer stopServer()
-		assert := assert.New(t)
-		assert.Nil(client.Start(context.Background()))
-		assert.Nil(client.Stop(context.Background()))
+		_, _, err := newStartStopClient(false)
+		assert.Equal(t, ErrNoListenerProvided, err)
 	})
 
 	t.Run("NilTicker", func(t *testing.T) {
 		assert := assert.New(t)
-		client, stopServer := newStartStopClient(true)
+		client, stopServer, err := newStartStopClient(true)
+		assert.Nil(err)
 		defer stopServer()
 		client.observer.ticker = nil
 		assert.Equal(ErrUndefinedIntervalTicker, client.Start(context.Background()))
@@ -664,47 +655,41 @@ func TestListenerEdgeCases(t *testing.T) {
 	})
 }
 
-func newStartStopClient(includeListener bool) (*Client, func()) {
+func newStartStopClient(includeListener bool) (*ListenerClient, func(), error) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Write(getItemsValidPayload())
 	}))
-	config := ClientConfig{
-		Address:    server.URL,
-		HTTPClient: server.Client(),
-		Bucket:     "parallel-test-bucket",
-		Logger:     xlog.Default(),
-		Listen: ListenerConfig{
-			PullInterval: time.Millisecond * 200,
-		},
+
+	config := ListenerClientConfig{
+		PullInterval: time.Millisecond * 200,
+		Logger:       xlog.Default(),
 	}
 	if includeListener {
-		config.Listen.Listener = ListenerFunc((func(_ Items) {
+		config.Listener = ListenerFunc((func(_ Items) {
 			fmt.Println("Doing amazing work for 100ms")
 			time.Sleep(time.Millisecond * 100)
 		}))
 	}
-
-	client, err := NewClient(config, &Measures{
+	client, err := NewListenerClient(config, nil, &Measures{
 		Polls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "testPollsCounter",
 				Help: "testPollsCounter",
 			},
 			[]string{OutcomeLabel},
-		),
-	}, nil, nil)
+		)}, &BasicClient{})
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
-	return client, server.Close
+	return client, server.Close, nil
 }
 
 type getItemsStartStopTester struct {
 	items Items
 }
 
-func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) {
+func (g *getItemsStartStopTester) newSpecialStartStopClient() (*ListenerClient, func()) {
 	succeed := true
 	succeedFirstTimeOnlyServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if succeed {
@@ -715,28 +700,23 @@ func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) 
 		}
 	}))
 
-	config := ClientConfig{
-		Address:    succeedFirstTimeOnlyServer.URL,
-		HTTPClient: succeedFirstTimeOnlyServer.Client(),
-		Listen: ListenerConfig{
-			Listener: ListenerFunc((func(items Items) {
-				fmt.Println("Capturing all items")
-				g.items = append(g.items, items...)
-			})),
-			PullInterval: time.Millisecond * 200,
-		},
-		Bucket: "parallel-test-bucket",
-		Logger: xlog.Default(),
+	config := ListenerClientConfig{
+		Listener: ListenerFunc((func(items Items) {
+			fmt.Println("Capturing all items")
+			g.items = append(g.items, items...)
+		})),
+		PullInterval: time.Millisecond * 200,
+		Logger:       xlog.Default(),
 	}
 
-	client, err := NewClient(config, &Measures{
+	client, err := NewListenerClient(config, nil, &Measures{
 		Polls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "testPollsCounter",
 				Help: "testPollsCounter",
 			},
 			[]string{OutcomeLabel},
-		)}, nil, nil)
+		)}, &BasicClient{})
 
 	if err != nil {
 		panic(err)
