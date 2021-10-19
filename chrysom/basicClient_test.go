@@ -26,81 +26,66 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-kit/kit/log"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/themis/xlog"
 )
 
 const failingURL = "nowhere://"
 
-func TestInterface(t *testing.T) {
-	assert := assert.New(t)
-	var client interface{} = &Client{}
-	_, ok := client.(Pusher)
-	assert.True(ok, "not a pusher")
-	_, ok = client.(Reader)
-	assert.True(ok, "not a reader")
-	_, ok = client.(PushReader)
-	assert.True(ok, "not a PushReader")
-}
+var (
+	_ Pusher = &BasicClient{}
+	_ Reader = &BasicClient{}
+)
 
-func TestValidateConfig(t *testing.T) {
+func TestValidateBasicConfig(t *testing.T) {
 	type testCase struct {
 		Description    string
-		Input          *ClientConfig
+		Input          *BasicClientConfig
 		ExpectedErr    error
-		ExpectedConfig *ClientConfig
+		ExpectedConfig *BasicClientConfig
 	}
 
-	allDefaultsCaseConfig := &ClientConfig{
+	allDefaultsCaseConfig := &BasicClientConfig{
 		HTTPClient: http.DefaultClient,
-		Listen: ListenerConfig{
-			PullInterval: time.Second * 5,
-		},
-		Logger:  log.NewNopLogger(),
-		Address: "http://awesome-argus-hostname.io",
-		Bucket:  "bucket-name",
+		Logger:     log.NewNopLogger(),
+		Address:    "http://awesome-argus-hostname.io",
+		Bucket:     "bucket-name",
 	}
 
 	myAmazingClient := &http.Client{Timeout: time.Hour}
-	allDefinedCaseConfig := &ClientConfig{
+	allDefinedCaseConfig := &BasicClientConfig{
 		HTTPClient: myAmazingClient,
-		Listen: ListenerConfig{
-			PullInterval: time.Hour * 24,
-		},
-		Address: "http://legit-argus-hostname.io",
-		Auth:    Auth{},
-		Bucket:  "amazing-bucket",
-		Logger:  log.NewJSONLogger(ioutil.Discard),
+		Address:    "http://legit-argus-hostname.io",
+		Auth:       Auth{},
+		Bucket:     "amazing-bucket",
+		Logger:     log.NewJSONLogger(ioutil.Discard),
 	}
 
 	tcs := []testCase{
 		{
 			Description: "No address",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Bucket: "bucket-name",
 			},
 			ExpectedErr: ErrAddressEmpty,
 		},
 		{
 			Description: "No bucket",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 			},
 			ExpectedErr: ErrBucketEmpty,
 		},
 		{
 			Description: "All default values",
-			Input: &ClientConfig{
+			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 				Bucket:  "bucket-name",
 			},
@@ -108,10 +93,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			Description: "All defined",
-			Input: &ClientConfig{
-				Listen: ListenerConfig{
-					PullInterval: time.Hour * 24,
-				},
+			Input: &BasicClientConfig{
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
@@ -124,7 +106,7 @@ func TestValidateConfig(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
-			err := validateConfig(tc.Input)
+			err := validateBasicConfig(tc.Input)
 			assert.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedErr == nil {
 				assert.Equal(tc.ExpectedConfig, tc.Input)
@@ -194,11 +176,11 @@ func TestSendRequest(t *testing.T) {
 			server := httptest.NewServer(echoHandler)
 			defer server.Close()
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.AcquirerFails {
 				client.auth = acquirerFunc(failAcquirer)
@@ -292,11 +274,11 @@ func TestGetItems(t *testing.T) {
 				rw.Write(tc.ResponsePayload)
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			require.Nil(err)
 
@@ -428,11 +410,11 @@ func TestPushItem(t *testing.T) {
 				}
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -526,11 +508,11 @@ func TestRemoveItem(t *testing.T) {
 				rw.Write(tc.ResponsePayload)
 			}))
 
-			client, err := NewClient(ClientConfig{
+			client, err := NewBasicClient(BasicClientConfig{
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, &Measures{}, nil, nil)
+			}, nil, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -586,165 +568,6 @@ func TestTranslateStatusCode(t *testing.T) {
 	}
 }
 
-func TestListenerStartStopPairsParallel(t *testing.T) {
-	require := require.New(t)
-	client, close := newStartStopClient(true)
-	defer close()
-
-	t.Run("ParallelGroup", func(t *testing.T) {
-		for i := 0; i < 20; i++ {
-			testNumber := i
-			t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
-				t.Parallel()
-				assert := assert.New(t)
-				fmt.Printf("%d: Start\n", testNumber)
-				errStart := client.Start(context.Background())
-				if errStart != nil {
-					assert.Equal(ErrListenerNotStopped, errStart)
-				}
-				time.Sleep(time.Millisecond * 400)
-				errStop := client.Stop(context.Background())
-				if errStop != nil {
-					assert.Equal(ErrListenerNotRunning, errStop)
-				}
-				fmt.Printf("%d: Done\n", testNumber)
-			})
-		}
-	})
-
-	require.Equal(stopped, client.observer.state)
-}
-
-func TestListenerStartStopPairsSerial(t *testing.T) {
-	require := require.New(t)
-	client, close := newStartStopClient(true)
-	defer close()
-
-	for i := 0; i < 5; i++ {
-		testNumber := i
-		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
-			assert := assert.New(t)
-			fmt.Printf("%d: Start\n", testNumber)
-			assert.Nil(client.Start(context.Background()))
-			assert.Nil(client.Stop(context.Background()))
-			fmt.Printf("%d: Done\n", testNumber)
-		})
-	}
-	require.Equal(stopped, client.observer.state)
-}
-
-func TestListenerEdgeCases(t *testing.T) {
-	t.Run("NoListener", func(t *testing.T) {
-		client, stopServer := newStartStopClient(false)
-		defer stopServer()
-		assert := assert.New(t)
-		assert.Nil(client.Start(context.Background()))
-		assert.Nil(client.Stop(context.Background()))
-	})
-
-	t.Run("NilTicker", func(t *testing.T) {
-		assert := assert.New(t)
-		client, stopServer := newStartStopClient(true)
-		defer stopServer()
-		client.observer.ticker = nil
-		assert.Equal(ErrUndefinedIntervalTicker, client.Start(context.Background()))
-	})
-
-	t.Run("PartialUpdateFailures", func(t *testing.T) {
-		assert := assert.New(t)
-		tester := &getItemsStartStopTester{}
-		client, stopServer := tester.newSpecialStartStopClient()
-		defer stopServer()
-
-		assert.Nil(client.Start(context.Background()))
-
-		time.Sleep(time.Millisecond * 500)
-		assert.Nil(client.Stop(context.Background()))
-		assert.Len(tester.items, 1)
-	})
-}
-
-func newStartStopClient(includeListener bool) (*Client, func()) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Write(getItemsValidPayload())
-	}))
-	config := ClientConfig{
-		Address:    server.URL,
-		HTTPClient: server.Client(),
-		Bucket:     "parallel-test-bucket",
-		Logger:     xlog.Default(),
-		Listen: ListenerConfig{
-			PullInterval: time.Millisecond * 200,
-		},
-	}
-	if includeListener {
-		config.Listen.Listener = ListenerFunc((func(_ Items) {
-			fmt.Println("Doing amazing work for 100ms")
-			time.Sleep(time.Millisecond * 100)
-		}))
-	}
-
-	client, err := NewClient(config, &Measures{
-		Polls: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "testPollsCounter",
-				Help: "testPollsCounter",
-			},
-			[]string{OutcomeLabel},
-		),
-	}, nil, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return client, server.Close
-}
-
-type getItemsStartStopTester struct {
-	items Items
-}
-
-func (g *getItemsStartStopTester) newSpecialStartStopClient() (*Client, func()) {
-	succeed := true
-	succeedFirstTimeOnlyServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if succeed {
-			rw.Write(getItemsValidPayload())
-			succeed = false
-		} else {
-			rw.WriteHeader(http.StatusInternalServerError)
-		}
-	}))
-
-	config := ClientConfig{
-		Address:    succeedFirstTimeOnlyServer.URL,
-		HTTPClient: succeedFirstTimeOnlyServer.Client(),
-		Listen: ListenerConfig{
-			Listener: ListenerFunc((func(items Items) {
-				fmt.Println("Capturing all items")
-				g.items = append(g.items, items...)
-			})),
-			PullInterval: time.Millisecond * 200,
-		},
-		Bucket: "parallel-test-bucket",
-		Logger: xlog.Default(),
-	}
-
-	client, err := NewClient(config, &Measures{
-		Polls: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "testPollsCounter",
-				Help: "testPollsCounter",
-			},
-			[]string{OutcomeLabel},
-		)}, nil, nil)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return client, succeedFirstTimeOnlyServer.Close
-}
-
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }
@@ -753,6 +576,31 @@ type acquirerFunc func() (string, error)
 
 func (a acquirerFunc) Acquire() (string, error) {
 	return a()
+}
+
+func getRemoveItemValidPayload() []byte {
+	return []byte(`
+	{
+		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		"data": {
+		  "words": [
+			"Hello","World"
+		  ],
+		  "year": 2021
+		},
+		"ttl": 100
+	}`)
+}
+
+func getRemoveItemHappyOutput() model.Item {
+	return model.Item{
+		ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		Data: map[string]interface{}{
+			"words": []interface{}{"Hello", "World"},
+			"year":  float64(2021),
+		},
+		TTL: aws.Int64(100),
+	}
 }
 
 func getItemsValidPayload() []byte {
@@ -778,30 +626,5 @@ func getItemsHappyOutput() Items {
 			},
 			TTL: aws.Int64(255),
 		},
-	}
-}
-
-func getRemoveItemValidPayload() []byte {
-	return []byte(`
-	{
-		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-		"data": {
-		  "words": [
-			"Hello","World"
-		  ],
-		  "year": 2021
-		},
-		"ttl": 100
-	}`)
-}
-
-func getRemoveItemHappyOutput() model.Item {
-	return model.Item{
-		ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-		Data: map[string]interface{}{
-			"words": []interface{}{"Hello", "World"},
-			"year":  float64(2021),
-		},
-		TTL: aws.Int64(100),
 	}
 }

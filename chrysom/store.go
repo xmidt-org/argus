@@ -20,7 +20,6 @@ package chrysom
 import (
 	"context"
 
-	"github.com/go-kit/kit/log"
 	"github.com/xmidt-org/argus/model"
 )
 
@@ -47,58 +46,16 @@ type Listener interface {
 
 type ListenerFunc func(items Items)
 
-func (listener ListenerFunc) Update(items Items) {
-	listener(items)
+func (l ListenerFunc) Update(items Items) {
+	l(items)
 }
 
 type Reader interface {
 	// GeItems returns all the items that belong to this owner.
 	GetItems(ctx context.Context, owner string) (Items, error)
-
-	// Start kicks off listening for snapshots of all items in the store.
-	Start(ctx context.Context) error
-
-	// Stop will stop the listener provided there was an active one.
-	Stop(ctx context.Context) error
 }
 
 type ConfigureListener interface {
 	// SetListener will attempt to set the lister.
 	SetListener(listener Listener) error
-}
-
-type storeConfig struct {
-	logger   log.Logger
-	backend  Pusher
-	listener Listener
-}
-
-// Option is the function used to configure a store.
-type Option func(r *storeConfig)
-
-// WithLogger sets a logger to use for the store.
-func WithLogger(logger log.Logger) Option {
-	return func(r *storeConfig) {
-		if logger != nil {
-			r.logger = logger
-		}
-	}
-}
-
-// WithStorage sets a Pusher to use for the store.
-func WithStorage(pusher Pusher) Option {
-	return func(r *storeConfig) {
-		if pusher != nil {
-			r.backend = pusher
-		}
-	}
-}
-
-// WithListener sets a Listener to use for the store.
-func WithListener(listener Listener) Option {
-	return func(r *storeConfig) {
-		if listener != nil {
-			r.listener = listener
-		}
-	}
 }
