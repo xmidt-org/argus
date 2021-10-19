@@ -39,6 +39,14 @@ var (
 		fmt.Println("Doing amazing work for 100ms")
 		time.Sleep(time.Millisecond * 100)
 	}))
+	mockMeasures = &Measures{
+		Polls: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "testPollsCounter",
+				Help: "testPollsCounter",
+			},
+			[]string{OutcomeLabel},
+		)}
 	happyListenerClientConfig = ListenerClientConfig{
 		Listener:     mockListener,
 		PullInterval: time.Second,
@@ -123,14 +131,7 @@ func newStartStopClient(includeListener bool) (*ListenerClient, func(), error) {
 	if includeListener {
 		config.Listener = mockListener
 	}
-	client, err := NewListenerClient(config, nil, &Measures{
-		Polls: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "testPollsCounter",
-				Help: "testPollsCounter",
-			},
-			[]string{OutcomeLabel},
-		)}, &BasicClient{})
+	client, err := NewListenerClient(config, nil, mockMeasures, &BasicClient{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -186,13 +187,21 @@ func TestNewListenerClient(t *testing.T) {
 			expectedErr: ErrNoListenerProvided,
 		},
 		{
-			desc: "No measures Failure",
+			desc:        "No measures Failure",
+			config:      happyListenerClientConfig,
+			expectedErr: ErrNilMeasures,
 		},
 		{
-			desc: "No reader Failure",
+			desc:        "No reader Failure",
+			config:      happyListenerClientConfig,
+			measures:    mockMeasures,
+			expectedErr: ErrNoReaderProvided,
 		},
 		{
-			desc: "Happy Success",
+			desc:     "Happy case Success",
+			config:   happyListenerClientConfig,
+			measures: mockMeasures,
+			reader:   &BasicClient{},
 		},
 	}
 	for _, tc := range tcs {
