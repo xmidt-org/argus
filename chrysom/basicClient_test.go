@@ -26,34 +26,25 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-kit/kit/log"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/themis/xlog"
 )
 
 const failingURL = "nowhere://"
 
-func TestInterface(t *testing.T) {
-	assert := assert.New(t)
-	var client interface{} = &BasicClient{}
-	_, ok := client.(Pusher)
-	assert.True(ok, "not a pusher")
-	_, ok = client.(Reader)
-	assert.True(ok, "not a reader")
-	_, ok = client.(PushReader)
-	assert.True(ok, "not a PushReader")
-}
+var (
+	_ Pusher = &BasicClient{}
+	_ Reader = &BasicClient{}
+)
 
-func TestValidateConfig(t *testing.T) {
+func TestValidateBasicConfig(t *testing.T) {
 	type testCase struct {
 		Description    string
 		Input          *BasicClientConfig
@@ -577,154 +568,6 @@ func TestTranslateStatusCode(t *testing.T) {
 	}
 }
 
-func TestListenerStartStopPairsParallel(t *testing.T) {
-	require := require.New(t)
-	client, close, err := newStartStopClient(true)
-	assert.Nil(t, err)
-	defer close()
-
-	t.Run("ParallelGroup", func(t *testing.T) {
-		for i := 0; i < 20; i++ {
-			testNumber := i
-			t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
-				t.Parallel()
-				assert := assert.New(t)
-				fmt.Printf("%d: Start\n", testNumber)
-				errStart := client.Start(context.Background())
-				if errStart != nil {
-					assert.Equal(ErrListenerNotStopped, errStart)
-				}
-				time.Sleep(time.Millisecond * 400)
-				errStop := client.Stop(context.Background())
-				if errStop != nil {
-					assert.Equal(ErrListenerNotRunning, errStop)
-				}
-				fmt.Printf("%d: Done\n", testNumber)
-			})
-		}
-	})
-
-	require.Equal(stopped, client.observer.state)
-}
-
-func TestListenerStartStopPairsSerial(t *testing.T) {
-	require := require.New(t)
-	client, close, err := newStartStopClient(true)
-	assert.Nil(t, err)
-	defer close()
-
-	for i := 0; i < 5; i++ {
-		testNumber := i
-		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
-			assert := assert.New(t)
-			fmt.Printf("%d: Start\n", testNumber)
-			assert.Nil(client.Start(context.Background()))
-			assert.Nil(client.Stop(context.Background()))
-			fmt.Printf("%d: Done\n", testNumber)
-		})
-	}
-	require.Equal(stopped, client.observer.state)
-}
-
-func TestListenerEdgeCases(t *testing.T) {
-	t.Run("NoListener", func(t *testing.T) {
-		_, _, err := newStartStopClient(false)
-		assert.Equal(t, ErrNoListenerProvided, err)
-	})
-
-	t.Run("NilTicker", func(t *testing.T) {
-		assert := assert.New(t)
-		client, stopServer, err := newStartStopClient(true)
-		assert.Nil(err)
-		defer stopServer()
-		client.observer.ticker = nil
-		assert.Equal(ErrUndefinedIntervalTicker, client.Start(context.Background()))
-	})
-
-	t.Run("PartialUpdateFailures", func(t *testing.T) {
-		assert := assert.New(t)
-		tester := &getItemsStartStopTester{}
-		client, stopServer := tester.newSpecialStartStopClient()
-		defer stopServer()
-
-		assert.Nil(client.Start(context.Background()))
-
-		time.Sleep(time.Millisecond * 500)
-		assert.Nil(client.Stop(context.Background()))
-		assert.Len(tester.items, 1)
-	})
-}
-
-func newStartStopClient(includeListener bool) (*ListenerClient, func(), error) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Write(getItemsValidPayload())
-	}))
-
-	config := ListenerClientConfig{
-		PullInterval: time.Millisecond * 200,
-		Logger:       xlog.Default(),
-	}
-	if includeListener {
-		config.Listener = ListenerFunc((func(_ Items) {
-			fmt.Println("Doing amazing work for 100ms")
-			time.Sleep(time.Millisecond * 100)
-		}))
-	}
-	client, err := NewListenerClient(config, nil, &Measures{
-		Polls: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "testPollsCounter",
-				Help: "testPollsCounter",
-			},
-			[]string{OutcomeLabel},
-		)}, &BasicClient{})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return client, server.Close, nil
-}
-
-type getItemsStartStopTester struct {
-	items Items
-}
-
-func (g *getItemsStartStopTester) newSpecialStartStopClient() (*ListenerClient, func()) {
-	succeed := true
-	succeedFirstTimeOnlyServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if succeed {
-			rw.Write(getItemsValidPayload())
-			succeed = false
-		} else {
-			rw.WriteHeader(http.StatusInternalServerError)
-		}
-	}))
-
-	config := ListenerClientConfig{
-		Listener: ListenerFunc((func(items Items) {
-			fmt.Println("Capturing all items")
-			g.items = append(g.items, items...)
-		})),
-		PullInterval: time.Millisecond * 200,
-		Logger:       xlog.Default(),
-	}
-
-	client, err := NewListenerClient(config, nil, &Measures{
-		Polls: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "testPollsCounter",
-				Help: "testPollsCounter",
-			},
-			[]string{OutcomeLabel},
-		)}, &BasicClient{})
-
-	if err != nil {
-		panic(err)
-	}
-
-	return client, succeedFirstTimeOnlyServer.Close
-}
-
 func failAcquirer() (string, error) {
 	return "", errors.New("always fail")
 }
@@ -733,6 +576,31 @@ type acquirerFunc func() (string, error)
 
 func (a acquirerFunc) Acquire() (string, error) {
 	return a()
+}
+
+func getRemoveItemValidPayload() []byte {
+	return []byte(`
+	{
+		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		"data": {
+		  "words": [
+			"Hello","World"
+		  ],
+		  "year": 2021
+		},
+		"ttl": 100
+	}`)
+}
+
+func getRemoveItemHappyOutput() model.Item {
+	return model.Item{
+		ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
+		Data: map[string]interface{}{
+			"words": []interface{}{"Hello", "World"},
+			"year":  float64(2021),
+		},
+		TTL: aws.Int64(100),
+	}
 }
 
 func getItemsValidPayload() []byte {
@@ -758,30 +626,5 @@ func getItemsHappyOutput() Items {
 			},
 			TTL: aws.Int64(255),
 		},
-	}
-}
-
-func getRemoveItemValidPayload() []byte {
-	return []byte(`
-	{
-		"id": "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-		"data": {
-		  "words": [
-			"Hello","World"
-		  ],
-		  "year": 2021
-		},
-		"ttl": 100
-	}`)
-}
-
-func getRemoveItemHappyOutput() model.Item {
-	return model.Item{
-		ID: "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7",
-		Data: map[string]interface{}{
-			"words": []interface{}{"Hello", "World"},
-			"year":  float64(2021),
-		},
-		TTL: aws.Int64(100),
 	}
 }

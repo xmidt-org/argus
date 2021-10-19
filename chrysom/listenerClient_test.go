@@ -1,0 +1,208 @@
+/**
+ * Copyright 2021 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package chrysom
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/xmidt-org/themis/xlog"
+)
+
+var (
+	// _ Reader = ListenerClient{}
+	mockListener = ListenerFunc((func(_ Items) {
+		fmt.Println("Doing amazing work for 100ms")
+		time.Sleep(time.Millisecond * 100)
+	}))
+	happyListenerClientConfig = ListenerClientConfig{
+		Listener:     mockListener,
+		PullInterval: time.Second,
+		Logger:       xlog.Default(),
+	}
+)
+
+func TestListenerStartStopPairsParallel(t *testing.T) {
+	require := require.New(t)
+	client, close, err := newStartStopClient(true)
+	assert.Nil(t, err)
+	defer close()
+
+	t.Run("ParallelGroup", func(t *testing.T) {
+		for i := 0; i < 20; i++ {
+			testNumber := i
+			t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+				t.Parallel()
+				assert := assert.New(t)
+				fmt.Printf("%d: Start\n", testNumber)
+				errStart := client.Start(context.Background())
+				if errStart != nil {
+					assert.Equal(ErrListenerNotStopped, errStart)
+				}
+				time.Sleep(time.Millisecond * 400)
+				errStop := client.Stop(context.Background())
+				if errStop != nil {
+					assert.Equal(ErrListenerNotRunning, errStop)
+				}
+				fmt.Printf("%d: Done\n", testNumber)
+			})
+		}
+	})
+
+	require.Equal(stopped, client.observer.state)
+}
+
+func TestListenerStartStopPairsSerial(t *testing.T) {
+	require := require.New(t)
+	client, close, err := newStartStopClient(true)
+	assert.Nil(t, err)
+	defer close()
+
+	for i := 0; i < 5; i++ {
+		testNumber := i
+		t.Run(strconv.Itoa(testNumber), func(t *testing.T) {
+			assert := assert.New(t)
+			fmt.Printf("%d: Start\n", testNumber)
+			assert.Nil(client.Start(context.Background()))
+			assert.Nil(client.Stop(context.Background()))
+			fmt.Printf("%d: Done\n", testNumber)
+		})
+	}
+	require.Equal(stopped, client.observer.state)
+}
+
+func TestListenerEdgeCases(t *testing.T) {
+	t.Run("NoListener", func(t *testing.T) {
+		_, _, err := newStartStopClient(false)
+		assert.Equal(t, ErrNoListenerProvided, err)
+	})
+
+	t.Run("NilTicker", func(t *testing.T) {
+		assert := assert.New(t)
+		client, stopServer, err := newStartStopClient(true)
+		assert.Nil(err)
+		defer stopServer()
+		client.observer.ticker = nil
+		assert.Equal(ErrUndefinedIntervalTicker, client.Start(context.Background()))
+	})
+}
+
+func newStartStopClient(includeListener bool) (*ListenerClient, func(), error) {
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write(getItemsValidPayload())
+	}))
+
+	config := ListenerClientConfig{
+		PullInterval: time.Millisecond * 200,
+		Logger:       xlog.Default(),
+	}
+	if includeListener {
+		config.Listener = mockListener
+	}
+	client, err := NewListenerClient(config, nil, &Measures{
+		Polls: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "testPollsCounter",
+				Help: "testPollsCounter",
+			},
+			[]string{OutcomeLabel},
+		)}, &BasicClient{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return client, server.Close, nil
+}
+
+func TestValidateListenerConfig(t *testing.T) {
+	tcs := []struct {
+		desc        string
+		expectedErr error
+		config      ListenerClientConfig
+	}{
+		{
+			desc:   "Happy case Success",
+			config: happyListenerClientConfig,
+		},
+		{
+			desc:        "No listener Failure",
+			config:      ListenerClientConfig{},
+			expectedErr: ErrNoListenerProvided,
+		},
+		{
+			desc: "No logger and no pull interval Success",
+			config: ListenerClientConfig{
+				Listener: mockListener,
+			},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.desc, func(t *testing.T) {
+			assert := assert.New(t)
+			err := validateListenerConfig(&tc.config)
+			assert.True(errors.Is(err, tc.expectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, tc.expectedErr),
+			)
+		})
+	}
+}
+
+func TestNewListenerClient(t *testing.T) {
+	tcs := []struct {
+		desc        string
+		config      ListenerClientConfig
+		expectedErr error
+		measures    *Measures
+		reader      Reader
+	}{
+		{
+			desc:        "Listener Config Failure",
+			config:      ListenerClientConfig{},
+			expectedErr: ErrNoListenerProvided,
+		},
+		{
+			desc: "No measures Failure",
+		},
+		{
+			desc: "No reader Failure",
+		},
+		{
+			desc: "Happy Success",
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.desc, func(t *testing.T) {
+			assert := assert.New(t)
+			_, err := NewListenerClient(tc.config, nil, tc.measures, tc.reader)
+			assert.True(errors.Is(err, tc.expectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, tc.expectedErr),
+			)
+		})
+	}
+}

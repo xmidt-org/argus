@@ -47,8 +47,8 @@ type Listener interface {
 
 type ListenerFunc func(items Items)
 
-func (listener ListenerFunc) Update(items Items) {
-	listener(items)
+func (l ListenerFunc) Update(items Items) {
+	l(items)
 }
 
 type Reader interface {

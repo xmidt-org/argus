@@ -55,6 +55,26 @@ var (
 	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
 )
 
+type BasicClientConfig struct {
+	// Address is the Argus URL (i.e. https://example-argus.io:8090)
+	Address string
+
+	// Bucket partition to be used by this client.
+	Bucket string
+
+	// HTTPClient refers to the client that will be used to send requests.
+	// (Optional) Defaults to http.DefaultClient.
+	HTTPClient *http.Client
+
+	// Auth provides the mechanism to add auth headers to outgoing requests.
+	// (Optional) If not provided, no auth headers are added.
+	Auth Auth
+
+	// Logger to be used by the client.
+	// (Optional). By default a no op logger will be used.
+	Logger log.Logger
+}
+
 type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
@@ -76,14 +96,10 @@ type response struct {
 	Code             int
 }
 
-// PushResult is a simple type to indicate the result type for the
-// PushItem operation.
-type PushResult string
-
-// Types of pushItem successful results.
 const (
-	CreatedPushResult PushResult = "created"
-	UpdatedPushResult PushResult = "ok"
+	storeAPIPath     = "/api/v1/store"
+	errWrappedFmt    = "%w: %s"
+	errStatusCodeFmt = "statusCode %v: %w"
 )
 
 type Items []model.Item
@@ -106,7 +122,7 @@ func NewBasicClient(config BasicClientConfig,
 			return ctx
 		}
 	}
-	tokenAcquirer, err := buildTokenAcquirer(&config.Auth)
+	tokenAcquirer, err := buildTokenAcquirer(config.Auth)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +277,7 @@ func translateNonSuccessStatusCode(code int) error {
 	}
 }
 
-func buildTokenAcquirer(auth *Auth) (acquire.Acquirer, error) {
+func buildTokenAcquirer(auth Auth) (acquire.Acquirer, error) {
 	if !isEmpty(auth.JWT) {
 		return acquire.NewRemoteBearerTokenAcquirer(auth.JWT)
 	} else if len(auth.Basic) > 0 {

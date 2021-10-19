@@ -29,12 +29,6 @@ import (
 	"github.com/xmidt-org/themis/xlog"
 )
 
-const (
-	storeAPIPath     = "/api/v1/store"
-	errWrappedFmt    = "%w: %s"
-	errStatusCodeFmt = "statusCode %v: %w"
-)
-
 // Errors that can be returned by this package. Since some of these errors are returned wrapped, it
 // is safest to use errors.Is() to check for them.
 // Some internal errors might be unwrapped from output errors but unless these errors become exported,
@@ -45,6 +39,7 @@ var (
 	ErrListenerNotStopped = errors.New("listener is either running or starting")
 	ErrListenerNotRunning = errors.New("listener is either stopped or stopping")
 	ErrNoListenerProvided = errors.New("no listener provided")
+	ErrNoReaderProvided   = errors.New("no reader provided")
 )
 
 // listening states
@@ -53,6 +48,26 @@ const (
 	running
 	transitioning
 )
+
+const (
+	defaultPullInterval = time.Second * 5
+)
+
+// ListenerConfig contains config data to enable listening for the Argus client.
+type ListenerClientConfig struct {
+	// Listener provides a mechanism to fetch a copy of all items within a bucket on
+	// an interval.
+	// (Optional). If not provided, listening won't be enabled for this client.
+	Listener Listener
+
+	// PullInterval is how often listeners should get updates.
+	// (Optional). Defaults to 5 seconds.
+	PullInterval time.Duration
+
+	// Logger to be used by the client.
+	// (Optional). By default a no op logger will be used.
+	Logger log.Logger
+}
 
 type ListenerClient struct {
 	observer  *observerConfig
@@ -85,6 +100,9 @@ func NewListenerClient(config ListenerClientConfig,
 		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
 			return ctx
 		}
+	}
+	if r == nil {
+		return nil, ErrNoReaderProvided
 	}
 	return &ListenerClient{
 		observer: &observerConfig{
@@ -171,7 +189,7 @@ func validateListenerConfig(config *ListenerClientConfig) error {
 		config.Logger = log.NewNopLogger()
 	}
 	if config.PullInterval == 0 {
-		config.PullInterval = time.Second * 5
+		config.PullInterval = defaultPullInterval
 	}
 	return nil
 }
