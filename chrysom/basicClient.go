@@ -172,17 +172,17 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Item) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
-		return "", err
+		return NilPushResult, err
 	}
 
 	data, err := json.Marshal(item)
 	if err != nil {
-		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
+		return NilPushResult, fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
 	response, err := c.sendRequest(ctx, owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
-		return "", err
+		return NilPushResult, err
 	}
 
 	if response.Code == http.StatusCreated {
@@ -196,7 +196,7 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
 		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
-	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+	return NilPushResult, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
