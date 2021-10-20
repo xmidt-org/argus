@@ -93,7 +93,7 @@ type KeyNotFoundError struct {
 
 func (knfe KeyNotFoundError) Error() string {
 	if knfe.Key.ID == "" && knfe.Key.Bucket == "" {
-		return fmt.Sprint("parameters for key not set")
+		return "parameters for key not set"
 	} else if knfe.Key.ID == "" && knfe.Key.Bucket != "" {
 		return fmt.Sprintf("no value exists for bucket %s", knfe.Key.Bucket)
 

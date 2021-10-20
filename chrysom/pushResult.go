@@ -26,3 +26,7 @@ const (
 	CreatedPushResult PushResult = "created"
 	UpdatedPushResult PushResult = "ok"
 )
+
+func String() {
+
+}
