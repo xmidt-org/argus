@@ -27,6 +27,12 @@ const (
 	UpdatedPushResult PushResult = "ok"
 )
 
-func String() {
-
+func (p PushResult) String() string {
+	switch p {
+	case CreatedPushResult:
+		return "created"
+	case UpdatedPushResult:
+		return "ok"
+	}
+	return "unknown"
 }
