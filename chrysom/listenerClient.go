@@ -53,7 +53,7 @@ const (
 	defaultPullInterval = time.Second * 5
 )
 
-// ListenerConfig contains config data to enable listening for the Argus client.
+// ListenerConfig contains config data for polling the Argus client.
 type ListenerClientConfig struct {
 	// Listener provides a mechanism to fetch a copy of all items within a bucket on
 	// an interval.
@@ -69,6 +69,7 @@ type ListenerClientConfig struct {
 	Logger log.Logger
 }
 
+// ListenerClient is the client used to poll Argus for updates.
 type ListenerClient struct {
 	observer  *observerConfig
 	logger    log.Logger
@@ -85,6 +86,7 @@ type observerConfig struct {
 	state        int32
 }
 
+// NewListenerClient creates a new
 func NewListenerClient(config ListenerClientConfig,
 	setLogger func(context.Context, log.Logger) context.Context,
 	measures *Measures, r Reader,

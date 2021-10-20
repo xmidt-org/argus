@@ -55,6 +55,8 @@ var (
 	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
 )
 
+// BasicClientConfig contains config data for the client that will be used to
+// make requests to the Argus client.
 type BasicClientConfig struct {
 	// Address is the Argus URL (i.e. https://example-argus.io:8090)
 	Address string
@@ -75,6 +77,7 @@ type BasicClientConfig struct {
 	Logger log.Logger
 }
 
+// BasicClient is the client used to make requests to Argus.
 type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
@@ -85,6 +88,7 @@ type BasicClient struct {
 	setLogger    func(context.Context, log.Logger) context.Context
 }
 
+// Auth contains authorization data for requests to Argus.
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
@@ -102,6 +106,7 @@ const (
 	errStatusCodeFmt = "statusCode %v: %w"
 )
 
+// Items is a slice of model.Item(s) .
 type Items []model.Item
 
 func NewBasicClient(config BasicClientConfig,
