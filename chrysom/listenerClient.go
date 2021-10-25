@@ -86,7 +86,8 @@ type observerConfig struct {
 	state        int32
 }
 
-// NewListenerClient creates a new
+// NewListenerClient creates a new ListenerClient to be used to poll Argus
+// for updates.
 func NewListenerClient(config ListenerClientConfig,
 	setLogger func(context.Context, log.Logger) context.Context,
 	measures *Measures, r Reader,

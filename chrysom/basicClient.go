@@ -109,6 +109,8 @@ const (
 // Items is a slice of model.Item(s) .
 type Items []model.Item
 
+// NewBasicClient creates a new BasicClient that can be used to
+// make requests to Argus.
 func NewBasicClient(config BasicClientConfig,
 	getLogger func(context.Context) log.Logger,
 	setLogger func(context.Context, log.Logger) context.Context,
