@@ -24,3 +24,6 @@ vendor/
 
 # docker-compose
 deploy/docker-compose/
+
+# misc
+coverage.txt

@@ -23,7 +23,8 @@ type PushResult int64
 
 // Types of pushItem successful results.
 const (
-	CreatedPushResult PushResult = iota
+	UnknownPushResult PushResult = iota
+	CreatedPushResult
 	UpdatedPushResult
 	NilPushResult
 )
