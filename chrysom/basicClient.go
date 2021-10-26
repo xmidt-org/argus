@@ -55,6 +55,8 @@ var (
 	errJSONMarshal        = errors.New("failed marshaling item as JSON payload")
 )
 
+// BasicClientConfig contains config data for the client that will be used to
+// make requests to the Argus client.
 type BasicClientConfig struct {
 	// Address is the Argus URL (i.e. https://example-argus.io:8090)
 	Address string
@@ -75,6 +77,7 @@ type BasicClientConfig struct {
 	Logger log.Logger
 }
 
+// BasicClient is the client used to make requests to Argus.
 type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
@@ -85,6 +88,7 @@ type BasicClient struct {
 	setLogger    func(context.Context, log.Logger) context.Context
 }
 
+// Auth contains authorization data for requests to Argus.
 type Auth struct {
 	JWT   acquire.RemoteBearerTokenAcquirerOptions
 	Basic string
@@ -102,8 +106,11 @@ const (
 	errStatusCodeFmt = "statusCode %v: %w"
 )
 
+// Items is a slice of model.Item(s) .
 type Items []model.Item
 
+// NewBasicClient creates a new BasicClient that can be used to
+// make requests to Argus.
 func NewBasicClient(config BasicClientConfig,
 	getLogger func(context.Context) log.Logger,
 	setLogger func(context.Context, log.Logger) context.Context,
@@ -167,17 +174,17 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Item) (PushResult, error) {
 	err := validatePushItemInput(owner, item)
 	if err != nil {
-		return "", err
+		return NilPushResult, err
 	}
 
 	data, err := json.Marshal(item)
 	if err != nil {
-		return "", fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
+		return NilPushResult, fmt.Errorf(errWrappedFmt, errJSONMarshal, err.Error())
 	}
 
 	response, err := c.sendRequest(ctx, owner, http.MethodPut, fmt.Sprintf("%s/%s/%s", c.storeBaseURL, c.bucket, item.ID), bytes.NewReader(data))
 	if err != nil {
-		return "", err
+		return NilPushResult, err
 	}
 
 	if response.Code == http.StatusCreated {
@@ -191,7 +198,7 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
 		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
 
-	return "", fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+	return NilPushResult, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.

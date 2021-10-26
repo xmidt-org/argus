@@ -376,7 +376,6 @@ func TestPushItem(t *testing.T) {
 			ResponseCode:   http.StatusOK,
 			ExpectedOutput: UpdatedPushResult,
 		},
-
 		{
 			Description:    "Update success with owner",
 			Item:           validItem,

@@ -82,7 +82,6 @@ type Config struct {
 type Client struct {
 	client   dbStore
 	config   Config
-	logger   *zap.Logger
 	measures metric.Measures
 }
 
