@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 - Split Chrysom client into BasicClient and ListenerClient. [#206](https://github.com/xmidt-org/argus/pull/206)
+- Bumped spf13 and added documentation. [#220](https://github.com/xmidt-org/argus/pull/220)
 
 ## [v0.5.2]
 - Update store section in sample config files. [#200](https://github.com/xmidt-org/argus/pull/200)
