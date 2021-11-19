@@ -32,13 +32,6 @@ var errRegexCompilation = errors.New("regex could not be compiled")
 // allow up to 31 nested objects in item data by default
 const defaultItemDataMaxDepth uint = 30
 
-type handlerIn struct {
-	fx.In
-	getLogger GetLoggerFunc
-	Store     S
-	Config    *transportConfig
-}
-
 // ProvideHandlers fetches all dependencies and builds the four main handlers for this store.
 func ProvideHandlers() fx.Option {
 	return fx.Provide(

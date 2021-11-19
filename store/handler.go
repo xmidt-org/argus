@@ -18,10 +18,13 @@
 package store
 
 import (
+	"context"
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/xmidt-org/argus/model"
+	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 type Handler http.Handler
@@ -32,12 +35,19 @@ type KeyItemPairRequest struct {
 	Method string
 }
 
+type handlerIn struct {
+	fx.In
+	GetLogger func(context.Context) *zap.Logger
+	Store     S
+	Config    *transportConfig
+}
+
 func newGetItemHandler(in handlerIn) Handler {
 	return kithttp.NewServer(
 		newGetItemEndpoint(in.Store),
 		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
-		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
+		kithttp.ServerErrorEncoder(encodeError(in.GetLogger)),
 	)
 }
 
@@ -46,7 +56,7 @@ func newDeleteItemHandler(in handlerIn) Handler {
 		newDeleteItemEndpoint(in.Store),
 		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
-		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
+		kithttp.ServerErrorEncoder(encodeError(in.GetLogger)),
 	)
 }
 
@@ -55,7 +65,7 @@ func newGetAllItemsHandler(in handlerIn) Handler {
 		newGetAllItemsEndpoint(in.Store),
 		getAllItemsRequestDecoder(in.Config),
 		encodeGetAllItemsResponse,
-		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
+		kithttp.ServerErrorEncoder(encodeError(in.GetLogger)),
 	)
 }
 
@@ -64,6 +74,6 @@ func newSetItemHandler(in handlerIn) Handler {
 		newSetItemEndpoint(in.Store),
 		setItemRequestDecoder(in.Config),
 		encodeSetItemResponse,
-		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
+		kithttp.ServerErrorEncoder(encodeError(in.GetLogger)),
 	)
 }
