@@ -34,9 +34,9 @@ const defaultItemDataMaxDepth uint = 30
 
 type handlerIn struct {
 	fx.In
-
-	Store  S
-	Config *transportConfig
+	getLogger GetLoggerFunc
+	Store     S
+	Config    *transportConfig
 }
 
 // ProvideHandlers fetches all dependencies and builds the four main handlers for this store.

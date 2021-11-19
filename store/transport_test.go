@@ -28,6 +28,7 @@ func TestEncodeError(t *testing.T) {
 		InputErr        error
 		ExpectedHeaders http.Header
 		ExpectedCode    int
+		GetLogger       GetLoggerFunc
 	}{
 		{
 			Description: "Headers and code",
@@ -54,7 +55,8 @@ func TestEncodeError(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			w := httptest.NewRecorder()
-			encodeError(context.Background(), tc.InputErr, w)
+			e := encodeError(tc.GetLogger)
+			e(context.Background(), tc.InputErr, w)
 			assert.Equal(tc.ExpectedCode, w.Code)
 			assert.Equal(tc.ExpectedHeaders, w.Header())
 		})

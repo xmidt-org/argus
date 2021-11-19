@@ -37,7 +37,7 @@ func newGetItemHandler(in handlerIn) Handler {
 		newGetItemEndpoint(in.Store),
 		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
 	)
 }
 
@@ -46,7 +46,7 @@ func newDeleteItemHandler(in handlerIn) Handler {
 		newDeleteItemEndpoint(in.Store),
 		getOrDeleteItemRequestDecoder(in.Config),
 		encodeGetOrDeleteItemResponse,
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
 	)
 }
 
@@ -55,7 +55,7 @@ func newGetAllItemsHandler(in handlerIn) Handler {
 		newGetAllItemsEndpoint(in.Store),
 		getAllItemsRequestDecoder(in.Config),
 		encodeGetAllItemsResponse,
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
 	)
 }
 
@@ -64,6 +64,6 @@ func newSetItemHandler(in handlerIn) Handler {
 		newSetItemEndpoint(in.Store),
 		setItemRequestDecoder(in.Config),
 		encodeSetItemResponse,
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeError(in.getLogger)),
 	)
 }
