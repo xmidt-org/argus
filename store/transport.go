@@ -18,6 +18,7 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
+	"go.uber.org/zap"
 )
 
 // request URL path keys.
@@ -44,6 +45,10 @@ var (
 	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
 	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
 )
+
+// GetLoggerFunc is the function used to get a request-specific logger from
+// its context.
+type GetLoggerFunc func(context.Context) *zap.Logger
 
 type transportConfig struct {
 	AccessLevelAttributeKey string
@@ -217,23 +222,37 @@ func transferHeaders(w http.ResponseWriter, h http.Header) {
 	}
 }
 
-func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	var headerer kithttp.Headerer
-	if errors.As(err, &headerer) {
-		transferHeaders(w, headerer.Headers())
+func encodeError(getLogger GetLoggerFunc) kithttp.ErrorEncoder {
+	if getLogger == nil {
+		getLogger = func(_ context.Context) *zap.Logger {
+			return nil
+		}
 	}
 
-	var sErrorer sanitizedErrorer
-	if errors.As(err, &sErrorer) {
-		w.Header().Set(XmidtErrorHeaderKey, sErrorer.SanitizedError())
-	}
+	return func(ctx context.Context, err error, w http.ResponseWriter) {
+		var headerer kithttp.Headerer
+		if errors.As(err, &headerer) {
+			transferHeaders(w, headerer.Headers())
+		}
 
-	code := http.StatusInternalServerError
-	var statusCoder kithttp.StatusCoder
-	if errors.As(err, &statusCoder) {
-		code = statusCoder.StatusCode()
+		var sErrorer sanitizedErrorer
+		if errors.As(err, &sErrorer) {
+			w.Header().Set(XmidtErrorHeaderKey, sErrorer.SanitizedError())
+		}
+
+		code := http.StatusInternalServerError
+		var statusCoder kithttp.StatusCoder
+		if errors.As(err, &statusCoder) {
+			code = statusCoder.StatusCode()
+		}
+
+		logger := getLogger(ctx)
+		if logger != nil && code != http.StatusNotFound {
+			logger.Error("sending non-200, non-404 response", zap.Error(err), zap.Int("statusCode", code))
+		}
+
+		w.WriteHeader(code)
 	}
-	w.WriteHeader(code)
 }
 
 // Sha256HexDigest returns the SHA-256 hex digest of the given input.
