@@ -71,6 +71,10 @@ func (bre BadRequestErr) Error() string {
 	return bre.Message
 }
 
+func (bre BadRequestErr) SanitizedError() string {
+	return bre.Message
+}
+
 func (bre BadRequestErr) StatusCode() int {
 	return http.StatusBadRequest
 }
