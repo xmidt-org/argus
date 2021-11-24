@@ -103,7 +103,8 @@ type response struct {
 const (
 	storeAPIPath     = "/api/v1/store"
 	errWrappedFmt    = "%w: %s"
-	errStatusCodeFmt = "statusCode %v: %w"
+	errStatusCodeFmt = "%w: received status %v"
+	errorHeaderKey   = "errorHeader"
 )
 
 // Items is a slice of model.Item(s) .
@@ -155,8 +156,8 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 
 	if response.Code != http.StatusOK {
 		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
-			"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
-		return nil, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+			"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
+		return nil, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 	}
 
 	var items Items
@@ -196,9 +197,9 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 	}
 
 	level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
-		"code", response.Code, "ErrorHeader", response.ArgusErrorHeader)
+		"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
 
-	return NilPushResult, fmt.Errorf(errStatusCodeFmt, response.Code, translateNonSuccessStatusCode(response.Code))
+	return NilPushResult, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 }
 
 // RemoveItem removes the item if it exists and returns the data associated to it.
@@ -214,8 +215,8 @@ func (c *BasicClient) RemoveItem(ctx context.Context, id, owner string) (model.I
 
 	if resp.Code != http.StatusOK {
 		level.Error(c.getLogger(ctx)).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
-			"code", resp.Code, "ErrorHeader", resp.ArgusErrorHeader)
-		return model.Item{}, fmt.Errorf(errStatusCodeFmt, resp.Code, translateNonSuccessStatusCode(resp.Code))
+			"code", resp.Code, errorHeaderKey, resp.ArgusErrorHeader)
+		return model.Item{}, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(resp.Code), resp.Code)
 	}
 
 	var item model.Item

@@ -165,7 +165,14 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
-			assert.Equal(testCase.ExpectedErr, err)
+			if testCase.ExpectedErr == nil {
+				assert.NoError(err)
+				return
+			}
+			assert.True(errors.Is(err, testCase.ExpectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, testCase.ExpectedErr),
+			)
 		})
 	}
 }
@@ -204,10 +211,17 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 			assert := assert.New(t)
 			recorder := httptest.NewRecorder()
 			err := encodeGetOrDeleteItemResponse(context.Background(), recorder, testCase.ItemResponse)
-			assert.Equal(testCase.ExpectedErr, err)
 			assert.Equal(testCase.ExpectedBody, recorder.Body.String())
 			assert.Equal(testCase.ExpectedHeaders, recorder.Header())
 			assert.Equal(testCase.ExpectedCode, recorder.Code)
+			if testCase.ExpectedErr == nil {
+				assert.NoError(err)
+				return
+			}
+			assert.True(errors.Is(err, testCase.ExpectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, testCase.ExpectedErr),
+			)
 		})
 	}
 }
@@ -270,7 +284,14 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 			decodedRequest, err := decoder(ctx, r)
 
 			assert.Equal(testCase.ExpectedDecodedRequest, decodedRequest)
-			assert.Equal(testCase.ExpectedErr, err)
+			if testCase.ExpectedErr == nil {
+				assert.NoError(err)
+				return
+			}
+			assert.True(errors.Is(err, testCase.ExpectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, testCase.ExpectedErr),
+			)
 		})
 	}
 }
@@ -469,7 +490,14 @@ func TestSetItemRequestDecoder(t *testing.T) {
 			} else {
 				assert.Equal(testCase.ExpectedRequest, decodedRequest)
 			}
-			assert.Equal(testCase.ExpectedErr, err)
+			if testCase.ExpectedErr == nil {
+				assert.NoError(err)
+				return
+			}
+			assert.True(errors.Is(err, testCase.ExpectedErr),
+				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
+					err, testCase.ExpectedErr),
+			)
 		})
 	}
 }

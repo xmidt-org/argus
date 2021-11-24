@@ -5,8 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.6.0]
 - Split Chrysom client into BasicClient and ListenerClient. [#206](https://github.com/xmidt-org/argus/pull/206)
 - Bumped spf13 and added documentation. [#220](https://github.com/xmidt-org/argus/pull/220)
+- Added logging when returning a non 200/404 response. [#222](https://github.com/xmidt-org/argus/pull/222)
+- Bad request error information is sent in the error header. [#223](https://github.com/xmidt-org/argus/pull/223)
 
 ## [v0.5.2]
 - Update store section in sample config files. [#200](https://github.com/xmidt-org/argus/pull/200)
@@ -180,7 +184,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/xmidt-org/argus/compare/v0.5.2...v0.6.0
 [v0.5.2]: https://github.com/xmidt-org/argus/compare/v0.5.1...v0.5.2
 [v0.5.1]: https://github.com/xmidt-org/argus/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/xmidt-org/argus/compare/v0.4.1...v0.5.0

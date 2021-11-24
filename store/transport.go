@@ -116,16 +116,15 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return nil, errBodyReadFailure
+			return nil, fmt.Errorf("%w: %v", errBodyReadFailure, err)
 		}
 
 		unmarshaler := validItemUnmarshaler{config: config, id: id}
 
 		if err := json.Unmarshal(data, &unmarshaler); err != nil {
 			var berr BadRequestErr
-
 			if ok := errors.As(err, &berr); !ok {
-				err = errPayloadUnmarshalFailure
+				err = fmt.Errorf("%w: %v", errPayloadUnmarshalFailure, err)
 			}
 			return nil, err
 		}
