@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:       argus
-Version:    {{{ git_tag_version }}}
+Version:    v{{{ git_tag_version }}}
 Release:    1%{?dist}
 Summary:    The XMiDT API server for storing configuration.
 
@@ -11,7 +11,7 @@ Packager:   Comcast
 Group:      System Environment/Daemons
 License:    ASL 2.0
 URL:        https://github.com/xmidt-org/argus
-Source0:    %{name}-%{version}.tar.gz
+Source0:    https://github.com/xmidt-org/%{name}/archive/%{version}.tar.gz
 
 Prefix:     /opt
 BuildRoot:  %{_tmppath}/%{name}
@@ -23,7 +23,7 @@ BuildRequires: git
 The XMiDT server for storing configuration like webhooks for caduceus.
 
 %prep
-%setup -q
+%setup -n %{name}-{{{ git_tag_version }}}
 
 %build
 GOPROXY=https://proxy.golang.org go build -ldflags "-linkmode=external -X 'main.BuildTime=`date -u '+%c'`' -X main.GitCommit={{{ git_short_hash }}} -X main.Version=%{version}" -o %{name} .
