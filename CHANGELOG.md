@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Updated spec file and rpkg version macro to be able to choose when the 'v' is included in the version. [#224](https://github.com/xmidt-org/argus/pull/224)
 
 ## [v0.6.0]
 - Split Chrysom client into BasicClient and ListenerClient. [#206](https://github.com/xmidt-org/argus/pull/206)
