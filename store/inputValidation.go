@@ -3,7 +3,6 @@ package store
 import (
 	"encoding/json"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/spf13/cast"
@@ -92,12 +91,8 @@ func (v *validItemUnmarshaler) UnmarshalJSON(data []byte) error {
 		return errDataFieldMissing
 	}
 
-	if !isIDValid(v.config.IDFormatRegex, v.item.ID) {
-		return errInvalidID
-	}
-
-	v.item.ID = strings.ToLower(v.item.ID)
-
+	// if we've gotten here, we've already validated the ID in the URL.  The
+	// item ID just needs to match the ID from the URL.
 	if v.item.ID != v.id {
 		return errIDMismatch
 	}

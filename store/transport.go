@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -105,7 +104,7 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		var (
 			URLVars = mux.Vars(r)
-			id      = strings.ToLower(URLVars[idVarKey])
+			id      = URLVars[idVarKey]
 			bucket  = URLVars[bucketVarKey]
 			owner   = r.Header.Get(ItemOwnerHeaderKey)
 		)
@@ -147,7 +146,7 @@ func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeReques
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		var (
 			URLVars = mux.Vars(r)
-			id      = strings.ToLower(URLVars[idVarKey])
+			id      = URLVars[idVarKey]
 			bucket  = URLVars[bucketVarKey]
 			owner   = r.Header.Get(ItemOwnerHeaderKey)
 		)
