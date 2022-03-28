@@ -180,7 +180,7 @@ func TestSendRequest(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, nil, nil)
+			}, nil)
 
 			if tc.AcquirerFails {
 				client.auth = acquirerFunc(failAcquirer)
@@ -278,7 +278,7 @@ func TestGetItems(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil, nil)
+			}, nil)
 
 			require.Nil(err)
 
@@ -413,7 +413,7 @@ func TestPushItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil, nil)
+			}, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -511,7 +511,7 @@ func TestRemoveItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil, nil)
+			}, nil)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.8.0]
+- Removed setLogger func dependency in chrysom basic client. [#228](https://github.com/xmidt-org/argus/pull/228)
+- Fixed chrysom basic client fallback to a non-context logger. [#228](https://github.com/xmidt-org/argus/pull/228)
+
 ## [v0.7.0]
 - Updated spec file and rpkg version macro to be able to choose when the 'v' is included in the version. [#224](https://github.com/xmidt-org/argus/pull/224)
 - Make ID case sensitive. [#227](https://github.com/xmidt-org/argus/pull/227)
@@ -188,7 +192,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/xmidt-org/argus/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/xmidt-org/argus/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/xmidt-org/argus/compare/v0.5.2...v0.6.0
 [v0.5.2]: https://github.com/xmidt-org/argus/compare/v0.5.1...v0.5.2
