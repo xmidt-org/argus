@@ -31,6 +31,7 @@ const (
 
 	// DynamoDB-specific metrics.
 	DynamodbConsumedCapacityCounter = "dynamodb_consumed_capacity_total"
+	DynamodbGetAllGauge             = "dynamodb_get_all_results"
 )
 
 // Metric label keys.
@@ -90,6 +91,13 @@ func ProvideMetrics() fx.Option {
 			QueryTypeLabelKey,
 			DynamoCapacityOpLabelKey,
 		),
+
+		touchstone.Gauge(
+			prometheus.GaugeOpts{
+				Name: DynamodbGetAllGauge,
+				Help: "Amount of records returned for a GetAll dynamodb request.",
+			},
+		),
 	)
 }
 
@@ -98,4 +106,5 @@ type Measures struct {
 	Queries                  *prometheus.CounterVec `name:"db_queries_total"`
 	QueryDurationSeconds     prometheus.ObserverVec `name:"db_query_duration_seconds"`
 	DynamodbConsumedCapacity *prometheus.CounterVec `name:"dynamodb_consumed_capacity_total"`
+	DynamodbGetAllGauge      prometheus.Gauge       `name:"dynamodb_get_all_results"`
 }

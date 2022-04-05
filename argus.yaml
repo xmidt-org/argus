@@ -63,6 +63,10 @@ store:
     # maxRetires is the maximum times the application will retry the request to the db.
     # (Optional) default: 3
     maxRetries: 3
+
+    # getAllLimit is the maximum number of items to get at a time.
+    # (Optional) defaults to no limit
+    getAllLimit: 50
   
     # accessKey is the AWS accessKey to access dynamodb.
     accessKey: "accessKey"

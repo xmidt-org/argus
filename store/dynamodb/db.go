@@ -70,6 +70,10 @@ type Config struct {
 	// (Optional) Defaults to 3.
 	MaxRetries int
 
+	// GetAllLimit is the maximum number of items to get at a time.
+	// (Optional) defaults to no limit
+	GetAllLimit int
+
 	// AccessKey is the AWS AccessKey credential.
 	AccessKey string `validate:"required"`
 
@@ -111,7 +115,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 			SecretAccessKey: config.SecretKey,
 		}))
 
-	svc, err := newService(awsConfig, "", config.Table)
+	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
 		return nil, err
 	}
