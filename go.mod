@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	emperror.dev/emperror v0.33.0
-	github.com/aws/aws-sdk-go v1.31.6
+	github.com/aws/aws-sdk-go v1.43.35
 	github.com/go-kit/kit v0.10.0
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/gocql/gocql v0.0.0-20200505093417-effcbd8bcf0e
