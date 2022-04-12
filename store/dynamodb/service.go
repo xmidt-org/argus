@@ -209,7 +209,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 					},
 				},
 			},
-			"Expires-index": {
+			"expires": {
 				ComparisonOperator: aws.String("GT"),
 				AttributeValueList: []*dynamodb.AttributeValue{
 					{
