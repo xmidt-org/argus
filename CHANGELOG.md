@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.9.0]
+- Added query condition for GetAll in dynamodb that requires a secondary index in the database. [#230](https://github.com/xmidt-org/argus/pull/230)
+- Added a configurable GetAll limit and metric for dynamodb to minimize performance issues from getting too many records. [#230](https://github.com/xmidt-org/argus/pull/230)
+
 ## [v0.8.0]
 - Removed setLogger func dependency in chrysom basic client. [#228](https://github.com/xmidt-org/argus/pull/228)
 - Fixed chrysom basic client fallback to a non-context logger. [#228](https://github.com/xmidt-org/argus/pull/228)
@@ -192,7 +196,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/xmidt-org/argus/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/xmidt-org/argus/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/xmidt-org/argus/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/xmidt-org/argus/compare/v0.5.2...v0.6.0
