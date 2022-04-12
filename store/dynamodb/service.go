@@ -18,6 +18,8 @@
 package dynamodb
 
 import (
+	"errors"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,6 +28,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
+)
+
+var (
+	errNilMeasures = errors.New("measures cannot be nil")
 )
 
 // client captures the methods of interest from the dynamoDB API. This
@@ -55,7 +62,12 @@ type executor struct {
 	// tableName is the name of the dynamodb table
 	tableName string
 
+	// getAllLimit is the maximum number of records to return for a GetAll
+	getAllLimit int64
+
 	now func() time.Time
+
+	measures *metric.Measures
 }
 
 type storableItem struct {
@@ -184,8 +196,10 @@ func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedC
 //TODO: For data >= 1MB, we'll need to handle pagination
 func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
 	result := map[string]store.OwnableItem{}
-	queryResult, err := d.c.Query(&dynamodb.QueryInput{
+	now := strconv.Itoa(int(d.now().Unix()))
+	input := &dynamodb.QueryInput{
 		TableName: aws.String(d.tableName),
+		IndexName: aws.String("Expires-index"),
 		KeyConditions: map[string]*dynamodb.Condition{
 			"bucket": {
 				ComparisonOperator: aws.String("EQ"),
@@ -195,9 +209,21 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 					},
 				},
 			},
+			"expires": {
+				ComparisonOperator: aws.String("GT"),
+				AttributeValueList: []*dynamodb.AttributeValue{
+					{
+						N: &now,
+					},
+				},
+			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	})
+	}
+	if d.getAllLimit > 0 {
+		input.Limit = &d.getAllLimit
+	}
+	queryResult, err := d.c.Query(input)
 
 	var consumedCapacity *dynamodb.ConsumedCapacity
 	if queryResult != nil {
@@ -206,6 +232,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 	if err != nil {
 		return map[string]store.OwnableItem{}, consumedCapacity, err
 	}
+	d.measures.DynamodbGetAllGauge.Set(float64(len(queryResult.Items)))
 
 	for _, i := range queryResult.Items {
 		item := new(storableItem)
@@ -236,7 +263,11 @@ func itemNotFound(item *storableItem) bool {
 	return item.Key.Bucket == "" || item.Key.ID == ""
 }
 
-func newService(config aws.Config, awsProfile string, tableName string) (service, error) {
+func newService(config aws.Config, awsProfile string, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+	if measures == nil {
+		return nil, errNilMeasures
+	}
+
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config:            config,
 		Profile:           awsProfile,
@@ -248,8 +279,10 @@ func newService(config aws.Config, awsProfile string, tableName string) (service
 	}
 
 	return &executor{
-		c:         dynamodb.New(sess),
-		tableName: tableName,
-		now:       time.Now,
+		c:           dynamodb.New(sess),
+		tableName:   tableName,
+		getAllLimit: getAllLimit,
+		now:         time.Now,
+		measures:    measures,
 	}, nil
 }

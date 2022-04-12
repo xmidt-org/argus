@@ -9,9 +9,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/argus/store/db/metric"
+	"github.com/xmidt-org/touchstone/touchtest"
 )
 
 var (
@@ -149,14 +153,45 @@ func TestGetAll(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
-			m := new(mockClient)
-			svc := executor{
-				c:         m,
-				tableName: "testTable",
-				now:       nowFunc,
+			client := new(mockClient)
+			testAssert := touchtest.New(t)
+			expectedRegistry := prometheus.NewPedanticRegistry()
+			expectedMeasures := &metric.Measures{
+				DynamodbGetAllGauge: prometheus.NewGauge(
+					prometheus.GaugeOpts{
+						Name: "testGetAllGauge",
+						Help: "testGetAllGauge",
+					},
+				),
 			}
-			m.On("Query", getQueryInput()).Return(tc.QueryOutput, tc.QueryErr)
+			expectedRegistry.MustRegister(expectedMeasures.DynamodbGetAllGauge)
+			if tc.QueryOutput != nil {
+				expectedMeasures.DynamodbGetAllGauge.Set(float64(len(tc.QueryOutput.Items)))
+			}
+			actualRegistry := prometheus.NewPedanticRegistry()
+			m := &metric.Measures{
+				DynamodbGetAllGauge: prometheus.NewGauge(
+					prometheus.GaugeOpts{
+						Name: "testGetAllGauge",
+						Help: "testGetAllGauge",
+					},
+				),
+			}
+			actualRegistry.MustRegister(m.DynamodbGetAllGauge)
+
+			svc := executor{
+				c:           client,
+				tableName:   "testTable",
+				getAllLimit: 10,
+				now:         nowFunc,
+				measures:    m,
+			}
+			client.On("Query", mock.Anything).Return(tc.QueryOutput, tc.QueryErr)
 			items, cc, err := svc.GetAll("testBucket")
+			testAssert.Expect(expectedRegistry)
+			assert.True(testAssert.GatherAndCompare(actualRegistry,
+				"testGetAllGauge"))
+
 			assert.Equal(tc.ExpectedItems, items)
 			assert.Equal(tc.ExpectedConsumedCapacity, cc)
 			assert.Equal(tc.ExpectedErr, err)
@@ -314,23 +349,6 @@ func getPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInp
 	return &dynamodb.PutItemInput{
 		Item:                   av,
 		TableName:              aws.String("testTable"),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	}
-}
-
-func getQueryInput() *dynamodb.QueryInput {
-	return &dynamodb.QueryInput{
-		TableName: aws.String("testTable"),
-		KeyConditions: map[string]*dynamodb.Condition{
-			"bucket": {
-				ComparisonOperator: aws.String("EQ"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: aws.String("testBucket"),
-					},
-				},
-			},
-		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 }

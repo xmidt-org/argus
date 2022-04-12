@@ -86,6 +86,10 @@ store:
     # (Optional) default: 3
     maxRetries: (( grab $AWS_RETRIES || "3" ))
 
+    # getAllLimit is the maximum number of items to get at a time.
+    # (Optional) defaults to no limit
+    getAllLimit: (( grab $AWS_GET_ALL_LIMIT || "50" ))
+
     # accessKey is the AWS accessKey to access dynamodb.
     accessKey: (( grab $AWS_ACCESS_KEY_ID || "accessKey" ))
 
