@@ -199,6 +199,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 	now := strconv.Itoa(int(d.now().Unix()))
 	input := &dynamodb.QueryInput{
 		TableName: aws.String(d.tableName),
+		IndexName: aws.String("Expires-index"),
 		KeyConditions: map[string]*dynamodb.Condition{
 			"bucket": {
 				ComparisonOperator: aws.String("EQ"),
@@ -208,7 +209,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 					},
 				},
 			},
-			"expires": {
+			"Expires-index": {
 				ComparisonOperator: aws.String("GT"),
 				AttributeValueList: []*dynamodb.AttributeValue{
 					{
