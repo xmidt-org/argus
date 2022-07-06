@@ -5,10 +5,9 @@ go 1.16
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.47
+	github.com/aws/aws-sdk-go v1.44.49
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-kit/kit v0.12.0
-	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/gocql/gocql v1.1.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -27,7 +26,7 @@ require (
 	github.com/xmidt-org/bascule v0.10.2
 	github.com/xmidt-org/candlelight v0.0.10
 	github.com/xmidt-org/httpaux v0.3.2
-	github.com/xmidt-org/sallust v0.1.5
+	github.com/xmidt-org/sallust v0.1.6
 	github.com/xmidt-org/themis v0.4.8
 	github.com/xmidt-org/touchstone v0.1.1
 	github.com/xmidt-org/webpa-common v1.11.9 // indirect
@@ -37,6 +36,5 @@ require (
 	go.uber.org/fx v1.17.1
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
-	golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 )
