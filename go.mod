@@ -16,11 +16,11 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.9.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.2
 	github.com/xmidt-org/arrange v0.3.0
 	github.com/xmidt-org/bascule v0.10.2
 	github.com/xmidt-org/candlelight v0.0.5
-	github.com/xmidt-org/httpaux v0.2.1
+	github.com/xmidt-org/httpaux v0.3.2
 	github.com/xmidt-org/sallust v0.1.5
 	github.com/xmidt-org/themis v0.4.7
 	github.com/xmidt-org/touchstone v0.0.3
