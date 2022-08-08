@@ -22,7 +22,7 @@ require (
 	github.com/xmidt-org/candlelight v0.0.5
 	github.com/xmidt-org/httpaux v0.2.1
 	github.com/xmidt-org/sallust v0.1.5
-	github.com/xmidt-org/themis v0.4.7
+	github.com/xmidt-org/themis v0.4.8
 	github.com/xmidt-org/touchstone v0.0.3
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.19.0
 	go.uber.org/fx v1.13.1
