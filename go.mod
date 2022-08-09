@@ -26,5 +26,7 @@ require (
 	github.com/xmidt-org/touchstone v0.0.3
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.19.0
 	go.uber.org/fx v1.13.1
+	github.com/xmidt-org/clortho v0.0.2
+
 	go.uber.org/zap v1.17.0
 )
