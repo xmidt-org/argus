@@ -6,6 +6,7 @@ require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
 	github.com/aws/aws-sdk-go v1.44.71
+
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/gocql/gocql v1.2.0
@@ -29,7 +30,7 @@ require (
 	github.com/xmidt-org/themis v0.4.8
 	github.com/xmidt-org/touchstone v0.1.0
 	github.com/xmidt-org/webpa-common v1.11.9 // indirect
-	go.opentelemetry.io/contrib v1.7.0 // indirect
+	go.opentelemetry.io/contrib v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.34.0
 	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout v0.20.0 // indirect
