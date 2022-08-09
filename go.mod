@@ -29,7 +29,7 @@ require (
 	github.com/xmidt-org/httpaux v0.3.2
 	github.com/xmidt-org/sallust v0.1.6
 	github.com/xmidt-org/themis v0.4.8
-	github.com/xmidt-org/touchstone v0.1.1
+	github.com/xmidt-org/touchstone v0.1.0
 	github.com/xmidt-org/webpa-common v1.11.9 // indirect
 	go.opentelemetry.io/contrib v1.7.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.34.0
@@ -37,11 +37,9 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout v0.20.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.9.0 // indirect
-	go.uber.org/dig v1.15.0 // indirect
-	go.uber.org/fx v1.17.1
-	go.uber.org/zap v1.21.0
+	go.uber.org/fx v1.18.1
+	go.uber.org/zap v1.22.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/sys v0.0.0-20220803195053-6e608f9ce704 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
-	gopkg.in/ini.v1 v1.66.6 // indirect
+	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 )
