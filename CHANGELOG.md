@@ -5,7 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- Dependency update, note vulnerabilities
+  - [github.com/gorilla/sessions (undefined affected versions) no patch available.]
+	  - https://ossindex.sonatype.org/vulnerability/sonatype-2021-4899
+      
 ## [v0.9.0]
 - Added query condition for GetAll in dynamodb that requires a secondary index in the database. [#230](https://github.com/xmidt-org/argus/pull/230)
 - Added a configurable GetAll limit and metric for dynamodb to minimize performance issues from getting too many records. [#230](https://github.com/xmidt-org/argus/pull/230)
