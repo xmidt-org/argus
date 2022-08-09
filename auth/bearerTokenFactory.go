@@ -28,7 +28,8 @@ import (
 	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
-	"github.com/xmidt-org/bascule/key"
+	"github.com/xmidt-org/clortho"
+	"github.com/xmidt-org/clortho/clorthofx"
 	"go.uber.org/fx"
 )
 
@@ -40,7 +41,7 @@ const jwtPrincipalKey = "sub"
 type accessLevelBearerTokenFactory struct {
 	fx.In
 	DefaultKeyID string            `name:"default_key_id"`
-	Resolver     key.Resolver      `name:"key_resolver"`
+	Resolver     clortho.Resolver  `name:"key_resolver"`
 	Parser       bascule.JWTParser `optional:"true"`
 	Leeway       bascule.Leeway    `name:"jwt_leeway" optional:"true"`
 	AccessLevel  AccessLevel
@@ -98,24 +99,24 @@ func (a accessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 	return bascule.NewToken("jwt", principal, jwtClaims), nil
 }
 
-func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver key.Resolver) jwt.Keyfunc {
+func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver clortho.Resolver) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
 		keyID, ok := token.Header["kid"].(string)
 		if !ok {
 			keyID = defaultKeyID
 		}
 
-		pair, err := keyResolver.ResolveKey(ctx, keyID)
+		key, err := keyResolver.Resolve(ctx, keyID)
 		if err != nil {
 			return nil, emperror.Wrap(err, "failed to resolve key")
 		}
-		return pair.Public(), nil
+		return key.Public(), nil
 	}
 }
 
 func provideBearerTokenFactory(configKey string) fx.Option {
 	return fx.Options(
-		key.ProvideResolver(fmt.Sprintf("%s.bearer.key", configKey), true),
+		clorthofx.Provide(),
 		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
 		fx.Provide(
 			fx.Annotated{
