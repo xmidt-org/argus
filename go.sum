@@ -911,9 +911,8 @@ github.com/xmidt-org/themis v0.4.4/go.mod h1:0qRYFvKdrQhwjxH/1nAiTgBGT4cegJR76gf
 github.com/xmidt-org/themis v0.4.7/go.mod h1:GlsC/hO9lpZKs6mJNZtbDOf/yDT8tS6NN0k3C+YsWFc=
 github.com/xmidt-org/themis v0.4.8 h1:VMp3c2mVM5mm06gyN64K6NcNNZzno8QZrwjEJPBT9Dc=
 github.com/xmidt-org/themis v0.4.8/go.mod h1:LNbBR3SPxsr2Ts7Uf2OlK0acnNsu1k8xpp77iKQYlOE=
+github.com/xmidt-org/touchstone v0.0.3 h1:6x+iQvCDNHQpChaxbv6bmmiWu+BkxCRKlOq7GdxkpG4=
 github.com/xmidt-org/touchstone v0.0.3/go.mod h1:++4yF9lobCmQ6U5XOSFKysRtB0avwoXJ80MW+8Kl7ok=
-github.com/xmidt-org/touchstone v0.1.0 h1:tkg9CTX/Cmy9dS4Uu+4vWIrZq519uv3ogjdepVDXlr4=
-github.com/xmidt-org/touchstone v0.1.0/go.mod h1:7Rgqs44l1VndkvFUZewr8WpItzxfJSxMZuudCDop3pE=
 github.com/xmidt-org/webpa-common v1.1.0/go.mod h1:oCpKzOC+9h2vYHVzAU/06tDTQuBN4RZz+rhgIXptpOI=
 github.com/xmidt-org/webpa-common v1.3.2/go.mod h1:oCpKzOC+9h2vYHVzAU/06tDTQuBN4RZz+rhgIXptpOI=
 github.com/xmidt-org/webpa-common v1.10.2-0.20200604164000-f07406b4eb63/go.mod h1:Fmt3wIxBzwJY0KeRHX6RaLZx2xpKTbXCLEA3Xtd6kq8=
@@ -1297,7 +1296,6 @@ golang.org/x/sys v0.0.0-20220209214540-3681064d5158/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220412211240-33da011f77ad/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220429233432-b5fbb4746d32/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220502124256-b6088ccd6cba/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=

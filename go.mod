@@ -27,7 +27,7 @@ require (
 	github.com/xmidt-org/httpaux v0.3.2
 	github.com/xmidt-org/sallust v0.1.6
 	github.com/xmidt-org/themis v0.4.8
-	github.com/xmidt-org/touchstone v0.1.0
+	github.com/xmidt-org/touchstone v0.0.3
 	github.com/xmidt-org/webpa-common v1.11.9 // indirect
 	go.opentelemetry.io/contrib v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.34.0
