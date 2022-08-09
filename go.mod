@@ -5,7 +5,7 @@ go 1.16
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.69
+	github.com/aws/aws-sdk-go v1.44.71
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/gocql/gocql v1.2.0
@@ -14,9 +14,7 @@ require (
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/justinas/alice v1.2.0
 	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
-	github.com/prometheus/client_golang v1.12.2
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/client_golang v1.13.0
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/pflag v1.0.5
