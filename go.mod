@@ -40,4 +40,9 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.19.0
+	go.uber.org/fx v1.13.1
+	github.com/xmidt-org/clortho v0.0.2
+
+	go.uber.org/zap v1.17.0
 )
