@@ -9,8 +9,9 @@ lib/
 *.out
 *.swp
 
-# for VSCode
-.vscode/
+# VSCode
+*.code-workspace
+.vscode/*
 
 # for goland
 .idea/

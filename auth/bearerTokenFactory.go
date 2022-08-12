@@ -28,7 +28,8 @@ import (
 	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
-	"github.com/xmidt-org/bascule/key"
+	"github.com/xmidt-org/clortho"
+	"github.com/xmidt-org/clortho/clorthofx"
 	"go.uber.org/fx"
 )
 
@@ -39,11 +40,20 @@ const jwtPrincipalKey = "sub"
 // Application code should handle case in which the value is not injected (i.e. basic auth tokens).
 type accessLevelBearerTokenFactory struct {
 	fx.In
-	DefaultKeyID string            `name:"default_key_id"`
-	Resolver     key.Resolver      `name:"key_resolver"`
+	DefaultKeyID string `name:"default_key_id"`
+	Resolver     clortho.Resolver
 	Parser       bascule.JWTParser `optional:"true"`
 	Leeway       bascule.Leeway    `name:"jwt_leeway" optional:"true"`
 	AccessLevel  AccessLevel
+}
+
+type clorthoConfig struct {
+	fx.In
+	Config clortho.Config
+}
+
+func newClorthoConfig(in clorthoConfig) (clortho.Config, error) {
+	return in.Config, nil
 }
 
 // ParseAndValidate expects the given value to be a JWT with a kid header.  The
@@ -98,14 +108,14 @@ func (a accessLevelBearerTokenFactory) ParseAndValidate(ctx context.Context, _ *
 	return bascule.NewToken("jwt", principal, jwtClaims), nil
 }
 
-func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver key.Resolver) jwt.Keyfunc {
+func defaultKeyfunc(ctx context.Context, defaultKeyID string, resolver clortho.Resolver) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
 		keyID, ok := token.Header["kid"].(string)
 		if !ok {
 			keyID = defaultKeyID
 		}
 
-		pair, err := keyResolver.ResolveKey(ctx, keyID)
+		pair, err := resolver.Resolve(ctx, keyID)
 		if err != nil {
 			return nil, emperror.Wrap(err, "failed to resolve key")
 		}
@@ -115,7 +125,15 @@ func defaultKeyfunc(ctx context.Context, defaultKeyID string, keyResolver key.Re
 
 func provideBearerTokenFactory(configKey string) fx.Option {
 	return fx.Options(
-		key.ProvideResolver(fmt.Sprintf("%s.bearer.key", configKey), true),
+		fx.Provide(newClorthoConfig),
+		clorthofx.Provide(),
+		fx.Provide(
+			fx.Annotated{
+				Name: "config",
+				Target: arrange.UnmarshalKey(fmt.Sprintf("%s.bearer.config", configKey),
+					bascule.Leeway{}),
+			},
+		),
 		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
 		fx.Provide(
 			fx.Annotated{
@@ -128,9 +146,6 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 				Target: func(f accessLevelBearerTokenFactory) (basculehttp.COption, error) {
 					if f.Parser == nil {
 						f.Parser = bascule.DefaultJWTParser
-					}
-					if f.Resolver == nil {
-						return nil, nil
 					}
 					return basculehttp.WithTokenFactory(basculehttp.BearerAuthorization, f), nil
 				},
