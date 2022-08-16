@@ -19,7 +19,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 	github.com/xmidt-org/arrange v0.3.0
-	github.com/xmidt-org/bascule v0.10.3-0.20220811224643-77b97a7dbbdc
+	github.com/xmidt-org/bascule v0.10.3-0.20220812183557-0b9b46b94ce6
 	github.com/xmidt-org/candlelight v0.0.10
 	github.com/xmidt-org/clortho v0.0.3
 	github.com/xmidt-org/httpaux v0.3.2
@@ -30,6 +30,4 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/fx v1.18.1
 	go.uber.org/zap v1.22.0
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
-	gopkg.in/ini.v1 v1.67.0 // indirect
 )
