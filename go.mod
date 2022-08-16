@@ -27,7 +27,6 @@ require (
 	github.com/xmidt-org/themis v0.4.8
 	github.com/xmidt-org/touchstone v0.1.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.34.0
-	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/fx v1.18.1
 	go.uber.org/zap v1.22.0
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect

@@ -23,11 +23,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/arrange/arrangehttp"
 	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/touchstone"
 	"github.com/xmidt-org/touchstone/touchhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/fx"
@@ -131,8 +133,26 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 }
 
 func metricMiddleware(bundle touchhttp.ServerBundle) (out MetricMiddlewareOut) {
-	out.Primary = alice.New(bundle.ForServer("server_primary").Then)
-	out.Health = alice.New(bundle.ForServer("server_health").Then)
+	primaryLabels := prometheus.Labels{
+		"server": "server_primary",
+	}
+
+	healthLabels := prometheus.Labels{
+		"server": "server_health",
+	}
+
+	var f1 *touchstone.Factory
+	var f2 *touchstone.Factory
+
+	primary, err := bundle.ForServer(f1, primaryLabels)
+	health, err2 := bundle.ForServer(f2, healthLabels)
+
+	if err != nil && err2 != nil {
+		return
+	}
+
+	out.Primary = alice.New(primary.Then)
+	out.Health = alice.New(health.Then)
 	return
 }
 
