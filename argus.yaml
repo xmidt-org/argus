@@ -142,7 +142,7 @@ userInputValidation:
 # Authorization Credentials
 ##############################################################################
 # clorthoConfig groups options around clortho configuration.
-clorthoConfig:
+jwtValidator:
   Config:
     Resolve:
       # Template is a URI template used to fetch keys.  This template may

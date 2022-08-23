@@ -47,13 +47,10 @@ type accessLevelBearerTokenFactory struct {
 	AccessLevel  AccessLevel
 }
 
-type clorthoConfig struct {
-	fx.In
-	Config clortho.Config
-}
-
-func newClorthoConfig(in clorthoConfig) (clortho.Config, error) {
-	return in.Config, nil
+// JWTValidator provides a convenient way to define jwt validator through config files
+type JWTValidator struct {
+	// Config is used to create the clortho Resolver & Refresher for JWT verification keys
+	Config clortho.Config `json:"config"`
 }
 
 // ParseAndValidate expects the given value to be a JWT with a kid header.  The
@@ -124,16 +121,12 @@ func defaultKeyfunc(ctx context.Context, defaultKeyID string, resolver clortho.R
 }
 
 func provideBearerTokenFactory(configKey string) fx.Option {
+
+	var jwtVal JWTValidator
 	return fx.Options(
-		fx.Provide(newClorthoConfig),
+
 		clorthofx.Provide(),
-		fx.Provide(
-			fx.Annotated{
-				Name: "config",
-				Target: arrange.UnmarshalKey(fmt.Sprintf("%s.bearer.config", configKey),
-					bascule.Leeway{}),
-			},
-		),
+
 		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
 		fx.Provide(
 			fx.Annotated{
@@ -149,6 +142,10 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 					}
 					return basculehttp.WithTokenFactory(basculehttp.BearerAuthorization, f), nil
 				},
+			},
+			fx.Annotated{
+				Name:   "config",
+				Target: arrange.UnmarshalKey("jwtValidator", &jwtVal),
 			},
 		),
 	)
