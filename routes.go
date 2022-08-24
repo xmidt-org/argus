@@ -28,6 +28,7 @@ import (
 	"github.com/xmidt-org/arrange/arrangehttp"
 	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/httpaux"
+	"github.com/xmidt-org/touchstone"
 	"github.com/xmidt-org/touchstone/touchhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/fx"
@@ -118,7 +119,7 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	}
 	in.Router.Use(
 		in.AuthChain.Then,
-		otelmux.Middleware("servers_primary", options...),
+		otelmux.Middleware("server_primary", options...),
 		candlelight.EchoFirstTraceNodeInfo(in.Tracing.Propagator()),
 	)
 
@@ -130,9 +131,40 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
 }
 
-func metricMiddleware(bundle touchhttp.ServerBundle) (out MetricMiddlewareOut) {
-	out.Primary = alice.New(bundle.ForServer("server_primary").Then)
-	out.Health = alice.New(bundle.ForServer("server_health").Then)
+func metricMiddleware() (out MetricMiddlewareOut) {
+
+	var bundle touchhttp.ServerBundle
+	fx.New(
+		touchstone.Provide(),
+		fx.Provide(
+			fx.Annotated{
+				Name: "server_primary",
+				Target: bundle.NewInstrumenter(
+					touchhttp.ServerLabel, "server_primary",
+				),
+			},
+			fx.Annotated{
+				Name: "server_health",
+				Target: bundle.NewInstrumenter(
+					touchhttp.ServerLabel, "server_health",
+				),
+			},
+		),
+		fx.Invoke(
+			fx.Annotate(
+				func(si touchhttp.ServerInstrumenter) {
+					out.Health = alice.New(si.Then)
+				},
+				fx.ParamTags(`name:"server_primary"`),
+			),
+			fx.Annotate(
+				func(si touchhttp.ServerInstrumenter) {
+					out.Primary = alice.New(si.Then)
+				},
+				fx.ParamTags(`name:"server_health"`),
+			),
+		),
+	)
 	return
 }
 

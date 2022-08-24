@@ -141,6 +141,22 @@ userInputValidation:
 ##############################################################################
 # Authorization Credentials
 ##############################################################################
+# clorthoConfig groups options around clortho configuration.
+jwtValidator:
+  Config:
+    Resolve:
+      # Template is a URI template used to fetch keys.  This template may
+      # use a single parameter named keyID, e.g. http://keys.com/{keyID}.
+      # This field is required and has no default.
+      Template: "http://localhost/{key_name}"
+    Refresh:
+      Sources:
+        # URI is the location where keys are served.  By default, clortho supports
+        # file://, http://, and https:// URIs, as well as standard file system paths
+        # such as /etc/foo/bar.jwk.
+        #
+        # This field is required and has no default.
+        - URI: "http://localhost/available"
 authx:
   inbound:
     # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
