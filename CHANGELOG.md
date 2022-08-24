@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Dependency update, note vulnerabilities
   - [github.com/gorilla/sessions (undefined affected versions) no patch available.]
 	  - https://ossindex.sonatype.org/vulnerability/sonatype-2021-4899
-      
+- JWT Migration [238](https://github.com/xmidt-org/scytale/issues/183)
+  - updated to use clortho `Resolver` & `Refresher`
+  - updated to use clortho `metrics` & `logging`
+- Update Config
+  - Update auth config for clortho
+        
 ## [v0.9.0]
 - Added query condition for GetAll in dynamodb that requires a secondary index in the database. [#230](https://github.com/xmidt-org/argus/pull/230)
 - Added a configurable GetAll limit and metric for dynamodb to minimize performance issues from getting too many records. [#230](https://github.com/xmidt-org/argus/pull/230)
