@@ -122,11 +122,9 @@ func defaultKeyfunc(ctx context.Context, defaultKeyID string, resolver clortho.R
 
 func provideBearerTokenFactory(configKey string) fx.Option {
 
-	var jwtVal JWTValidator
 	return fx.Options(
 
 		clorthofx.Provide(),
-
 		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
 		fx.Provide(
 			fx.Annotated{
@@ -143,9 +141,9 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 					return basculehttp.WithTokenFactory(basculehttp.BearerAuthorization, f), nil
 				},
 			},
-			fx.Annotated{
-				Name:   "config",
-				Target: arrange.UnmarshalKey("jwtValidator", &jwtVal),
+			arrange.UnmarshalKey("jwtValidator", JWTValidator{}),
+			func(jv JWTValidator) clortho.Config {
+				return jv.Config
 			},
 		),
 	)
