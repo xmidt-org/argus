@@ -5,7 +5,7 @@ go 1.17
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.85
+	github.com/aws/aws-sdk-go v1.44.86
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/gocql/gocql v1.2.0
