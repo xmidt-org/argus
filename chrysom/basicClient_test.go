@@ -23,14 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
@@ -65,7 +65,7 @@ func TestValidateBasicConfig(t *testing.T) {
 		Address:    "http://legit-argus-hostname.io",
 		Auth:       Auth{},
 		Bucket:     "amazing-bucket",
-		Logger:     log.NewJSONLogger(ioutil.Discard),
+		Logger:     log.NewJSONLogger(io.Discard),
 	}
 
 	tcs := []testCase{
@@ -97,7 +97,7 @@ func TestValidateBasicConfig(t *testing.T) {
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
-				Logger:     log.NewJSONLogger(ioutil.Discard),
+				Logger:     log.NewJSONLogger(io.Discard),
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},
@@ -168,7 +168,7 @@ func TestSendRequest(t *testing.T) {
 			echoHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(tc.Owner, r.Header.Get(store.ItemOwnerHeaderKey))
 				rw.WriteHeader(http.StatusOK)
-				bodyBytes, err := ioutil.ReadAll(r.Body)
+				bodyBytes, err := io.ReadAll(r.Body)
 				require.Nil(err)
 				rw.Write(bodyBytes)
 			})
@@ -400,7 +400,7 @@ func TestPushItem(t *testing.T) {
 				rw.WriteHeader(tc.ResponseCode)
 
 				if tc.ResponseCode == http.StatusCreated || tc.ResponseCode == http.StatusOK {
-					payload, err := ioutil.ReadAll(r.Body)
+					payload, err := io.ReadAll(r.Body)
 					require.Nil(err)
 					var item model.Item
 					err = json.Unmarshal(payload, &item)

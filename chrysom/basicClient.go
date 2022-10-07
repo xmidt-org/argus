@@ -24,11 +24,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
@@ -263,7 +262,7 @@ func (c *BasicClient) sendRequest(ctx context.Context, owner, method, url string
 		Code:             resp.StatusCode,
 		ArgusErrorHeader: resp.Header.Get(store.XmidtErrorHeaderKey),
 	}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return sqResp, fmt.Errorf(errWrappedFmt, errReadingBodyFailure, err.Error())
 	}

@@ -185,6 +185,7 @@ func (s *Client) Push(key model.Key, item store.OwnableItem) error {
 	return nil
 }
 
+// nolint:dupl
 func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
@@ -208,6 +209,7 @@ func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	return item, nil
 }
 
+// nolint:dupl
 func (s *Client) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {

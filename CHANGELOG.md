@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]        
 - Update dependencies containing deprecated webpa-common
+- Fix linter
 
 ## [v0.9.1]
 - Dependency update, note vulnerabilities
