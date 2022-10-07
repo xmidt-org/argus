@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"sort"
@@ -113,7 +113,7 @@ func setItemRequestDecoder(config *transportConfig) kithttp.DecodeRequestFunc {
 			return nil, err
 		}
 
-		data, err := ioutil.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", errBodyReadFailure, err)
 		}
