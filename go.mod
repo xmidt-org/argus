@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/xmidt-org/arrange v0.3.0
 	github.com/xmidt-org/bascule v0.11.0
-	github.com/xmidt-org/candlelight v0.0.10
+	github.com/xmidt-org/candlelight v0.0.11
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.3.2
 	github.com/xmidt-org/sallust v0.1.6
@@ -33,6 +33,8 @@ require (
 	go.uber.org/zap v1.23.0
 )
 
+require github.com/go-kit/log v0.2.1
+
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -40,7 +42,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
