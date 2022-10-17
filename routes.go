@@ -145,8 +145,8 @@ func metricMiddleware(f *touchstone.Factory) (out MetricMiddlewareOut) {
 		return
 	}
 
-	out.Health = alice.New(primary.Then)
-	out.Primary = alice.New(health.Then)
+	out.Primary = alice.New(primary.Then)
+	out.Health = alice.New(health.Then)
 
 	return
 }
