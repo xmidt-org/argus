@@ -131,40 +131,23 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
 }
 
-func metricMiddleware() (out MetricMiddlewareOut) {
-
+func metricMiddleware(f *touchstone.Factory) (out MetricMiddlewareOut) {
 	var bundle touchhttp.ServerBundle
-	fx.New(
-		touchstone.Provide(),
-		fx.Provide(
-			fx.Annotated{
-				Name: "server_primary",
-				Target: bundle.NewInstrumenter(
-					touchhttp.ServerLabel, "server_primary",
-				),
-			},
-			fx.Annotated{
-				Name: "server_health",
-				Target: bundle.NewInstrumenter(
-					touchhttp.ServerLabel, "server_health",
-				),
-			},
-		),
-		fx.Invoke(
-			fx.Annotate(
-				func(si touchhttp.ServerInstrumenter) {
-					out.Health = alice.New(si.Then)
-				},
-				fx.ParamTags(`name:"server_primary"`),
-			),
-			fx.Annotate(
-				func(si touchhttp.ServerInstrumenter) {
-					out.Primary = alice.New(si.Then)
-				},
-				fx.ParamTags(`name:"server_health"`),
-			),
-		),
-	)
+
+	primary, err1 := bundle.NewInstrumenter(
+		touchhttp.ServerLabel, "server_primary",
+	)(f)
+	health, err2 := bundle.NewInstrumenter(
+		touchhttp.ServerLabel, "server_health",
+	)(f)
+
+	if err1 != nil || err2 != nil {
+		return
+	}
+
+	out.Primary = alice.New(primary.Then)
+	out.Health = alice.New(health.Then)
+
 	return
 }
 
