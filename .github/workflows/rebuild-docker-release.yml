@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2022 Comcast Cable Communications Management, LLC
+# SPDX-License-Identifier: Apache-2.0
+---
+name: Rebuild Docker Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'The release tag to rebuild.'
+        required: true
+        type: string
+      latest:
+        description: 'If this image should be marked as latest.'
+        type: boolean
+        default: false
+
+jobs:
+  rebuild:
+    uses: xmidt-org/.github/.github/workflows/docker-release-rebuilder.yml@go-ci-v1
+    with:
+      release-tag: ${{ inputs.release-tag }}
+      latest:      ${{ inputs.latest }}
+    secrets: inherit
