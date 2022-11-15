@@ -18,6 +18,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/httpaux/erraux"
+	"github.com/xmidt-org/sallust"
 )
 
 func TestEncodeError(t *testing.T) {
@@ -27,7 +28,7 @@ func TestEncodeError(t *testing.T) {
 		InputErr        error
 		ExpectedHeaders http.Header
 		ExpectedCode    int
-		GetLogger       GetLoggerFunc
+		GetLogger       sallust.GetLoggerFunc
 	}{
 		{
 			Description: "Headers and code",

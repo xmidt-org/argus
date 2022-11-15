@@ -23,10 +23,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/sallust"
+	"go.uber.org/zap"
 )
 
 // Errors that can be returned by this package. Since some of these errors are returned wrapped, it
@@ -66,14 +65,14 @@ type ListenerClientConfig struct {
 
 	// Logger to be used by the client.
 	// (Optional). By default a no op logger will be used.
-	Logger log.Logger
+	Logger *zap.Logger
 }
 
 // ListenerClient is the client used to poll Argus for updates.
 type ListenerClient struct {
 	observer  *observerConfig
-	logger    log.Logger
-	setLogger func(context.Context, log.Logger) context.Context
+	logger    *zap.Logger
+	setLogger func(context.Context, *zap.Logger) context.Context
 	reader    Reader
 }
 
@@ -89,7 +88,7 @@ type observerConfig struct {
 // NewListenerClient creates a new ListenerClient to be used to poll Argus
 // for updates.
 func NewListenerClient(config ListenerClientConfig,
-	setLogger func(context.Context, log.Logger) context.Context,
+	setLogger func(context.Context, *zap.Logger) context.Context,
 	measures *Measures, r Reader,
 ) (*ListenerClient, error) {
 	err := validateListenerConfig(&config)
@@ -100,7 +99,7 @@ func NewListenerClient(config ListenerClientConfig,
 		return nil, ErrNilMeasures
 	}
 	if setLogger == nil {
-		setLogger = func(ctx context.Context, _ log.Logger) context.Context {
+		setLogger = func(ctx context.Context, _ *zap.Logger) context.Context {
 			return ctx
 		}
 	}
@@ -126,16 +125,16 @@ func NewListenerClient(config ListenerClientConfig,
 // is a NoOp. If you want to restart the current listener process, call Stop() first.
 func (c *ListenerClient) Start(ctx context.Context) error {
 	if c.observer == nil || c.observer.listener == nil {
-		level.Warn(c.logger).Log(xlog.MessageKey(), "No listener was setup to receive updates.")
+		c.logger.Warn("No listener was setup to receive updates.")
 		return nil
 	}
 	if c.observer.ticker == nil {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Observer ticker is nil")
+		c.logger.Error("Observer ticker is nil", zap.Error(ErrUndefinedIntervalTicker))
 		return ErrUndefinedIntervalTicker
 	}
 
 	if !atomic.CompareAndSwapInt32(&c.observer.state, stopped, transitioning) {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Start called when a listener was not in stopped state", "err", ErrListenerNotStopped)
+		c.logger.Error("Start called when a listener was not in stopped state", zap.Error(ErrListenerNotStopped))
 		return ErrListenerNotStopped
 	}
 
@@ -153,7 +152,7 @@ func (c *ListenerClient) Start(ctx context.Context) error {
 					c.observer.listener.Update(items)
 				} else {
 					outcome = FailureOutcome
-					level.Error(c.logger).Log(xlog.MessageKey(), "Failed to get items for listeners", xlog.ErrorKey(), err)
+					c.logger.Error("Failed to get items for listeners", zap.Error(err))
 				}
 				c.observer.measures.Polls.With(prometheus.Labels{
 					OutcomeLabel: outcome}).Add(1)
@@ -174,7 +173,7 @@ func (c *ListenerClient) Stop(ctx context.Context) error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&c.observer.state, running, transitioning) {
-		level.Error(c.logger).Log(xlog.MessageKey(), "Stop called when a listener was not in running state", "err", ErrListenerNotStopped)
+		c.logger.Error("Stop called when a listener was not in running state", zap.Error(ErrListenerNotStopped))
 		return ErrListenerNotRunning
 	}
 
@@ -189,7 +188,7 @@ func validateListenerConfig(config *ListenerClientConfig) error {
 		return ErrNoListenerProvided
 	}
 	if config.Logger == nil {
-		config.Logger = log.NewNopLogger()
+		config.Logger = sallust.Default()
 	}
 	if config.PullInterval == 0 {
 		config.PullInterval = defaultPullInterval

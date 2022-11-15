@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-kit/log"
 	"github.com/spf13/pflag"
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
@@ -100,7 +99,7 @@ func main() {
 	}
 }
 
-func gokitLogger(l *zap.Logger) log.Logger {
+func gokitLogger(l *zap.Logger) *zap.Logger {
 	return sallustkit.Logger{
 		Zap: l,
 	}

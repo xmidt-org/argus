@@ -26,12 +26,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/sallust"
+	"go.uber.org/zap"
 )
 
 var (
@@ -73,7 +72,7 @@ type BasicClientConfig struct {
 
 	// Logger to be used by the client.
 	// (Optional). By default a no op logger will be used.
-	Logger log.Logger
+	Logger *zap.Logger
 }
 
 // BasicClient is the client used to make requests to Argus.
@@ -81,9 +80,9 @@ type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
 	storeBaseURL string
-	logger       log.Logger
+	logger       *zap.Logger
 	bucket       string
-	getLogger    func(context.Context) log.Logger
+	getLogger    sallust.GetLoggerFunc
 }
 
 // Auth contains authorization data for requests to Argus.
@@ -111,13 +110,13 @@ type Items []model.Item
 // NewBasicClient creates a new BasicClient that can be used to
 // make requests to Argus.
 func NewBasicClient(config BasicClientConfig,
-	getLogger func(context.Context) log.Logger) (*BasicClient, error) {
+	getLogger sallust.GetLoggerFunc) (*BasicClient, error) {
 	err := validateBasicConfig(&config)
 	if err != nil {
 		return nil, err
 	}
 	if getLogger == nil {
-		getLogger = func(ctx context.Context) log.Logger {
+		getLogger = func(ctx context.Context) *zap.Logger {
 			return nil
 		}
 	}
@@ -149,8 +148,8 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 		if l == nil {
 			l = c.logger
 		}
-		level.Error(l).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
-			"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
+		l.Error("Argus responded with non-200 response for GetItems request",
+			zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 		return nil, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 	}
 
@@ -194,8 +193,8 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 	if l == nil {
 		l = c.logger
 	}
-	level.Error(l).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
-		"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
+	l.Error("Argus responded with a non-successful status code for a PushItem request",
+		zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 
 	return NilPushResult, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 }
@@ -216,8 +215,8 @@ func (c *BasicClient) RemoveItem(ctx context.Context, id, owner string) (model.I
 		if l == nil {
 			l = c.logger
 		}
-		level.Error(l).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
-			"code", resp.Code, errorHeaderKey, resp.ArgusErrorHeader)
+		l.Error("Argus responded with a non-successful status code for a RemoveItem request",
+			zap.Int("code", resp.Code), zap.String(errorHeaderKey, resp.ArgusErrorHeader))
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(resp.Code), resp.Code)
 	}
 
@@ -310,7 +309,7 @@ func validateBasicConfig(config *BasicClientConfig) error {
 	}
 
 	if config.Logger == nil {
-		config.Logger = log.NewNopLogger()
+		config.Logger = sallust.Default()
 	}
 	return nil
 }
