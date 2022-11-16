@@ -25,7 +25,6 @@ require (
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.3.2
 	github.com/xmidt-org/sallust v0.2.0
-	github.com/xmidt-org/themis v0.4.11
 	github.com/xmidt-org/touchstone v0.1.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.36.4
 	go.uber.org/atomic v1.10.0 // indirect
@@ -33,7 +32,7 @@ require (
 	go.uber.org/zap v1.23.0
 )
 
-require github.com/go-kit/log v0.2.1
+require github.com/go-kit/log v0.2.1 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
