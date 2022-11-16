@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-kit/log"
 	"github.com/spf13/pflag"
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
@@ -30,11 +29,9 @@ import (
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/candlelight"
-	"github.com/xmidt-org/sallust/sallustkit"
 	"github.com/xmidt-org/touchstone"
 	"github.com/xmidt-org/touchstone/touchhttp"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 )
 
 const (
@@ -72,7 +69,6 @@ func main() {
 		db.Provide(),
 		fx.Provide(
 			consts,
-			gokitLogger,
 			arrange.UnmarshalKey("userInputValidation", store.UserInputValidationConfig{}),
 			arrange.UnmarshalKey("prometheus", touchstone.Config{}),
 			arrange.UnmarshalKey("prometheus.handler", touchhttp.Config{}),
@@ -97,12 +93,6 @@ func main() {
 	default:
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
-	}
-}
-
-func gokitLogger(l *zap.Logger) log.Logger {
-	return sallustkit.Logger{
-		Zap: l,
 	}
 }
 
