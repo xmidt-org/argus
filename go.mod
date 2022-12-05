@@ -5,10 +5,10 @@ go 1.19
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.138
+	github.com/aws/aws-sdk-go v1.44.152
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.11.1
-	github.com/gocql/gocql v1.2.1
+	github.com/gocql/gocql v1.3.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/xmidt-org/arrange v0.3.0
-	github.com/xmidt-org/bascule v0.11.1
+	github.com/xmidt-org/bascule v0.11.2
 	github.com/xmidt-org/candlelight v0.0.12
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.3.2
@@ -29,7 +29,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.36.4
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/fx v1.18.2
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 )
 
 require github.com/go-kit/log v0.2.1 // indirect
