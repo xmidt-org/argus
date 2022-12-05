@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [v0.9.5]
 - [Replace webpa common/logging, go-kit/log with zap #332](https://github.com/xmidt-org/argus/issues/332)
+- Vuln patches
+  - [CVE-2022-32149 (High) detected in golang.org/x/text-v0.3.7](https://github.com/xmidt-org/argus/issues/304)
 
 ## [v0.9.4]
 - Update docker and remove unused packaging files. [317](https://github.com/xmidt-org/argus/pull/317)
