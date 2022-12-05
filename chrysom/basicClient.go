@@ -307,7 +307,8 @@ func validateBasicConfig(config *BasicClientConfig) error {
 	}
 
 	if config.Logger == nil {
-		config.Logger = sallust.Default()
+		panic("no logger supplied")
 	}
+
 	return nil
 }
