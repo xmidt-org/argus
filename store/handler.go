@@ -18,12 +18,13 @@
 package store
 
 import (
+	"context"
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/xmidt-org/argus/model"
-	"github.com/xmidt-org/sallust"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 type Handler http.Handler
@@ -36,7 +37,7 @@ type KeyItemPairRequest struct {
 
 type handlerIn struct {
 	fx.In
-	GetLogger sallust.GetLoggerFunc
+	GetLogger func(context.Context) *zap.Logger
 	Store     S
 	Config    *transportConfig
 }

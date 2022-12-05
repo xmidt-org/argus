@@ -217,7 +217,7 @@ func transferHeaders(w http.ResponseWriter, h http.Header) {
 	}
 }
 
-func encodeError(getLogger sallust.GetLoggerFunc) kithttp.ErrorEncoder {
+func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncoder {
 	if getLogger == nil {
 		getLogger = sallust.Get
 	}
