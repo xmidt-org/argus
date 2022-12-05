@@ -34,7 +34,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/sallust"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -54,19 +53,18 @@ func TestValidateBasicConfig(t *testing.T) {
 		ExpectedConfig *BasicClientConfig
 	}
 
-	allDefaultsCaseConfig := &BasicClientConfig{
-		HTTPClient: http.DefaultClient,
-		Logger:     sallust.Default(),
-		Address:    "http://awesome-argus-hostname.io",
-		Bucket:     "bucket-name",
-	}
-
-	myAmazingClient := &http.Client{Timeout: time.Hour}
 	l := zap.New(zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
 		zapcore.AddSync(io.Discard),
 		zap.DebugLevel,
 	))
+	allDefaultsCaseConfig := &BasicClientConfig{
+		HTTPClient: http.DefaultClient,
+		Address:    "http://awesome-argus-hostname.io",
+		Bucket:     "bucket-name",
+		Logger:     l,
+	}
+	myAmazingClient := &http.Client{Timeout: time.Hour}
 	allDefinedCaseConfig := &BasicClientConfig{
 		HTTPClient: myAmazingClient,
 		Address:    "http://legit-argus-hostname.io",
@@ -80,6 +78,7 @@ func TestValidateBasicConfig(t *testing.T) {
 			Description: "No address",
 			Input: &BasicClientConfig{
 				Bucket: "bucket-name",
+				Logger: l,
 			},
 			ExpectedErr: ErrAddressEmpty,
 		},
@@ -87,14 +86,25 @@ func TestValidateBasicConfig(t *testing.T) {
 			Description: "No bucket",
 			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
+				Logger:  l,
 			},
 			ExpectedErr: ErrBucketEmpty,
+		},
+		{
+			Description: "No logger",
+			Input: &BasicClientConfig{
+				Address:    "http://legit-argus-hostname.io",
+				Bucket:     "amazing-bucket",
+				HTTPClient: myAmazingClient,
+			},
+			ExpectedErr: ErrLoggerEmpty,
 		},
 		{
 			Description: "All default values",
 			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 				Bucket:  "bucket-name",
+				Logger:  l,
 			},
 			ExpectedConfig: allDefaultsCaseConfig,
 		},

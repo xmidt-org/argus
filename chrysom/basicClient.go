@@ -37,6 +37,7 @@ var (
 	ErrNilMeasures             = errors.New("measures cannot be nil")
 	ErrAddressEmpty            = errors.New("argus address is required")
 	ErrBucketEmpty             = errors.New("bucket name is required")
+	ErrLoggerEmpty             = errors.New("logger is required")
 	ErrItemIDEmpty             = errors.New("item ID is required")
 	ErrItemDataEmpty           = errors.New("data field in item is required")
 	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
@@ -307,7 +308,7 @@ func validateBasicConfig(config *BasicClientConfig) error {
 	}
 
 	if config.Logger == nil {
-		panic("no logger supplied")
+		return ErrLoggerEmpty
 	}
 
 	return nil
