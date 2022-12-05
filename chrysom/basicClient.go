@@ -37,7 +37,6 @@ var (
 	ErrNilMeasures             = errors.New("measures cannot be nil")
 	ErrAddressEmpty            = errors.New("argus address is required")
 	ErrBucketEmpty             = errors.New("bucket name is required")
-	ErrLoggerEmpty             = errors.New("logger is required")
 	ErrItemIDEmpty             = errors.New("item ID is required")
 	ErrItemDataEmpty           = errors.New("data field in item is required")
 	ErrUndefinedIntervalTicker = errors.New("interval ticker is nil. Can't listen for updates")
@@ -70,10 +69,6 @@ type BasicClientConfig struct {
 	// Auth provides the mechanism to add auth headers to outgoing requests.
 	// (Optional) If not provided, no auth headers are added.
 	Auth Auth
-
-	// Logger to be used by the client.
-	// (Optional). By default a no op logger will be used.
-	Logger *zap.Logger
 }
 
 // BasicClient is the client used to make requests to Argus.
@@ -81,7 +76,6 @@ type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
 	storeBaseURL string
-	logger       *zap.Logger
 	bucket       string
 	getLogger    func(context.Context) *zap.Logger
 }
@@ -126,7 +120,6 @@ func NewBasicClient(config BasicClientConfig, getLogger func(context.Context) *z
 	clientStore := &BasicClient{
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
-		logger:       config.Logger,
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 		getLogger:    getLogger,
@@ -143,11 +136,7 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 	}
 
 	if response.Code != http.StatusOK {
-		l := c.getLogger(ctx)
-		if l == nil {
-			l = c.logger
-		}
-		l.Error("Argus responded with non-200 response for GetItems request",
+		c.getLogger(ctx).Error("Argus responded with non-200 response for GetItems request",
 			zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 		return nil, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 	}
@@ -188,11 +177,7 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 		return UpdatedPushResult, nil
 	}
 
-	l := c.getLogger(ctx)
-	if l == nil {
-		l = c.logger
-	}
-	l.Error("Argus responded with a non-successful status code for a PushItem request",
+	c.getLogger(ctx).Error("Argus responded with a non-successful status code for a PushItem request",
 		zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 
 	return NilPushResult, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
@@ -210,11 +195,7 @@ func (c *BasicClient) RemoveItem(ctx context.Context, id, owner string) (model.I
 	}
 
 	if resp.Code != http.StatusOK {
-		l := c.getLogger(ctx)
-		if l == nil {
-			l = c.logger
-		}
-		l.Error("Argus responded with a non-successful status code for a RemoveItem request",
+		c.getLogger(ctx).Error("Argus responded with a non-successful status code for a RemoveItem request",
 			zap.Int("code", resp.Code), zap.String(errorHeaderKey, resp.ArgusErrorHeader))
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(resp.Code), resp.Code)
 	}
@@ -305,10 +286,6 @@ func validateBasicConfig(config *BasicClientConfig) error {
 
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
-	}
-
-	if config.Logger == nil {
-		return ErrLoggerEmpty
 	}
 
 	return nil

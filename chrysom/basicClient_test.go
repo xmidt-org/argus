@@ -34,8 +34,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 const failingURL = "nowhere://"
@@ -53,16 +51,10 @@ func TestValidateBasicConfig(t *testing.T) {
 		ExpectedConfig *BasicClientConfig
 	}
 
-	l := zap.New(zapcore.NewCore(
-		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-		zapcore.AddSync(io.Discard),
-		zap.DebugLevel,
-	))
 	allDefaultsCaseConfig := &BasicClientConfig{
 		HTTPClient: http.DefaultClient,
 		Address:    "http://awesome-argus-hostname.io",
 		Bucket:     "bucket-name",
-		Logger:     l,
 	}
 	myAmazingClient := &http.Client{Timeout: time.Hour}
 	allDefinedCaseConfig := &BasicClientConfig{
@@ -70,7 +62,6 @@ func TestValidateBasicConfig(t *testing.T) {
 		Address:    "http://legit-argus-hostname.io",
 		Auth:       Auth{},
 		Bucket:     "amazing-bucket",
-		Logger:     l,
 	}
 
 	tcs := []testCase{
@@ -78,7 +69,6 @@ func TestValidateBasicConfig(t *testing.T) {
 			Description: "No address",
 			Input: &BasicClientConfig{
 				Bucket: "bucket-name",
-				Logger: l,
 			},
 			ExpectedErr: ErrAddressEmpty,
 		},
@@ -86,25 +76,14 @@ func TestValidateBasicConfig(t *testing.T) {
 			Description: "No bucket",
 			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
-				Logger:  l,
 			},
 			ExpectedErr: ErrBucketEmpty,
-		},
-		{
-			Description: "No logger",
-			Input: &BasicClientConfig{
-				Address:    "http://legit-argus-hostname.io",
-				Bucket:     "amazing-bucket",
-				HTTPClient: myAmazingClient,
-			},
-			ExpectedErr: ErrLoggerEmpty,
 		},
 		{
 			Description: "All default values",
 			Input: &BasicClientConfig{
 				Address: "http://awesome-argus-hostname.io",
 				Bucket:  "bucket-name",
-				Logger:  l,
 			},
 			ExpectedConfig: allDefaultsCaseConfig,
 		},
@@ -114,7 +93,6 @@ func TestValidateBasicConfig(t *testing.T) {
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
-				Logger:     l,
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},
