@@ -38,9 +38,10 @@ import (
 )
 
 const (
-	applicationName = "argus"
-	apiBase         = "api/v1"
-	defaultKeyID    = "current"
+	applicationName  = "argus"
+	apiBase          = "api/v1"
+	defaultKeyID     = "current"
+	tracingConfigKey = "tracing"
 )
 
 var (
@@ -52,6 +53,12 @@ var (
 type CandlelightConfigIn struct {
 	fx.In
 	C candlelight.Config `name:"tracing_initial_config" optional:"true"`
+}
+
+type TracingConfigIn struct {
+	fx.In
+	TracingConfig candlelight.Config
+	Logger        *zap.Logger
 }
 
 func main() {
@@ -76,15 +83,8 @@ func main() {
 			arrange.UnmarshalKey("userInputValidation", store.UserInputValidationConfig{}),
 			arrange.UnmarshalKey("prometheus", touchstone.Config{}),
 			arrange.UnmarshalKey("prometheus.handler", touchhttp.Config{}),
-			fx.Annotated{
-				Name:   "tracing_initial_config",
-				Target: arrange.UnmarshalKey("tracing", candlelight.Config{}),
-			},
-			func(in CandlelightConfigIn) candlelight.Config {
-				in.C.ApplicationName = applicationName
-				return in.C
-			},
-			candlelight.New,
+			arrange.UnmarshalKey(tracingConfigKey, candlelight.Config{}),
+			loadTracing,
 		),
 		provideServers(),
 	)
@@ -104,6 +104,17 @@ func gokitLogger(l *zap.Logger) log.Logger {
 	return sallustkit.Logger{
 		Zap: l,
 	}
+}
+
+func loadTracing(in TracingConfigIn) (candlelight.Tracing, error) {
+	traceConfig := in.TracingConfig
+	traceConfig.ApplicationName = applicationName
+	tracing, err := candlelight.New(traceConfig)
+	if err != nil {
+		return candlelight.Tracing{}, err
+	}
+	in.Logger.Info("tracing status", zap.Bool("enabled", !tracing.IsNoop()))
+	return tracing, nil
 }
 
 // Provide the constants in the main package for other uber fx components to use.
