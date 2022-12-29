@@ -1,6 +1,6 @@
 module github.com/xmidt-org/argus
 
-go 1.17
+go 1.19
 
 require (
 	emperror.dev/emperror v0.33.0
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/xmidt-org/arrange v0.3.0
-	github.com/xmidt-org/bascule v0.11.2
+	github.com/xmidt-org/bascule v0.11.0
 	github.com/xmidt-org/candlelight v0.0.13
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.3.2
