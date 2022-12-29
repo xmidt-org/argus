@@ -5,10 +5,10 @@ go 1.19
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.156
+	github.com/aws/aws-sdk-go v1.44.169
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.11.1
-	github.com/gocql/gocql v1.3.0
+	github.com/gocql/gocql v1.3.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
