@@ -30,7 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/sallust"
 )
 
 var (
@@ -49,7 +49,7 @@ var (
 	happyListenerClientConfig = ListenerClientConfig{
 		Listener:     mockListener,
 		PullInterval: time.Second,
-		Logger:       xlog.Default(),
+		Logger:       sallust.Default(),
 	}
 )
 
@@ -125,7 +125,7 @@ func newStartStopClient(includeListener bool) (*ListenerClient, func(), error) {
 
 	config := ListenerClientConfig{
 		PullInterval: time.Millisecond * 200,
-		Logger:       xlog.Default(),
+		Logger:       sallust.Default(),
 	}
 	if includeListener {
 		config.Listener = mockListener

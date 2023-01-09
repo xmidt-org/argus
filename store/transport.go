@@ -17,6 +17,7 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
+	"github.com/xmidt-org/sallust"
 	"go.uber.org/zap"
 )
 
@@ -44,10 +45,6 @@ var (
 	errBodyReadFailure         = BadRequestErr{Message: "Failed to read body."}
 	errPayloadUnmarshalFailure = BadRequestErr{Message: "Failed to unmarshal json payload."}
 )
-
-// GetLoggerFunc is the function used to get a request-specific logger from
-// its context.
-type GetLoggerFunc func(context.Context) *zap.Logger
 
 type transportConfig struct {
 	AccessLevelAttributeKey string
@@ -220,11 +217,9 @@ func transferHeaders(w http.ResponseWriter, h http.Header) {
 	}
 }
 
-func encodeError(getLogger GetLoggerFunc) kithttp.ErrorEncoder {
+func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncoder {
 	if getLogger == nil {
-		getLogger = func(_ context.Context) *zap.Logger {
-			return nil
-		}
+		getLogger = sallust.Get
 	}
 
 	return func(ctx context.Context, err error, w http.ResponseWriter) {

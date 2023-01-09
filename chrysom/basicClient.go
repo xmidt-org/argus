@@ -26,12 +26,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/themis/xlog"
+	"github.com/xmidt-org/sallust"
+	"go.uber.org/zap"
 )
 
 var (
@@ -70,10 +69,6 @@ type BasicClientConfig struct {
 	// Auth provides the mechanism to add auth headers to outgoing requests.
 	// (Optional) If not provided, no auth headers are added.
 	Auth Auth
-
-	// Logger to be used by the client.
-	// (Optional). By default a no op logger will be used.
-	Logger log.Logger
 }
 
 // BasicClient is the client used to make requests to Argus.
@@ -81,9 +76,8 @@ type BasicClient struct {
 	client       *http.Client
 	auth         acquire.Acquirer
 	storeBaseURL string
-	logger       log.Logger
 	bucket       string
-	getLogger    func(context.Context) log.Logger
+	getLogger    func(context.Context) *zap.Logger
 }
 
 // Auth contains authorization data for requests to Argus.
@@ -110,17 +104,15 @@ type Items []model.Item
 
 // NewBasicClient creates a new BasicClient that can be used to
 // make requests to Argus.
-func NewBasicClient(config BasicClientConfig,
-	getLogger func(context.Context) log.Logger) (*BasicClient, error) {
+func NewBasicClient(config BasicClientConfig, getLogger func(context.Context) *zap.Logger) (*BasicClient, error) {
 	err := validateBasicConfig(&config)
 	if err != nil {
 		return nil, err
 	}
 	if getLogger == nil {
-		getLogger = func(ctx context.Context) log.Logger {
-			return nil
-		}
+		getLogger = sallust.Get
 	}
+
 	tokenAcquirer, err := buildTokenAcquirer(config.Auth)
 	if err != nil {
 		return nil, err
@@ -128,7 +120,6 @@ func NewBasicClient(config BasicClientConfig,
 	clientStore := &BasicClient{
 		client:       config.HTTPClient,
 		auth:         tokenAcquirer,
-		logger:       config.Logger,
 		bucket:       config.Bucket,
 		storeBaseURL: config.Address + storeAPIPath,
 		getLogger:    getLogger,
@@ -145,12 +136,8 @@ func (c *BasicClient) GetItems(ctx context.Context, owner string) (Items, error)
 	}
 
 	if response.Code != http.StatusOK {
-		l := c.getLogger(ctx)
-		if l == nil {
-			l = c.logger
-		}
-		level.Error(l).Log(xlog.MessageKey(), "Argus responded with non-200 response for GetItems request",
-			"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
+		c.getLogger(ctx).Error("Argus responded with non-200 response for GetItems request",
+			zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 		return nil, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 	}
 
@@ -190,12 +177,8 @@ func (c *BasicClient) PushItem(ctx context.Context, owner string, item model.Ite
 		return UpdatedPushResult, nil
 	}
 
-	l := c.getLogger(ctx)
-	if l == nil {
-		l = c.logger
-	}
-	level.Error(l).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a PushItem request",
-		"code", response.Code, errorHeaderKey, response.ArgusErrorHeader)
+	c.getLogger(ctx).Error("Argus responded with a non-successful status code for a PushItem request",
+		zap.Int("code", response.Code), zap.String(errorHeaderKey, response.ArgusErrorHeader))
 
 	return NilPushResult, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(response.Code), response.Code)
 }
@@ -212,12 +195,8 @@ func (c *BasicClient) RemoveItem(ctx context.Context, id, owner string) (model.I
 	}
 
 	if resp.Code != http.StatusOK {
-		l := c.getLogger(ctx)
-		if l == nil {
-			l = c.logger
-		}
-		level.Error(l).Log(xlog.MessageKey(), "Argus responded with a non-successful status code for a RemoveItem request",
-			"code", resp.Code, errorHeaderKey, resp.ArgusErrorHeader)
+		c.getLogger(ctx).Error("Argus responded with a non-successful status code for a RemoveItem request",
+			zap.Int("code", resp.Code), zap.String(errorHeaderKey, resp.ArgusErrorHeader))
 		return model.Item{}, fmt.Errorf(errStatusCodeFmt, translateNonSuccessStatusCode(resp.Code), resp.Code)
 	}
 
@@ -309,8 +288,5 @@ func validateBasicConfig(config *BasicClientConfig) error {
 		config.HTTPClient = http.DefaultClient
 	}
 
-	if config.Logger == nil {
-		config.Logger = log.NewNopLogger()
-	}
 	return nil
 }

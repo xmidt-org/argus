@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
@@ -54,18 +53,15 @@ func TestValidateBasicConfig(t *testing.T) {
 
 	allDefaultsCaseConfig := &BasicClientConfig{
 		HTTPClient: http.DefaultClient,
-		Logger:     log.NewNopLogger(),
 		Address:    "http://awesome-argus-hostname.io",
 		Bucket:     "bucket-name",
 	}
-
 	myAmazingClient := &http.Client{Timeout: time.Hour}
 	allDefinedCaseConfig := &BasicClientConfig{
 		HTTPClient: myAmazingClient,
 		Address:    "http://legit-argus-hostname.io",
 		Auth:       Auth{},
 		Bucket:     "amazing-bucket",
-		Logger:     log.NewJSONLogger(io.Discard),
 	}
 
 	tcs := []testCase{
@@ -97,7 +93,6 @@ func TestValidateBasicConfig(t *testing.T) {
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
-				Logger:     log.NewJSONLogger(io.Discard),
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},

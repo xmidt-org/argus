@@ -81,7 +81,7 @@ func TestCassandra(t *testing.T) {
 	// s := &CassandraClient{
 	// 	client: mockDB,
 	// 	config: CassandraConfig{},
-	// 	logger: logging.NewTestLogger(nil, t),
+	// 	logger: sallust.Default(),
 	// 	measures: metric.Measures{
 	// 		PoolInUseConnections: p.NewGauge(metric.PoolInUseConnectionsGauge),
 	// 		SQLDuration:          p.NewHistogram(metric.SQLDurationSeconds, 11),
