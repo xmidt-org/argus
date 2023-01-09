@@ -34,9 +34,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/sallust"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 const failingURL = "nowhere://"
@@ -56,23 +53,15 @@ func TestValidateBasicConfig(t *testing.T) {
 
 	allDefaultsCaseConfig := &BasicClientConfig{
 		HTTPClient: http.DefaultClient,
-		Logger:     sallust.Default(),
 		Address:    "http://awesome-argus-hostname.io",
 		Bucket:     "bucket-name",
 	}
-
 	myAmazingClient := &http.Client{Timeout: time.Hour}
-	l := zap.New(zapcore.NewCore(
-		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-		zapcore.AddSync(io.Discard),
-		zap.DebugLevel,
-	))
 	allDefinedCaseConfig := &BasicClientConfig{
 		HTTPClient: myAmazingClient,
 		Address:    "http://legit-argus-hostname.io",
 		Auth:       Auth{},
 		Bucket:     "amazing-bucket",
-		Logger:     l,
 	}
 
 	tcs := []testCase{
@@ -104,7 +93,6 @@ func TestValidateBasicConfig(t *testing.T) {
 				Address:    "http://legit-argus-hostname.io",
 				Bucket:     "amazing-bucket",
 				HTTPClient: myAmazingClient,
-				Logger:     l,
 			},
 			ExpectedConfig: allDefinedCaseConfig,
 		},
