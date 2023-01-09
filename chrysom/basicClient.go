@@ -82,7 +82,7 @@ type BasicClient struct {
 	storeBaseURL string
 	logger       *zap.Logger
 	bucket       string
-	getLogger    sallust.GetLoggerFunc
+	getLogger    func(context.Context) *zap.Logger
 }
 
 // Auth contains authorization data for requests to Argus.
@@ -110,16 +110,12 @@ type Items []model.Item
 // NewBasicClient creates a new BasicClient that can be used to
 // make requests to Argus.
 func NewBasicClient(config BasicClientConfig,
-	getLogger sallust.GetLoggerFunc) (*BasicClient, error) {
+	getLogger func(context.Context) *zap.Logger) (*BasicClient, error) {
 	err := validateBasicConfig(&config)
 	if err != nil {
 		return nil, err
 	}
-	if getLogger == nil {
-		getLogger = func(ctx context.Context) *zap.Logger {
-			return nil
-		}
-	}
+
 	tokenAcquirer, err := buildTokenAcquirer(config.Auth)
 	if err != nil {
 		return nil, err

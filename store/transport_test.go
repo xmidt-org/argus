@@ -18,7 +18,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/httpaux/erraux"
-	"github.com/xmidt-org/sallust"
+	"go.uber.org/zap"
 )
 
 func TestEncodeError(t *testing.T) {
@@ -28,7 +28,7 @@ func TestEncodeError(t *testing.T) {
 		InputErr        error
 		ExpectedHeaders http.Header
 		ExpectedCode    int
-		GetLogger       sallust.GetLoggerFunc
+		GetLogger       func(context.Context) *zap.Logger
 	}{
 		{
 			Description: "Headers and code",
