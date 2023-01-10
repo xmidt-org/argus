@@ -17,7 +17,6 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
-	"github.com/xmidt-org/sallust"
 	"go.uber.org/zap"
 )
 
@@ -218,10 +217,6 @@ func transferHeaders(w http.ResponseWriter, h http.Header) {
 }
 
 func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncoder {
-	if getLogger == nil {
-		getLogger = sallust.Get
-	}
-
 	return func(ctx context.Context, err error, w http.ResponseWriter) {
 		var headerer kithttp.Headerer
 		if errors.As(err, &headerer) {

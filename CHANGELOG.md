@@ -5,8 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.9.5]
 - [Replace webpa common/logging, go-kit/log with zap #332](https://github.com/xmidt-org/argus/issues/332)
 - Updated tracing configuration documentation in argus.yaml to reflect changes in Candlelight [#371](https://github.com/xmidt-org/argus/pull/371/)
+- Vuln patches
+  - [CVE-2022-32149 (High) detected in golang.org/x/text-v0.3.7](https://github.com/xmidt-org/argus/issues/304)
 
 ## [v0.9.4]
 - Update docker and remove unused packaging files. [317](https://github.com/xmidt-org/argus/pull/317)
@@ -220,7 +224,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.5...HEAD
+[v0.9.4]: https://github.com/xmidt-org/argus/compare/v0.9.4...v0.9.5 
 [v0.9.4]: https://github.com/xmidt-org/argus/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/xmidt-org/argus/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/xmidt-org/argus/compare/v0.9.1...v0.9.2

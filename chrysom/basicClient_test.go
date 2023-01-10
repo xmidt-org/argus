@@ -34,6 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
+	"github.com/xmidt-org/sallust"
 )
 
 const failingURL = "nowhere://"
@@ -175,7 +176,7 @@ func TestSendRequest(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    "http://argus-hostname.io",
 				Bucket:     "bucket-name",
-			}, nil)
+			}, sallust.Get)
 
 			if tc.AcquirerFails {
 				client.auth = acquirerFunc(failAcquirer)
@@ -273,7 +274,7 @@ func TestGetItems(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil)
+			}, sallust.Get)
 
 			require.Nil(err)
 
@@ -408,7 +409,7 @@ func TestPushItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil)
+			}, sallust.Get)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)
@@ -506,7 +507,7 @@ func TestRemoveItem(t *testing.T) {
 				HTTPClient: server.Client(),
 				Address:    server.URL,
 				Bucket:     bucket,
-			}, nil)
+			}, sallust.Get)
 
 			if tc.ShouldMakeRequestFail {
 				client.auth = acquirerFunc(failAcquirer)

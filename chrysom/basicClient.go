@@ -29,7 +29,6 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/bascule/acquire"
-	"github.com/xmidt-org/sallust"
 	"go.uber.org/zap"
 )
 
@@ -104,13 +103,11 @@ type Items []model.Item
 
 // NewBasicClient creates a new BasicClient that can be used to
 // make requests to Argus.
-func NewBasicClient(config BasicClientConfig, getLogger func(context.Context) *zap.Logger) (*BasicClient, error) {
+func NewBasicClient(config BasicClientConfig,
+	getLogger func(context.Context) *zap.Logger) (*BasicClient, error) {
 	err := validateBasicConfig(&config)
 	if err != nil {
 		return nil, err
-	}
-	if getLogger == nil {
-		getLogger = sallust.Get
 	}
 
 	tokenAcquirer, err := buildTokenAcquirer(config.Auth)
