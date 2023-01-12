@@ -581,8 +581,8 @@ github.com/xmidt-org/clortho v0.0.4/go.mod h1:1YypMcDmHVrSqSzpMp4fvwloSKc5PQnHmo
 github.com/xmidt-org/httpaux v0.2.1/go.mod h1:mviIlg5fHGb3lAv3l0sbiwVG/q9rqvXaudEYxVrzXdE=
 github.com/xmidt-org/httpaux v0.3.2 h1:CC8FPiGVtThSRj3fEr9lk2e1bzhhw+l6Vb3BfzfaMG0=
 github.com/xmidt-org/httpaux v0.3.2/go.mod h1:qmlPisXf80FTi3y4gX43eYbCVruSQyvu+FPx1jzvQG8=
-github.com/xmidt-org/sallust v0.2.0 h1:XyRLZKNK7cq+mU9bNKtMt8nxJu/tv92gpYAUw7ClP4c=
-github.com/xmidt-org/sallust v0.2.0/go.mod h1:HCQQn7po8czynjxtNVyZ5vzWuTqJyJwnPWkQoqBX67s=
+github.com/xmidt-org/sallust v0.2.1 h1:/K2YTlOy3iLVTHMzccYOPl19Tnm8SX2qph+c/iuIrw8=
+github.com/xmidt-org/sallust v0.2.1/go.mod h1:68C0DLwD5xlhRznXTWmfUhx0etyrFpSOzYGU7jzmpzs=
 github.com/xmidt-org/touchstone v0.1.2 h1:XftgpxlRGvUd+ZSZMzFskgRHwTM7hDYwvCd6ExCNe2s=
 github.com/xmidt-org/touchstone v0.1.2/go.mod h1:2xVJVO8FE393Aofw/FD8Cu9wXES4n1AlJP109Nk7/gg=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
