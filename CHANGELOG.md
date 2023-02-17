@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.9.6]
+- Update dependencies
+
 ## [v0.9.5]
 - [Replace webpa common/logging, go-kit/log with zap #332](https://github.com/xmidt-org/argus/issues/332)
 - Updated tracing configuration documentation in argus.yaml to reflect changes in Candlelight [#371](https://github.com/xmidt-org/argus/pull/371/)
