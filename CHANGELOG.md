@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
   
 ## [v0.9.7]
+- Update dependencies
 - Vuln patches
   - [CVE-2022-41723 (High) detected in golang.org/x/net-v0.5.0 #416](https://github.com/xmidt-org/argus/issues/416)
 
