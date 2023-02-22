@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
   
+## [v0.9.8]
+- Update dependencies
+
 ## [v0.9.7]
 - Update dependencies
 - Vuln patches
@@ -232,7 +235,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.7...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.8...HEAD
+[v0.9.8]: https://github.com/xmidt-org/argus/compare/v0.9.7...v0.9.8
 [v0.9.7]: https://github.com/xmidt-org/argus/compare/v0.9.6...v0.9.7
 [v0.9.6]: https://github.com/xmidt-org/argus/compare/v0.9.5...v0.9.6
 [v0.9.5]: https://github.com/xmidt-org/argus/compare/v0.9.4...v0.9.5 
