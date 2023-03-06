@@ -167,7 +167,8 @@ jwtValidator:
   Config:
     Resolve:
       Template: (( grab $THEMIS_ENDPOINT || "http://themis:6500/keys/{keyID}" ))
-    
+
+# can we remove all of this section?  
 authx:
   inbound:
     # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
@@ -175,13 +176,6 @@ authx:
     basic:
       - (( grab $AUTH_HEADER || "dXNlcjpwYXNz" ))
 
-    # bearer contains all the configuration needed for a JWT validator.
-    # bearer: 
-    #   key:
-    #     factory:
-    #         uri: (( grab $THEMIS_ENDPOINT || "http://themis:6500/keys/docker" ))
-    #     purpose: 0
-    #     updateInterval: 24h
         
     # accessLevel defines config around the injection of an attribute to bascule tokens
     # which application code can leverage to decide if a given request is allowed to execute some operation.
