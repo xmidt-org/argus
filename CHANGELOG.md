@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ## [v0.9.9]
-- Update bascule config for docker 
+- Update bascule config for docker [#433]](https://github.com/xmidt-org/argus/pull/433)
   
 ## [v0.9.8]
 - Update dependencies
