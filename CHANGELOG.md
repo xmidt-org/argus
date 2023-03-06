@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.9.9]
+- Update bascule config for docker [#433]](https://github.com/xmidt-org/argus/pull/433)
   
 ## [v0.9.8]
 - Update dependencies
@@ -235,7 +238,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.8...HEAD
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.9...HEAD
+[v0.9.9]: https://github.com/xmidt-org/argus/compare/v0.9.8...v0.9.9
 [v0.9.8]: https://github.com/xmidt-org/argus/compare/v0.9.7...v0.9.8
 [v0.9.7]: https://github.com/xmidt-org/argus/compare/v0.9.6...v0.9.7
 [v0.9.6]: https://github.com/xmidt-org/argus/compare/v0.9.5...v0.9.6
