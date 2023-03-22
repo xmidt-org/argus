@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 - [Incomplete log error message #237](https://github.com/xmidt-org/argus/issues/237)
 
+## [v0.9.9]
+- Update bascule config for docker [#433]](https://github.com/xmidt-org/argus/pull/433)
+  
+## [v0.9.8]
+- Update dependencies
+
+## [v0.9.7]
+- Update dependencies
+- Vuln patches
+  - [CVE-2022-41723 (High) detected in golang.org/x/net-v0.5.0 #416](https://github.com/xmidt-org/argus/issues/416)
+
+## [v0.9.6]
+- Update dependencies
+
 ## [v0.9.5]
 - [Replace webpa common/logging, go-kit/log with zap #332](https://github.com/xmidt-org/argus/issues/332)
 - Updated tracing configuration documentation in argus.yaml to reflect changes in Candlelight [#371](https://github.com/xmidt-org/argus/pull/371/)
@@ -225,8 +239,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v0.1.0] Tue May 07 2020 Jack Murdock - 0.1.0
 - initial creation
 
-[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.5...HEAD
-[v0.9.4]: https://github.com/xmidt-org/argus/compare/v0.9.4...v0.9.5 
+[Unreleased]: https://github.com/xmidt-org/argus/compare/v0.9.9...HEAD
+[v0.9.9]: https://github.com/xmidt-org/argus/compare/v0.9.8...v0.9.9
+[v0.9.8]: https://github.com/xmidt-org/argus/compare/v0.9.7...v0.9.8
+[v0.9.7]: https://github.com/xmidt-org/argus/compare/v0.9.6...v0.9.7
+[v0.9.6]: https://github.com/xmidt-org/argus/compare/v0.9.5...v0.9.6
+[v0.9.5]: https://github.com/xmidt-org/argus/compare/v0.9.4...v0.9.5 
 [v0.9.4]: https://github.com/xmidt-org/argus/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/xmidt-org/argus/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/xmidt-org/argus/compare/v0.9.1...v0.9.2
