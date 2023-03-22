@@ -12,8 +12,9 @@ logging:
   level: debug
   development: true
   encoderConfig:
-    messageKey: msg
-    levelKey: level
+    messageKey: message
+    levelKey: key
+    levelEncoder: lowercase
 
 health:
   disableLogging: false

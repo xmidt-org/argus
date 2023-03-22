@@ -236,7 +236,7 @@ func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncod
 
 		logger := getLogger(ctx)
 		if logger != nil && code != http.StatusNotFound {
-			logger.Error("sending non-200, non-404 response", zap.Error(err), zap.Int("statusCode", code))
+			logger.Error("sending non-200, non-404 response", zap.Error(err), zap.Int("code", code))
 		}
 
 		w.WriteHeader(code)
