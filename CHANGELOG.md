@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.9.10]
 - [Incomplete log error message #237](https://github.com/xmidt-org/argus/issues/237)
 
 ## [v0.9.9]
