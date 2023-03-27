@@ -11,15 +11,15 @@ import (
 
 // Sentinel internal errors.
 var (
-	ErrItemNotFound   = errors.New("Item at resource path not found")
-	ErrJSONDecode     = errors.New("Error decoding JSON data from DB")
-	ErrJSONEncode     = errors.New("Error encoding JSON data to send to DB")
-	ErrQueryExecution = errors.New("Error occurred during DB query execution")
+	ErrItemNotFound   = errors.New("item at resource path not found")
+	ErrJSONDecode     = errors.New("error decoding JSON data from DB")
+	ErrJSONEncode     = errors.New("error encoding JSON data to send to DB")
+	ErrQueryExecution = errors.New("error occurred during DB query execution")
 )
 
 // Sentinel errors to be used by the HTTP response error encoder.
 var (
-	ErrHTTPItemNotFound = &erraux.Error{Err: errors.New("Item not found"), Code: http.StatusNotFound}
+	ErrHTTPItemNotFound = &erraux.Error{Err: errors.New("item not found"), Code: http.StatusNotFound}
 	ErrHTTPOpFailed     = &erraux.Error{Err: errors.New("DB operation failed"), Code: http.StatusInternalServerError}
 )
 

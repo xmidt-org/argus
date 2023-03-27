@@ -117,14 +117,14 @@ func buildInputRegexValidators(userInputValidation UserInputValidationConfig, co
 	bucketFormatRegex := useOrDefault(userInputValidation.BucketFormatRegex, BucketFormatRegexSource)
 	bucketRegex, err := regexp.Compile(bucketFormatRegex)
 	if err != nil {
-		return fmt.Errorf("Bucket %w: %v", errRegexCompilation, err)
+		return fmt.Errorf("bucket %w: %v", errRegexCompilation, err)
 	}
 	config.BucketFormatRegex = bucketRegex
 
 	ownerFormatRegex := useOrDefault(userInputValidation.OwnerFormatRegex, OwnerFormatRegexSource)
 	ownerRegex, err := regexp.Compile(ownerFormatRegex)
 	if err != nil {
-		return fmt.Errorf("Owner %w: %v", errRegexCompilation, err)
+		return fmt.Errorf("owner %w: %v", errRegexCompilation, err)
 	}
 	config.OwnerFormatRegex = ownerRegex
 
