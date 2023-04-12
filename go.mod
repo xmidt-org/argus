@@ -24,7 +24,7 @@ require (
 	github.com/xmidt-org/candlelight v0.0.15
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.3.2
-	github.com/xmidt-org/sallust v0.2.1
+	github.com/xmidt-org/sallust v0.2.2
 	github.com/xmidt-org/touchstone v0.1.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
 	go.uber.org/atomic v1.10.0 // indirect
