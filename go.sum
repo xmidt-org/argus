@@ -290,6 +290,8 @@ github.com/google/pprof v0.0.0-20210609004039-a478d1d731e9/go.mod h1:kpwsk12EmLe
 github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
 github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
+github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/googleapis/gax-go/v2 v2.0.4/go.mod h1:0Wqv26UfaUD9n4G6kQubkQ+KchISgw+vpHVxEJEs9eg=
 github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5mhpdKc/us6bOk=
 github.com/googleapis/gax-go/v2 v2.1.0/go.mod h1:Q3nei7sK6ybPYH7twZdmQpAd1MKb7pfu6SK+H1/DsU0=
@@ -569,12 +571,14 @@ github.com/subosito/gotenv v1.3.0/go.mod h1:YzJjq/33h7nrwdY+iHMhEOEEbW0ovIz0tB6t
 github.com/subosito/gotenv v1.4.2 h1:X1TuBLAMDFbaTAChgCBLu3DU3UPyELpnF2jjJ2cz/S8=
 github.com/subosito/gotenv v1.4.2/go.mod h1:ayKnFf/c6rvx/2iiLrJUk1e6plDbT3edrFNGqEflhK0=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
+github.com/ugorji/go/codec v1.2.11 h1:BMaWp1Bb6fHwEtbplGBGJ498wD+LKlNSl25MjdZY4dU=
+github.com/ugorji/go/codec v1.2.11/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
 github.com/xmidt-org/arrange v0.4.0 h1:DmJJTK58C44B4efyBV78SmMH0mn0G54n3caVn5BopUU=
 github.com/xmidt-org/arrange v0.4.0/go.mod h1:MA1eKUZYxaSMIKJL3D/iJEMQruiefmhq+s5E9J4UJv0=
 github.com/xmidt-org/bascule v0.11.4 h1:s5ADr3lhMiXc2GCMmsIRSnGT2yopVJjoHPjhpzL9YzE=
 github.com/xmidt-org/bascule v0.11.4/go.mod h1:/MKKhwnktnYeQXFChuYqdE81od+BWbdS/qJPJP7APgo=
-github.com/xmidt-org/candlelight v0.0.15 h1:a9tphsYItewWTP7DUpdU7gppljJOoUsgUPpz1P63Dbs=
-github.com/xmidt-org/candlelight v0.0.15/go.mod h1:yYzrElo3KP1BZ5GAPus7PXehhe7SJYwt7JwCb/+BWQ0=
+github.com/xmidt-org/candlelight v0.0.16 h1:yrkavbxRC+0gOTxzm6aAVqR78HjNtE+aPrCOq9HHCko=
+github.com/xmidt-org/candlelight v0.0.16/go.mod h1:uKs19MQmcrKxFGJhnkVVpEmFJbav5y3jJs30O7204Vo=
 github.com/xmidt-org/chronon v0.1.1 h1:SzOYkT/nmps3jH4sWu6A52ToKvv5Bu0Gb45/ec5Ty9U=
 github.com/xmidt-org/chronon v0.1.1/go.mod h1:8VF1skJAouQihpKfXE8oZZkbQpV1TSR/7QltNxq8T4k=
 github.com/xmidt-org/clortho v0.0.4 h1:4G1uKle0rfm+LwQ3EV7W+jn7kgWnozAoK9DAbz0/etw=
@@ -585,6 +589,8 @@ github.com/xmidt-org/sallust v0.2.2 h1:MrINLEr7cMj6ENx/O76fvpfd5LNGYnk7OipZAGXPY
 github.com/xmidt-org/sallust v0.2.2/go.mod h1:ytBoypcPw10OmjM6b92Jx3eoqWX4J5zVXOQozGwz4qs=
 github.com/xmidt-org/touchstone v0.1.2 h1:XftgpxlRGvUd+ZSZMzFskgRHwTM7hDYwvCd6ExCNe2s=
 github.com/xmidt-org/touchstone v0.1.2/go.mod h1:2xVJVO8FE393Aofw/FD8Cu9wXES4n1AlJP109Nk7/gg=
+github.com/xmidt-org/wrp-go/v3 v3.1.6 h1:6KfAwAFgeeh9OtnzjpKbKQDZjbVcWKh9fFsBWsjuk48=
+github.com/xmidt-org/wrp-go/v3 v3.1.6/go.mod h1:zM+Ng6Z0RT30zi+8O5IwNsSqX6B2SY6IQgN61KnpHZ8=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
@@ -622,8 +628,8 @@ go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0 h1:3jAYb
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0/go.mod h1:+N7zNjIJv4K+DeX67XXET0P+eIciESgaFDBqh+ZJFS4=
 go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.14.0 h1:sEL90JjOO/4yhquXl5zTAkLLsZ5+MycAgX99SDsxGc8=
 go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.14.0/go.mod h1:oCslUcizYdpKYyS9e8srZEqM6BB8fq41VJBjLAE6z1w=
-go.opentelemetry.io/otel/exporters/zipkin v1.13.0 h1:RqPV1VhJjrx28qOKYFPj3Mso56uaBovur3GZehF9y9s=
-go.opentelemetry.io/otel/exporters/zipkin v1.13.0/go.mod h1:x6S2VkXmdpoYUqQx9FKiMEsndal6xkcwDdV0Oi1RlLM=
+go.opentelemetry.io/otel/exporters/zipkin v1.14.0 h1:reEVE1upBF9tcujgvSqLJS0SrI7JQPaTKP4s4rymnSs=
+go.opentelemetry.io/otel/exporters/zipkin v1.14.0/go.mod h1:RcjvOAcvhzcufQP8aHmzRw1gE9g/VEZufDdo2w+s4sk=
 go.opentelemetry.io/otel/sdk v1.14.0 h1:PDCppFRDq8A1jL9v6KMI6dYesaq+DFcDZvjsoGvxGzY=
 go.opentelemetry.io/otel/sdk v1.14.0/go.mod h1:bwIC5TjrNG6QDCHNWvW4HLHtUQ4I+VQDsnjhvyZCALM=
 go.opentelemetry.io/otel/trace v1.14.0 h1:wp2Mmvj41tDsyAJXiWDWpfNsOiIyd38fy85pyKcFq/M=
@@ -649,8 +655,8 @@ go.uber.org/multierr v1.5.0/go.mod h1:FeouvMocqHpRaaGuG9EjoKcStLC43Zu/fmqdUMPcKY
 go.uber.org/multierr v1.6.0/go.mod h1:cdWPpRnG4AhwMwsgIHip0KRBQjJy5kYEpYjJxpXp9iU=
 go.uber.org/multierr v1.7.0/go.mod h1:7EAYxJLBy9rStEaz58O2t4Uvip6FSURkq8/ppBp95ak=
 go.uber.org/multierr v1.8.0/go.mod h1:7EAYxJLBy9rStEaz58O2t4Uvip6FSURkq8/ppBp95ak=
-go.uber.org/multierr v1.9.0 h1:7fIwc/ZtS0q++VgcfqFDxSBZVv/Xo49/SYnDFupUwlI=
-go.uber.org/multierr v1.9.0/go.mod h1:X2jQV1h+kxSjClGpnseKVIxpmcjrj7MNnI0bnlfKTVQ=
+go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
+go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/tools v0.0.0-20190618225709-2cfd321de3ee/go.mod h1:vJERXedbb3MVM5f9Ejo0C68/HhF8uaILCdgjnY+goOA=
 go.uber.org/zap v1.16.0/go.mod h1:MA8QOfq0BHJwdXa996Y4dYkAqRKB8/1K1QMMZVaNZjQ=
 go.uber.org/zap v1.17.0/go.mod h1:MXVU+bhUf/A7Xi2HNOnopQOrmycQ5Ih87HtOu4q5SSo=
