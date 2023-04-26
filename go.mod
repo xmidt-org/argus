@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.249
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.12.0
-	github.com/gocql/gocql v1.3.2
+	github.com/gocql/gocql v1.4.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
