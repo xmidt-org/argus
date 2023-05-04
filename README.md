@@ -59,9 +59,9 @@ The body must be in JSON format with the following attributes:
   the server configuration option `itemMaxTTL`. If a configuration value is not
   specified, the value would be a day (~ 24*60^2 seconds). )
 
-An optional header `X-Midt-Owner` can be sent to associate the object with an
+An optional header `X-Xmidt-Owner` can be sent to associate the object with an
 owner. The value of this header will be bound to the new item, which would
-require the same value passed in a `X-Midt-Owner` header for subsequent reads or
+require the same value passed in a `X-Xmidt-Owner` header for subsequent reads or
 modifications. This in effect creates a secret attribute bound to the life of
 newly created items. When provided, Argus validates the length of the owner
 string to be in the range `[10,60]`. If you'd like to define your own validation
@@ -72,7 +72,7 @@ When the header is not provided, the owner of the item will be the empty string.
 
 The exception to the above would be an authorized request.  The authorization
 method is not specified and is up to the implementation to decide.  Authorized
-requests shall be allowed to update all attributes except the `X-Midt-Owner`
+requests shall be allowed to update all attributes except the `X-Xmidt-Owner`
 meta attribute.
 
 An example PUT request
@@ -115,7 +115,7 @@ by the id.
 
 An example response will look like the below where
 "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7" is the id of
-the only item in this collection. An optional header `X-Midt-Owner` can be sent
+the only item in this collection. An optional header `X-Xmidt-Owner` can be sent
 with the request.  If supplied, only items with secrets matching the supplied
 value will be returned in the list. If not supplied, all items created without
 an owner (owner value = "") will be returned. For authorized requests, if no
@@ -144,9 +144,9 @@ An example response:
 
 This endpoint allows for `GET`, and `DELETE` REST methods to interact with any
 object that was created with the previous `PUT` request.  An optional header
-`X-Midt-Owner` can be sent with the request.  All requests are validated by
+`X-Xmidt-Owner` can be sent with the request.  All requests are validated by
 comparing the secret stored with the requested record with the value sent in the
-`X-Midt-Owner` header.  If the header is missing, the "" (empty string) is
+`X-Xmidt-Owner` header.  If the header is missing, the "" (empty string) is
 assigned as the item's owner during item creation.  A mismatch will result in a
 "403 Forbidden" error.  An authorized request may override this requirement,
 providing an administrative override.  The method of authorization is not
