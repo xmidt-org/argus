@@ -28,8 +28,8 @@ const (
 
 // Request and Response Headers.
 const (
-	ItemOwnerHeaderKey  = "X-Midt-Owner"
-	XmidtErrorHeaderKey = "X-Midt-Error"
+	ItemOwnerHeaderKey  = "X-Xmidt-Owner"
+	XmidtErrorHeaderKey = "X-Xmidt-Error"
 )
 
 // ElevatedAccessLevel is the bascule attribute value found in requests that should be granted
