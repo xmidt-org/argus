@@ -5,7 +5,7 @@ go 1.19
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.262
+	github.com/aws/aws-sdk-go v1.44.263
 	github.com/go-kit/kit v0.12.0
 	github.com/go-playground/validator/v10 v10.13.0
 	github.com/gocql/gocql v1.4.0
