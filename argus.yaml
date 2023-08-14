@@ -26,26 +26,26 @@ servers:
     address: :6600
     disableHTTPKeepAlives: true
     header:
-      X-Midt-Server:
+      X-Xmidt-Server:
         - argus
-      X-Midt-Version:
+      X-Xmidt-Version:
         - development
   metrics:
     address: :6601
     disableHTTPKeepAlives: true
     header:
-      X-Midt-Server:
+      X-Xmidt-Server:
         - argus
-      X-Midt-Version:
+      X-Xmidt-Version:
         - development
 
   health:
     address: :6602
     disableHTTPKeepAlives: true
     header:
-      X-Midt-Server:
+      X-Xmidt-Server:
         - argus
-      X-Midt-Version:
+      X-Xmidt-Version:
         - development
 
 store:
