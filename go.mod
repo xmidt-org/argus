@@ -25,7 +25,7 @@ require (
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.4.0
 	github.com/xmidt-org/sallust v0.2.2
-	github.com/xmidt-org/touchstone v0.1.2
+	github.com/xmidt-org/touchstone v0.1.3
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
 	go.uber.org/fx v1.20.0
 	go.uber.org/zap v1.25.0
