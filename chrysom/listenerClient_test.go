@@ -149,7 +149,8 @@ func TestValidateListenerConfig(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			assert := assert.New(t)
-			err := validateListenerConfig(&tc.config)
+			c := tc.config
+			err := validateListenerConfig(&c)
 			assert.True(errors.Is(err, tc.expectedErr),
 				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
 					err, tc.expectedErr),

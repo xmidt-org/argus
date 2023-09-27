@@ -480,7 +480,8 @@ func TestRemoveItem(t *testing.T) {
 				assert  = assert.New(t)
 				require = require.New(t)
 				bucket  = "bucket-name"
-				id      = "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7"
+				// nolint:gosec
+				id = "7e8c5f378b4addbaebc70897c4478cca06009e3e360208ebd073dbee4b3774e7"
 			)
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				assert.Equal(fmt.Sprintf("%s/%s/%s", storeAPIPath, bucket, id), r.URL.Path)
