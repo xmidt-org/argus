@@ -28,7 +28,7 @@ require (
 	github.com/xmidt-org/touchstone v0.1.5
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
 	go.uber.org/fx v1.20.1
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 )
 
 require github.com/go-kit/log v0.2.1 // indirect
