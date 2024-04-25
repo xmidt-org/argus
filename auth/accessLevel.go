@@ -5,7 +5,6 @@ package auth
 
 import (
 	"github.com/spf13/cast"
-	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
 	"go.uber.org/fx"
 )
@@ -49,7 +48,7 @@ type accessLevelCapabilitySource struct {
 	Path []string
 }
 
-type accessLevelConfig struct {
+type AccessLevelConfig struct {
 	AttributeKey     string
 	CapabilitySource accessLevelCapabilitySource
 }
@@ -63,7 +62,7 @@ func defaultAccessLevel() AccessLevel {
 	}
 }
 
-func validateAccessLevelConfig(config *accessLevelConfig) {
+func validateAccessLevelConfig(config *AccessLevelConfig) {
 	if len(config.AttributeKey) < 1 {
 		config.AttributeKey = DefaultAccessLevelAttributeKey
 	}
@@ -77,7 +76,7 @@ func validateAccessLevelConfig(config *accessLevelConfig) {
 	}
 }
 
-func newContainsAttributeAccessLevel(config *accessLevelConfig) AccessLevel {
+func newContainsAttributeAccessLevel(config *AccessLevelConfig) AccessLevel {
 	validateAccessLevelConfig(config)
 
 	resolve := func(attributes bascule.Attributes) int {
@@ -102,11 +101,10 @@ func newContainsAttributeAccessLevel(config *accessLevelConfig) AccessLevel {
 	}
 }
 
-func provideAccessLevel(key string) fx.Option {
+func provideAccessLevel() fx.Option {
 	return fx.Options(
 		fx.Provide(
-			arrange.UnmarshalKey(key, &accessLevelConfig{}),
-			func(c *accessLevelConfig) AccessLevel {
+			func(c *AccessLevelConfig) AccessLevel {
 				if c == nil {
 					return defaultAccessLevel()
 				}

@@ -3,12 +3,10 @@
 prometheus:
   defaultNamespace: xmidt
   defaultSubsystem: argus
-  constLabels:
-    development: "true"
-  handler:
-    maxRequestsInFlight: 5
-    timeout: 5s
-    instrumentMetricHandler: true
+  # handler:
+  #   maxRequestsInFlight: 5
+  #   timeout: 5s
+  #   instrumentMetricHandler: true
 
 logging:
   level: debug
@@ -16,7 +14,7 @@ logging:
   encoderConfig:
     messageKey: message
     levelKey: key
-    levelEncoder: lowercase
+    encodeLevel: lowercase
 
 health:
   disableLogging: false
@@ -25,30 +23,33 @@ health:
 
 servers:
   primary:
-    address: :6600
-    disableHTTPKeepAlives: true
-    header:
-      X-Xmidt-Server:
-        - argus
-      X-Xmidt-Version:
-        - development
+    http:
+      address: :6600
+      header:
+        X-Xmidt-Server:
+          - argus
+        X-Xmidt-Version:
+          - development
+    disableHttpKeepAlives: true
   metrics:
-    address: :6601
-    disableHTTPKeepAlives: true
-    header:
-      X-Xmidt-Server:
-        - argus
-      X-Xmidt-Version:
-        - development
+    http:
+      address: :6601
+      header:
+        X-Xmidt-Server:
+          - argus
+        X-Xmidt-Version:
+          - development
+    disableHttpKeepAlives: true
 
   health:
-    address: :6602
-    disableHTTPKeepAlives: true
-    header:
-      X-Xmidt-Server:
-        - argus
-      X-Xmidt-Version:
-        - development
+    http:
+      address: :6602
+      header:
+        X-Xmidt-Server:
+          - argus
+        X-Xmidt-Version:
+          - development
+    disableHttpKeepAlives: true
 
 store:
   # dynamo is the configuration block to communicate with dynamoDB.
@@ -124,7 +125,7 @@ userInputValidation:
   # itemMaxTTL defines the limit for TTL values provided by users of the API. 
   # refer to https://golang.org/pkg/time/#ParseDuration for valid strings.
   # (Optional) default: 24h (a day)
-  itemMaxTTL: "24h" 
+  itemMaxTtl: "24h" 
 
   # bucketFormatRegex helps define the validity of a bucket through a regular expression.
   # (Optional) default: ^[0-9a-z][0-9a-z-]{1,61}[0-9a-z]$
@@ -146,21 +147,21 @@ userInputValidation:
 ##############################################################################
 # clorthoConfig groups options around clortho configuration.
 jwtValidator:
-  Config:
-    Resolve:
+  config:
+    resolve:
       # Template is a URI template used to fetch keys.  This template may
       # use a single parameter named keyID, e.g. http://keys.com/{keyID}.
       # This field is required and has no default.
-      Template: "http://localhost/{key_name}"
-    Refresh:
-      Sources:
+      template: "http://localhost/{key_name}"
+    refresh:
+      sources:
         # URI is the location where keys are served.  By default, clortho supports
         # file://, http://, and https:// URIs, as well as standard file system paths
         # such as /etc/foo/bar.jwk.
         #
         # This field is required and has no default.
-        - URI: "http://localhost/available"
-authx:
+        - uri: "http://localhost/available"
+auth:
   inbound:
     # basic is a list of Basic Auth credentials intended to be used for local testing purposes.
     # WARNING! Be sure to remove this from your production config.

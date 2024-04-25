@@ -49,7 +49,7 @@ type Config struct {
 	Endpoint string
 
 	// Region is the AWS region of the running DB.
-	Region string `validate:"required"`
+	Region string `validate:"empty=false"`
 
 	// MaxRetries is the number of times DB operations will be retried on error.
 	// (Optional) Defaults to 3.
@@ -60,10 +60,10 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string `validate:"required"`
+	AccessKey string `validate:"empty=false"`
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string `validate:"required"`
+	SecretKey string `validate:"empty=false"`
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).

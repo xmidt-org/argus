@@ -9,7 +9,6 @@ import (
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/argus/store/dynamodb"
 	"github.com/xmidt-org/argus/store/inmem"
-	"github.com/xmidt-org/arrange"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -32,7 +31,6 @@ type SetupIn struct {
 func Provide() fx.Option {
 	return fx.Options(
 		fx.Provide(
-			arrange.UnmarshalKey("store", Configs{}),
 			SetupStore,
 		),
 	)

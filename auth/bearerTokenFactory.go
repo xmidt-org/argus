@@ -6,12 +6,10 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"emperror.dev/emperror"
 	"github.com/golang-jwt/jwt"
-	"github.com/xmidt-org/arrange"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/clortho"
@@ -111,13 +109,8 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 	return fx.Options(
 
 		clorthofx.Provide(),
-		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
+		provideAccessLevel(),
 		fx.Provide(
-			fx.Annotated{
-				Name: "jwt_leeway",
-				Target: arrange.UnmarshalKey(fmt.Sprintf("%s.bearer.leeway", configKey),
-					bascule.Leeway{}),
-			},
 			fx.Annotated{
 				Group: "bascule_constructor_options",
 				Target: func(f accessLevelBearerTokenFactory) (basculehttp.COption, error) {
@@ -127,7 +120,6 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 					return basculehttp.WithTokenFactory(basculehttp.BearerAuthorization, f), nil
 				},
 			},
-			arrange.UnmarshalKey("jwtValidator", JWTValidator{}),
 			func(jv JWTValidator) clortho.Config {
 				return jv.Config
 			},

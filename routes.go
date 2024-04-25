@@ -10,15 +10,21 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/xmidt-org/argus/store"
-	"github.com/xmidt-org/arrange"
-	"github.com/xmidt-org/arrange/arrangehttp"
 	"github.com/xmidt-org/candlelight"
-	"github.com/xmidt-org/httpaux"
-	"github.com/xmidt-org/touchstone"
 	"github.com/xmidt-org/touchstone/touchhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/fx"
 )
+
+type RoutesIn struct {
+	fx.In
+	PrimaryMetrics touchhttp.ServerInstrumenter `name:"servers.primary.metrics"`
+	HealthMetrics  touchhttp.ServerInstrumenter `name:"servers.health.metrics"`
+	// Routes           Routes
+	// GraphQLHandler   *handler.Server
+	// EventAuth        func(http.Handler) http.Handler `name:"wrp-listener.auth"`
+	// EventHandler     *event.Handler
+}
 
 type PrimaryRouterIn struct {
 	fx.In
@@ -38,21 +44,21 @@ type PrimaryHandlersIn struct {
 	GetAll store.Handler `name:"get_all_handler"`
 }
 
-type MetricRouterIn struct {
-	fx.In
-	Router  *mux.Router `name:"server_metrics"`
-	Handler touchhttp.Handler
-}
+// type MetricRouterIn struct {
+// 	fx.In
+// 	Router  *mux.Router `name:"server_metrics"`
+// 	Handler touchhttp.Handler
+// }
 
-type PrimaryMMIn struct {
-	fx.In
-	Primary alice.Chain `name:"middleware_primary_metrics"`
-}
+// type PrimaryMMIn struct {
+// 	fx.In
+// 	Primary alice.Chain `name:"middleware_primary_metrics"`
+// }
 
-type HealthMMIn struct {
-	fx.In
-	Health alice.Chain `name:"middleware_health_metrics"`
-}
+// type HealthMMIn struct {
+// 	fx.In
+// 	Health alice.Chain `name:"middleware_health_metrics"`
+// }
 
 type MetricMiddlewareOut struct {
 	fx.Out
@@ -60,43 +66,43 @@ type MetricMiddlewareOut struct {
 	Health  alice.Chain `name:"middleware_health_metrics"`
 }
 
-func provideServers() fx.Option {
-	return fx.Options(
-		arrangehttp.Server{
-			Name: "server_primary",
-			Key:  "servers.primary",
-			Inject: arrange.Inject{
-				PrimaryMMIn{},
-			},
-		}.Provide(),
-		fx.Provide(
-			metricMiddleware,
-		),
-		arrangehttp.Server{
-			Name: "server_health",
-			Key:  "servers.health",
-			Inject: arrange.Inject{
-				HealthMMIn{},
-			},
-			Invoke: arrange.Invoke{
-				func(r *mux.Router) {
-					r.Handle("/health", httpaux.ConstantHandler{
-						StatusCode: http.StatusOK,
-					}).Methods("GET")
-				},
-			},
-		}.Provide(),
-		arrangehttp.Server{
-			Name: "server_metrics",
-			Key:  "servers.metrics",
-		}.Provide(),
+// func provideServers() fx.Option {
+// 	return fx.Options(
+// 		arrangehttp.Server{
+// 			Name: "server_primary",
+// 			Key:  "servers.primary",
+// 			Inject: arrange.Inject{
+// 				PrimaryMMIn{},
+// 			},
+// 		}.Provide(),
+// 		fx.Provide(
+// 			metricMiddleware,
+// 		),
+// 		arrangehttp.Server{
+// 			Name: "server_health",
+// 			Key:  "servers.health",
+// 			Inject: arrange.Inject{
+// 				HealthMMIn{},
+// 			},
+// 			Invoke: arrange.Invoke{
+// 				func(r *mux.Router) {
+// 					r.Handle("/health", httpaux.ConstantHandler{
+// 						StatusCode: http.StatusOK,
+// 					}).Methods("GET")
+// 				},
+// 			},
+// 		}.Provide(),
+// 		arrangehttp.Server{
+// 			Name: "server_metrics",
+// 			Key:  "servers.metrics",
+// 		}.Provide(),
 
-		fx.Invoke(
-			handlePrimaryEndpoint,
-			handleMetricEndpoint,
-		),
-	)
-}
+// 		fx.Invoke(
+// 			handlePrimaryEndpoint,
+// 			handleMetricEndpoint,
+// 		),
+// 	)
+// }
 
 func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	options := []otelmux.Option{
@@ -117,26 +123,30 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	in.Router.Handle(itemPath, in.Handlers.Delete).Methods(http.MethodDelete)
 }
 
-func metricMiddleware(f *touchstone.Factory) (out MetricMiddlewareOut) {
-	var bundle touchhttp.ServerBundle
-
-	primary, err1 := bundle.NewInstrumenter(
-		touchhttp.ServerLabel, "server_primary",
-	)(f)
-	health, err2 := bundle.NewInstrumenter(
-		touchhttp.ServerLabel, "server_health",
-	)(f)
-
-	if err1 != nil || err2 != nil {
-		return
-	}
-
-	out.Primary = alice.New(primary.Then)
-	out.Health = alice.New(health.Then)
-
-	return
+// The name should be 'primary' or 'alternate'.
+func provideCoreEndpoints() fx.Option {
+	return fx.Provide(
+		fx.Annotated{
+			Name: "servers.primary.metrics",
+			Target: touchhttp.ServerBundle{}.NewInstrumenter(
+				touchhttp.ServerLabel, "primary",
+			),
+		},
+		fx.Annotated{
+			Name: "servers.health.metrics",
+			Target: touchhttp.ServerBundle{}.NewInstrumenter(
+				touchhttp.ServerLabel, "health",
+			),
+		},
+		func(in RoutesIn) MetricMiddlewareOut {
+			return MetricMiddlewareOut{
+				Primary: alice.New(in.PrimaryMetrics.Then),
+				Health:  alice.New(in.HealthMetrics.Then),
+			}
+		},
+	)
 }
 
-func handleMetricEndpoint(in MetricRouterIn) {
-	in.Router.Handle("/metrics", in.Handler).Methods("GET")
-}
+// func handleMetricEndpoint(in MetricRouterIn) {
+// 	in.Router.Handle("/metrics", in.Handler).Methods("GET")
+// }
