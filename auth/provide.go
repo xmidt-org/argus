@@ -14,6 +14,26 @@ type APIBaseIn struct {
 	Val string `name:"api_base"`
 }
 
+type Config struct {
+	Inbound InboundAuth
+}
+type InboundAuth struct {
+	Basic       []string
+	Bearer      BearerAuth
+	AccessLevel AccessLevelConfig
+}
+type BearerAuth struct {
+	Key AuthKey
+}
+type AuthKey struct {
+	Factory        Factory
+	Purpose        int
+	UpdateInterval string
+}
+type Factory struct {
+	Uri string
+}
+
 // Provide provides the auth alice.Chain for the primary server.
 func Provide(configKey string) fx.Option {
 	return fx.Options(

@@ -30,28 +30,8 @@ type Config struct {
 	Store               db.Configs
 	JWTValidator        auth.JWTValidator
 	UserInputValidation store.UserInputValidationConfig
-	Auth                Auth
+	Auth                auth.Config
 	Health              HealthConfig
-}
-
-type Auth struct {
-	Inbound InboundAuth
-}
-type InboundAuth struct {
-	Basic       []string
-	Bearer      BearerAuth
-	AccessLevel auth.AccessLevelConfig
-}
-type BearerAuth struct {
-	Key AuthKey
-}
-type AuthKey struct {
-	Factory        Factory
-	Purpose        int
-	UpdateInterval string
-}
-type Factory struct {
-	Uri string
 }
 
 type Servers struct {

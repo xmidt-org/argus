@@ -104,11 +104,11 @@ func newContainsAttributeAccessLevel(config *AccessLevelConfig) AccessLevel {
 func provideAccessLevel() fx.Option {
 	return fx.Options(
 		fx.Provide(
-			func(c *AccessLevelConfig) AccessLevel {
-				if c == nil {
+			func(c Config) AccessLevel {
+				if c.Inbound.AccessLevel.AttributeKey == "" {
 					return defaultAccessLevel()
 				}
-				return newContainsAttributeAccessLevel(c)
+				return newContainsAttributeAccessLevel(&c.Inbound.AccessLevel)
 			},
 		),
 	)

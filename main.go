@@ -110,10 +110,10 @@ func argus(arguments []string, run bool) error {
 			goschtalt.UnmarshalFunc[touchstone.Config]("prometheus"),
 			goschtalt.UnmarshalFunc[candlelight.Config]("tracing"),
 			goschtalt.UnmarshalFunc[store.UserInputValidationConfig]("userInputValidation"),
-			goschtalt.UnmarshalFunc[Auth]("auth"),
+			goschtalt.UnmarshalFunc[auth.Config]("auth"),
 			goschtalt.UnmarshalFunc[HealthPath]("servers.health.path"),
 			goschtalt.UnmarshalFunc[MetricsPath]("servers.metrics.path"),
-			// goschtalt.UnmarshalFunc[touchhttp.Config]("prometheus.handler"),
+			goschtalt.UnmarshalFunc[touchhttp.Config]("prometheus.handler"),
 
 			fx.Annotated{
 				Name:   "servers.health.config",
