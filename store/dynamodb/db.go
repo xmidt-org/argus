@@ -4,6 +4,7 @@ package dynamodb
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -34,7 +35,7 @@ var errHTTPBadRequest = &erraux.Error{
 }
 
 func init() {
-	validate = validator.New()
+	validate = validator.New(validator.WithRequiredStructEnabled())
 }
 
 // Config contains all fields needed to establish a connection
@@ -49,7 +50,7 @@ type Config struct {
 	Endpoint string
 
 	// Region is the AWS region of the running DB.
-	Region string `validate:"empty=false"`
+	Region string
 
 	// MaxRetries is the number of times DB operations will be retried on error.
 	// (Optional) Defaults to 3.
@@ -60,10 +61,10 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string `validate:"empty=false"`
+	AccessKey string
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string `validate:"empty=false"`
+	SecretKey string
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).
@@ -84,11 +85,17 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	if config.MaxRetries == 0 {
 		config.MaxRetries = defaultMaxRetries
 	}
-	err := validate.Struct(config)
+	err := validate.Struct(&config)
 	if err != nil {
-		return nil, err
-	}
 
+		// this check is only needed when your code could produce
+		// an invalid value for validation such as interface with nil
+		// value most including myself do not usually have code like this.
+		if _, ok := err.(*validator.InvalidValidationError); ok {
+			fmt.Println(err)
+			return nil, err
+		}
+	}
 	awsConfig := *aws.NewConfig().
 		WithEndpoint(config.Endpoint).
 		WithUseDualStack(!config.DisableDualStack).

@@ -20,7 +20,7 @@ import (
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
 	"github.com/xmidt-org/httpaux/erraux"
-	"github.com/xmidt-org/sallust"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestEncodeError(t *testing.T) {
@@ -55,8 +55,9 @@ func TestEncodeError(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
+			logger := zaptest.NewLogger(t)
 			w := httptest.NewRecorder()
-			e := encodeError(sallust.Get)
+			e := encodeError(logger)
 			e(context.Background(), tc.InputErr, w)
 			assert.Equal(tc.ExpectedCode, w.Code)
 			assert.Equal(tc.ExpectedHeaders, w.Header())

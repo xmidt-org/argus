@@ -83,14 +83,17 @@ func argus(arguments []string, run bool) error {
 	)
 	app := fx.New(
 		fx.Supply(cliArgs(arguments)),
-		fx.Populate(cli),
-		fx.Populate(gscfg),
+		fx.Populate(&cli),
+		fx.Populate(&gscfg),
 		fx.Populate(&g),
 
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log}
 		}),
 
+		provideHealthCheck(),
+		provideMetricEndpoint(),
+		provideCoreEndpoints(),
 		metric.ProvideMetrics(),
 		auth.Provide("auth.inbound"),
 		touchhttp.Provide(),
@@ -107,7 +110,9 @@ func argus(arguments []string, run bool) error {
 			goschtalt.UnmarshalFunc[touchstone.Config]("prometheus"),
 			goschtalt.UnmarshalFunc[candlelight.Config]("tracing"),
 			goschtalt.UnmarshalFunc[store.UserInputValidationConfig]("userInputValidation"),
-			goschtalt.UnmarshalFunc[Auth]("authx"),
+			goschtalt.UnmarshalFunc[Auth]("auth"),
+			goschtalt.UnmarshalFunc[HealthPath]("servers.health.path"),
+			goschtalt.UnmarshalFunc[MetricsPath]("servers.metrics.path"),
 			// goschtalt.UnmarshalFunc[touchhttp.Config]("prometheus.handler"),
 
 			fx.Annotated{

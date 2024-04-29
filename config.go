@@ -12,6 +12,7 @@ import (
 	"github.com/xmidt-org/argus/auth"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db"
+	"github.com/xmidt-org/argus/store/dynamodb"
 	"github.com/xmidt-org/arrange/arrangehttp"
 	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/sallust"
@@ -194,5 +195,12 @@ var defaultConfig = Config{
 	},
 	Tracing: candlelight.Config{
 		ApplicationName: applicationName,
+	},
+	Store: db.Configs{
+		Dynamo: &dynamodb.Config{
+			Region:    "us-east-2",
+			AccessKey: "accessKey",
+			SecretKey: "secretKey",
+		},
 	},
 }

@@ -218,7 +218,7 @@ func transferHeaders(w http.ResponseWriter, h http.Header) {
 	}
 }
 
-func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncoder {
+func encodeError(logger *zap.Logger) kithttp.ErrorEncoder {
 	return func(ctx context.Context, err error, w http.ResponseWriter) {
 		var headerer kithttp.Headerer
 		if errors.As(err, &headerer) {
@@ -236,7 +236,6 @@ func encodeError(getLogger func(context.Context) *zap.Logger) kithttp.ErrorEncod
 			code = statusCoder.StatusCode()
 		}
 
-		logger := getLogger(ctx)
 		if logger != nil && code != http.StatusNotFound {
 			logger.Error("sending non-200, non-404 response", zap.Error(err), zap.Int("code", code))
 		}
