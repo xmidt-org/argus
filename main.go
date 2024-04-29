@@ -113,7 +113,6 @@ func argus(arguments []string, run bool) error {
 			goschtalt.UnmarshalFunc[auth.Config]("auth"),
 			goschtalt.UnmarshalFunc[HealthPath]("servers.health.path"),
 			goschtalt.UnmarshalFunc[MetricsPath]("servers.metrics.path"),
-			goschtalt.UnmarshalFunc[touchhttp.Config]("prometheus.handler"),
 
 			fx.Annotated{
 				Name:   "servers.health.config",
