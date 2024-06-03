@@ -28,4 +28,3 @@ issues:
       linters:
         - dupl
         - funlen
-
