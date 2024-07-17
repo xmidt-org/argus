@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/touchstone/touchtest"

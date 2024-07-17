@@ -6,7 +6,7 @@
 package store
 
 import (
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 )
 
 const (

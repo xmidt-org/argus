@@ -7,7 +7,7 @@ package store
 
 import (
 	"github.com/stretchr/testify/mock"
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 )
 
 type MockDAO struct {

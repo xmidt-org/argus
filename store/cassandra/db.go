@@ -11,7 +11,7 @@ import (
 	"emperror.dev/emperror"
 	"github.com/gocql/gocql"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
 

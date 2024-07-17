@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )

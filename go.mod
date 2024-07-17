@@ -5,7 +5,7 @@ go 1.21
 require (
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.1 // indirect
-	github.com/aws/aws-sdk-go v1.50.26
+	github.com/aws/aws-sdk-go v1.54.19
 	github.com/go-kit/kit v0.13.0
 	github.com/go-playground/validator/v10 v10.18.0
 	github.com/gocql/gocql v1.6.0
@@ -14,24 +14,26 @@ require (
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 	github.com/justinas/alice v1.2.0
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
-	github.com/prometheus/client_golang v1.18.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
 	github.com/xmidt-org/arrange v0.4.0
-	github.com/xmidt-org/bascule v0.11.6
+	github.com/xmidt-org/bascule v0.11.7
 	github.com/xmidt-org/candlelight v0.0.19
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.4.0
 	github.com/xmidt-org/sallust v0.2.2
 	github.com/xmidt-org/touchstone v0.1.5
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
-	go.uber.org/fx v1.20.1
+	go.uber.org/fx v1.22.0
 	go.uber.org/zap v1.27.0
 )
 
 require github.com/go-kit/log v0.2.1 // indirect
+
+require github.com/xmidt-org/ancla v0.3.12
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -67,8 +69,8 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.46.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -107,3 +109,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/xmidt-org/ancla => /Users/mforti446/Documents/work/xmidt-repos/ancla

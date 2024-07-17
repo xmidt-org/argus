@@ -4,8 +4,6 @@
 package auth
 
 import (
-	"fmt"
-
 	"github.com/xmidt-org/bascule/basculechecks"
 	"github.com/xmidt-org/bascule/basculehttp"
 	"go.uber.org/fx"
@@ -28,7 +26,7 @@ func Provide(configKey string) fx.Option {
 		),
 		basculehttp.ProvideBasicAuth(configKey),
 		provideBearerTokenFactory(configKey),
-		basculechecks.ProvideRegexCapabilitiesValidator(fmt.Sprintf("%v.capabilities", configKey)),
+		basculechecks.ProvideRegexCapabilitiesValidator(),
 		basculehttp.ProvideBearerValidator(),
 		basculehttp.ProvideServerChain(),
 	)
