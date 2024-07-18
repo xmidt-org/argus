@@ -5,7 +5,7 @@ package test
 
 import (
 	"github.com/stretchr/testify/mock"
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 	"github.com/xmidt-org/argus/store"
 )
 

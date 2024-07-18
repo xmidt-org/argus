@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cast"
-	"github.com/xmidt-org/argus/model"
+	"github.com/xmidt-org/ancla/model"
 )
 
 // IDFormatRegexSource helps validate the ID on incoming requests.

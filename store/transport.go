@@ -16,8 +16,8 @@ import (
 
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/xmidt-org/ancla/model"
 	"github.com/xmidt-org/argus/auth"
-	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/bascule"
 	"go.uber.org/zap"
 )
