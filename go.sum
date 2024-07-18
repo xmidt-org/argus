@@ -487,6 +487,8 @@ github.com/subosito/gotenv v1.6.0/go.mod h1:Dk4QP5c2W3ibzajGcXpNraDfq2IrhjMIvMSW
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go/codec v1.2.11 h1:BMaWp1Bb6fHwEtbplGBGJ498wD+LKlNSl25MjdZY4dU=
 github.com/ugorji/go/codec v1.2.11/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
+github.com/xmidt-org/ancla v0.3.13-0.20240718193746-a3cd5a39560c h1:8mXbUarqTLzJVnMETH5lVEkHXR09bEys3WEixeRXIx0=
+github.com/xmidt-org/ancla v0.3.13-0.20240718193746-a3cd5a39560c/go.mod h1:YSieNJd7PuZ6Nppce9OQnDdjgNWvwa9iiVjtenetmwo=
 github.com/xmidt-org/arrange v0.4.0 h1:DmJJTK58C44B4efyBV78SmMH0mn0G54n3caVn5BopUU=
 github.com/xmidt-org/arrange v0.4.0/go.mod h1:MA1eKUZYxaSMIKJL3D/iJEMQruiefmhq+s5E9J4UJv0=
 github.com/xmidt-org/bascule v0.11.7 h1:+pasCXM+irFuBB4HgO67xC7VHuygjmlmFjEpJdBGXeQ=

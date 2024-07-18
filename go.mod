@@ -33,7 +33,7 @@ require (
 
 require github.com/go-kit/log v0.2.1 // indirect
 
-require github.com/xmidt-org/ancla v0.3.12
+require github.com/xmidt-org/ancla v0.3.13-0.20240718193746-a3cd5a39560c
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -109,5 +109,3 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/xmidt-org/ancla => /Users/mforti446/Documents/work/xmidt-repos/ancla
