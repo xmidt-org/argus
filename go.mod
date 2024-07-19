@@ -1,6 +1,7 @@
 module github.com/xmidt-org/argus
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	emperror.dev/emperror v0.33.0
@@ -19,15 +20,15 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
-	github.com/xmidt-org/arrange v0.4.0
+	github.com/xmidt-org/arrange v0.5.1
 	github.com/xmidt-org/bascule v0.11.5
 	github.com/xmidt-org/candlelight v0.0.16
 	github.com/xmidt-org/clortho v0.0.4
-	github.com/xmidt-org/httpaux v0.4.0
+	github.com/xmidt-org/httpaux v0.4.1
 	github.com/xmidt-org/sallust v0.2.2
 	github.com/xmidt-org/touchstone v0.1.5
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
-	go.uber.org/fx v1.20.1
+	go.uber.org/fx v1.22.1
 	go.uber.org/zap v1.27.0
 )
 
