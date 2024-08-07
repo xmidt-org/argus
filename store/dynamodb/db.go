@@ -4,12 +4,15 @@ package dynamodb
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -69,6 +72,9 @@ type Config struct {
 	// dual stack (IPv4 and IPv6).
 	// (Optional) Defaults to False.
 	DisableDualStack bool
+
+	// If iamBasedAccessEnabled is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
+	IamBasedAccessEnabled bool
 }
 
 // dao adapts the underlying dynamodb data service to match
@@ -87,6 +93,28 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	err := validate.Struct(config)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.IamBasedAccessEnabled {
+		awsRegion, err := getAwsRegionForCassandra(config)
+		if err != nil {
+			return nil, err
+		}
+
+		sess, err := session.NewSession(&aws.Config{
+			Region: aws.String(awsRegion)},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		value, err := sess.Config.Credentials.Get()
+		if err != nil {
+			return nil, err
+		}
+
+		config.AccessKey = value.AccessKeyID
+		config.SecretKey = value.SecretAccessKey
 	}
 
 	awsConfig := *aws.NewConfig().
@@ -109,6 +137,20 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	return &dao{
 		s: svc,
 	}, nil
+}
+
+func getAwsRegionForCassandra(config Config) (string, error) {
+	awsRegion := config.Region
+
+	if len(awsRegion) == 0 {
+		awsRegion = os.Getenv("AWS_REGION")
+	}
+
+	if len(awsRegion) == 0 {
+		return "", fmt.Errorf("%s", "Aws region is not provided")
+	}
+
+	return awsRegion, nil
 }
 
 func (d dao) Push(key model.Key, item store.OwnableItem) error {
