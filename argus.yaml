@@ -77,8 +77,8 @@ store:
     # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
     secretKey: "secretKey"
 
-    # If iamBasedAccessEnabled is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
-    iamBasedAccessEnabled: false
+    # If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
+    roleBasedAccess: true
 
   #yugabyte:
   #  # hosts is and array of address and port used to connect to the cluster.

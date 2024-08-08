@@ -73,8 +73,8 @@ type Config struct {
 	// (Optional) Defaults to False.
 	DisableDualStack bool
 
-	// If iamBasedAccessEnabled is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
-	IamBasedAccessEnabled bool
+	// If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
+	RoleBasedAccess bool
 }
 
 // dao adapts the underlying dynamodb data service to match
@@ -95,8 +95,8 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		return nil, err
 	}
 
-	if config.IamBasedAccessEnabled {
-		awsRegion, err := getAwsRegionForCassandra(config)
+	if config.RoleBasedAccess {
+		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	}, nil
 }
 
-func getAwsRegionForCassandra(config Config) (string, error) {
+func getAwsRegionForRoleBasedAccess(config Config) (string, error) {
 	awsRegion := config.Region
 
 	if len(awsRegion) == 0 {
