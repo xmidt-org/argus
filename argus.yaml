@@ -78,7 +78,7 @@ store:
     secretKey: "secretKey"
 
     # If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
-    roleBasedAccess: true
+    roleBasedAccess: false
 
   #yugabyte:
   #  # hosts is and array of address and port used to connect to the cluster.
