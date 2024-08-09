@@ -95,6 +95,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		return nil, err
 	}
 
+	var creds credentials.Value
 	if config.RoleBasedAccess {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
@@ -113,8 +114,16 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 			return nil, err
 		}
 
-		config.AccessKey = value.AccessKeyID
-		config.SecretKey = value.SecretAccessKey
+		creds = credentials.Value{
+			AccessKeyID:     value.AccessKeyID,
+			SecretAccessKey: value.SecretAccessKey,
+			SessionToken:    value.SessionToken,
+		}
+	} else {
+		creds = credentials.Value{
+			AccessKeyID:     config.AccessKey,
+			SecretAccessKey: config.SecretKey,
+		}
 	}
 
 	awsConfig := *aws.NewConfig().
@@ -123,10 +132,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		WithMaxRetries(config.MaxRetries).
 		WithCredentialsChainVerboseErrors(true).
 		WithRegion(config.Region).
-		WithCredentials(credentials.NewStaticCredentialsFromCreds(credentials.Value{
-			AccessKeyID:     config.AccessKey,
-			SecretAccessKey: config.SecretKey,
-		}))
+		WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
 
 	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
