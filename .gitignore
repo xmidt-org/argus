@@ -19,6 +19,8 @@ report.json
 
 # for releases
 .ignore/
+dist/
+.goreleaser.yml
 
 # vendor package
 vendor/
