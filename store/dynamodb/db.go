@@ -63,10 +63,10 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string `validate:"required"`
+	AccessKey string
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string `validate:"required"`
+	SecretKey string
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).
