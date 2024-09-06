@@ -96,6 +96,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	}
 
 	var creds credentials.Value
+	var awsConfig aws.Config
 	if config.RoleBasedAccess {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
@@ -109,30 +110,27 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 			return nil, err
 		}
 
-		value, err := sess.Config.Credentials.Get()
-		if err != nil {
-			return nil, err
-		}
-
-		creds = credentials.Value{
-			AccessKeyID:     value.AccessKeyID,
-			SecretAccessKey: value.SecretAccessKey,
-			SessionToken:    value.SessionToken,
-		}
+		awsConfig = *aws.NewConfig().
+			WithEndpoint(config.Endpoint).
+			WithUseDualStack(!config.DisableDualStack).
+			WithMaxRetries(config.MaxRetries).
+			WithCredentialsChainVerboseErrors(true).
+			WithRegion(config.Region).
+			WithCredentials(sess.Config.Credentials)
 	} else {
 		creds = credentials.Value{
 			AccessKeyID:     config.AccessKey,
 			SecretAccessKey: config.SecretKey,
 		}
-	}
 
-	awsConfig := *aws.NewConfig().
-		WithEndpoint(config.Endpoint).
-		WithUseDualStack(!config.DisableDualStack).
-		WithMaxRetries(config.MaxRetries).
-		WithCredentialsChainVerboseErrors(true).
-		WithRegion(config.Region).
-		WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
+		awsConfig = *aws.NewConfig().
+			WithEndpoint(config.Endpoint).
+			WithUseDualStack(!config.DisableDualStack).
+			WithMaxRetries(config.MaxRetries).
+			WithCredentialsChainVerboseErrors(true).
+			WithRegion(config.Region).
+			WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
+	}
 
 	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
