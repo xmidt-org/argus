@@ -30,3 +30,8 @@ deploy/docker-compose/
 
 # misc
 coverage.txt
+
+# VSCode
+*.code-workspace
+.vscode/*
+.dev/*
