@@ -4,6 +4,7 @@ package dynamodb
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -250,7 +251,7 @@ func TestMeasuresUpdate(t *testing.T) {
 
 			testAssert.Expect(expectedRegistry)
 			assert.True(testAssert.GatherAndCompare(actualRegistry,
-				"testQueriesCounter", "testDynamoCounter"))
+				"testQueriesCounter", "testDynamoCounter"), fmt.Sprintf("%#v\n", tc))
 
 			//TODO: explore the values observed in a histogram for the QueryDurationSeconds
 		})
