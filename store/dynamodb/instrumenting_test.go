@@ -240,17 +240,19 @@ func TestMeasuresUpdate(t *testing.T) {
 				err:       tc.Err,
 			}
 
+			expectedMetrics := []string{"testQueriesCounter"}
 			if tc.IncludeCapacity {
 				r.consumedCapacity = &dynamodb.ConsumedCapacity{
 					CapacityUnits: aws.Float64(capacityUnits),
 				}
+				expectedMetrics = append(expectedMetrics, "testDynamoCounter")
 			}
 
 			updater.Update(r)
 
 			testAssert.Expect(expectedRegistry)
 			assert.True(testAssert.GatherAndCompare(actualRegistry,
-				"testQueriesCounter", "testDynamoCounter"))
+				expectedMetrics...))
 
 			//TODO: explore the values observed in a histogram for the QueryDurationSeconds
 		})
