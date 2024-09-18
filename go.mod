@@ -7,7 +7,7 @@ require (
 	emperror.dev/errors v0.8.1 // indirect
 	github.com/aws/aws-sdk-go v1.50.26
 	github.com/go-kit/kit v0.13.0
-	github.com/go-playground/validator/v10 v10.18.0
+	github.com/go-playground/validator/v10 v10.22.1
 	github.com/gocql/gocql v1.6.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.8.1
