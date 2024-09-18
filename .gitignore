@@ -19,6 +19,8 @@ report.json
 
 # for releases
 .ignore/
+dist/
+.goreleaser.yml
 
 # vendor package
 vendor/
@@ -28,3 +30,8 @@ deploy/docker-compose/
 
 # misc
 coverage.txt
+
+# VSCode
+*.code-workspace
+.vscode/*
+.dev/*
