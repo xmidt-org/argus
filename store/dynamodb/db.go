@@ -75,6 +75,9 @@ type Config struct {
 
 	// If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
 	RoleBasedAccess bool
+
+	// Mechanically identical to RoleBasedAccess, but with descriptive name
+	UseDefaultCredentialChain bool
 }
 
 // dao adapts the underlying dynamodb data service to match
@@ -97,7 +100,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 
 	var creds credentials.Value
 	var awsConfig aws.Config
-	if config.RoleBasedAccess {
+	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
 			return nil, err
