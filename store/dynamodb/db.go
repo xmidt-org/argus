@@ -63,10 +63,10 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string
+	AccessKey *string
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string
+	SecretKey *string
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).
@@ -121,9 +121,12 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 			WithRegion(config.Region).
 			WithCredentials(sess.Config.Credentials)
 	} else {
+		if config.AccessKey == nil || config.SecretKey == nil {
+			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
+		}
 		creds = credentials.Value{
-			AccessKeyID:     config.AccessKey,
-			SecretAccessKey: config.SecretKey,
+			AccessKeyID:     *config.AccessKey,
+			SecretAccessKey: *config.SecretKey,
 		}
 
 		awsConfig = *aws.NewConfig().
