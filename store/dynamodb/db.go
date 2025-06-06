@@ -99,8 +99,6 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	}
 
 	var awsCfg aws.Config
-	ctx := context.Background()
-
 	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
@@ -108,7 +106,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		}
 
 		// Use the default credential chain (env, shared config, EC2, etc)
-		awsCfg, err = awsConfigV2.LoadDefaultConfig(ctx,
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(context.Background(),
 			awsConfigV2.WithRegion(awsRegion),
 		)
 		if err != nil {
@@ -125,7 +123,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		if config.AccessKey == nil || config.SecretKey == nil {
 			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
 		}
-		awsCfg, err = awsConfigV2.LoadDefaultConfig(ctx,
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(context.Background(),
 			awsConfigV2.WithRegion(config.Region),
 			awsConfigV2.WithCredentialsProvider(awsCredsV2.NewStaticCredentialsProvider(*config.AccessKey, *config.SecretKey, "")),
 		)
