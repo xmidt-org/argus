@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfigV2 "github.com/aws/aws-sdk-go-v2/config"
 	awsCredsV2 "github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -192,9 +191,13 @@ func sanitizeError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var awsErr awserr.Error
+	// AWS SDK v2 error handling: check for smithy error with ErrorCode()
+	type errorCode interface {
+		ErrorCode() string
+	}
+	var awsErr errorCode
 	if errors.As(err, &awsErr) {
-		if awsErr.Code() == "ValidationException" {
+		if awsErr.ErrorCode() == "ValidationException" {
 			return store.SanitizedError{Err: err, ErrHTTP: errHTTPBadRequest}
 		}
 	}

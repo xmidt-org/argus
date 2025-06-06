@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/auth"
@@ -180,7 +179,7 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 				Owner: "xmidtUSATeam",
 				Item: model.Item{
 					ID:  "NaYFGE961cS_3dpzJcoP3QTL4kBYcw9ua3Q6Hy5E4nI",
-					TTL: aws.Int64(20),
+					TTL: int64Ptr(20),
 					Data: map[string]interface{}{
 						"key": 10,
 					},
@@ -293,7 +292,7 @@ func TestEncodeGetAllItemsResponse(t *testing.T) {
 			Item: model.Item{
 				ID:   evgItemID,
 				Data: map[string]interface{}{},
-				TTL:  aws.Int64(1),
+				TTL:  int64Ptr(1),
 			},
 		},
 		"Y9G": {
@@ -349,7 +348,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 					Item: model.Item{
 						ID:   "4b13653e5d6d611de5999ab0e7c0aa67e1d83d4cba8349a04da0a431fb27f74b",
 						Data: map[string]interface{}{"x": float64(0), "y": float64(1), "z": float64(2)},
-						TTL:  aws.Int64(int64((time.Hour * 24).Seconds())),
+						TTL:  int64Ptr(int64((time.Hour * 24).Seconds())),
 					},
 					Owner: "mathematics",
 				},
@@ -372,7 +371,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						Data: map[string]interface{}{
 							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
-						TTL: aws.Int64(int64((time.Hour * 24).Seconds())),
+						TTL: int64Ptr(int64((time.Hour * 24).Seconds())),
 					},
 					Owner: "mathematics",
 				},
@@ -418,7 +417,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 						Data: map[string]interface{}{
 							"x": float64(0), "y": float64(1), "z": float64(2),
 						},
-						TTL: aws.Int64(39),
+						TTL: int64Ptr(39),
 					},
 					Owner: "mathematics",
 				},
@@ -570,3 +569,5 @@ func getTestTransportConfig() *transportConfig {
 		ItemDataMaxDepth:        1,
 	}
 }
+
+func int64Ptr(i int64) *int64 { return &i }
