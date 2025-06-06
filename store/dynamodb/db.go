@@ -3,16 +3,16 @@
 package dynamodb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfigV2 "github.com/aws/aws-sdk-go-v2/config"
+	awsCredsV2 "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -60,7 +60,7 @@ type Config struct {
 
 	// GetAllLimit is the maximum number of items to get at a time.
 	// (Optional) defaults to no limit
-	GetAllLimit int
+	GetAllLimit int32
 
 	// AccessKey is the AWS AccessKey credential.
 	AccessKey *string
@@ -98,47 +98,34 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		return nil, err
 	}
 
-	var creds credentials.Value
-	var awsConfig aws.Config
+	var awsCfg aws.Config
 	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
 			return nil, err
 		}
 
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(awsRegion)},
+		// Use the default credential chain (env, shared config, EC2, etc)
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(context.Background(),
+			awsConfigV2.WithRegion(awsRegion),
 		)
 		if err != nil {
 			return nil, err
 		}
-
-		awsConfig = *aws.NewConfig().
-			WithEndpoint(config.Endpoint).
-			WithUseDualStack(!config.DisableDualStack).
-			WithMaxRetries(config.MaxRetries).
-			WithCredentialsChainVerboseErrors(true).
-			WithRegion(config.Region).
-			WithCredentials(sess.Config.Credentials)
 	} else {
 		if config.AccessKey == nil || config.SecretKey == nil {
 			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
 		}
-		creds = credentials.Value{
-			AccessKeyID:     *config.AccessKey,
-			SecretAccessKey: *config.SecretKey,
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(context.Background(),
+			awsConfigV2.WithRegion(config.Region),
+			awsConfigV2.WithCredentialsProvider(awsCredsV2.NewStaticCredentialsProvider(*config.AccessKey, *config.SecretKey, "")),
+		)
+		if err != nil {
+			return nil, err
 		}
-
-		awsConfig = *aws.NewConfig().
-			WithEndpoint(config.Endpoint).
-			WithUseDualStack(!config.DisableDualStack).
-			WithMaxRetries(config.MaxRetries).
-			WithCredentialsChainVerboseErrors(true).
-			WithRegion(config.Region).
-			WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
 	}
 
-	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
+	svc, err := newService(awsCfg, config, config.GetAllLimit, &measures)
 	if err != nil {
 		return nil, err
 	}
@@ -187,9 +174,13 @@ func sanitizeError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var awsErr awserr.Error
+	// AWS SDK v2 error handling: check for smithy error with ErrorCode()
+	type errorCode interface {
+		ErrorCode() string
+	}
+	var awsErr errorCode
 	if errors.As(err, &awsErr) {
-		if awsErr.Code() == "ValidationException" {
+		if awsErr.ErrorCode() == "ValidationException" {
 			return store.SanitizedError{Err: err, ErrHTTP: errHTTPBadRequest}
 		}
 	}
