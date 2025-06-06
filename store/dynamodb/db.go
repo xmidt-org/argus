@@ -63,10 +63,10 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string
+	AccessKey *string
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string
+	SecretKey *string
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).
@@ -75,6 +75,9 @@ type Config struct {
 
 	// If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
 	RoleBasedAccess bool
+
+	// Mechanically identical to RoleBasedAccess, but with descriptive name
+	UseDefaultCredentialChain bool
 }
 
 // dao adapts the underlying dynamodb data service to match
@@ -97,7 +100,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 
 	var creds credentials.Value
 	var awsConfig aws.Config
-	if config.RoleBasedAccess {
+	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
 			return nil, err
@@ -118,9 +121,12 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 			WithRegion(config.Region).
 			WithCredentials(sess.Config.Credentials)
 	} else {
+		if config.AccessKey == nil || config.SecretKey == nil {
+			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
+		}
 		creds = credentials.Value{
-			AccessKeyID:     config.AccessKey,
-			SecretAccessKey: config.SecretKey,
+			AccessKeyID:     *config.AccessKey,
+			SecretAccessKey: *config.SecretKey,
 		}
 
 		awsConfig = *aws.NewConfig().
