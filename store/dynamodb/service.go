@@ -76,11 +76,11 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTy
 		Bucket: key.Bucket,
 		ID:     key.ID,
 		Owner:  item.Owner,
-		Data:   item.Item.Data,
-		TTL:    item.Item.TTL,
+		Data:   item.Data,
+		TTL:    item.TTL,
 	}
-	if item.Item.TTL != nil {
-		unixExpSeconds := time.Now().Unix() + *item.Item.TTL
+	if item.TTL != nil {
+		unixExpSeconds := time.Now().Unix() + *item.TTL
 		storingItem.Expires = &unixExpSeconds
 	}
 	av, err := awsv2attr.MarshalMap(storingItem)
