@@ -20,7 +20,7 @@ type dbStore interface {
 	Ping() error
 }
 
-var serverClosed = errors.New("server is closed")
+var errServerClosed = errors.New("server is closed")
 
 type cassandraExecutor struct {
 	session *gocql.Session
@@ -114,7 +114,7 @@ func (s *cassandraExecutor) Close() {
 
 func (s *cassandraExecutor) Ping() error {
 	if s.session.Closed() {
-		return serverClosed
+		return errServerClosed
 	}
 	return nil
 }
