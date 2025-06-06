@@ -14,6 +14,8 @@ import (
 	"github.com/xmidt-org/argus/store/db"
 	"github.com/xmidt-org/argus/store/db/metric"
 	"github.com/xmidt-org/arrange"
+	"github.com/xmidt-org/bascule/basculechecks"
+	"github.com/xmidt-org/bascule/basculehttp"
 	"github.com/xmidt-org/candlelight"
 	"github.com/xmidt-org/touchstone"
 	"github.com/xmidt-org/touchstone/touchhttp"
@@ -58,6 +60,11 @@ func main() {
 			arrange.UnmarshalKey("userInputValidation", store.UserInputValidationConfig{}),
 			arrange.UnmarshalKey("prometheus", touchstone.Config{}),
 			arrange.UnmarshalKey("prometheus.handler", touchhttp.Config{}),
+			fx.Annotated{
+				Name:   "encoded_basic_auths",
+				Target: arrange.UnmarshalKey("authx.inbound", basculehttp.EncodedBasicKeys{}),
+			},
+			arrange.UnmarshalKey("authx.inbound.capabilities", basculechecks.CapabilitiesValidatorConfig{}),
 			fx.Annotated{
 				Name:   "tracing_initial_config",
 				Target: arrange.UnmarshalKey("tracing", candlelight.Config{}),
