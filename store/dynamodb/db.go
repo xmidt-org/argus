@@ -61,7 +61,7 @@ type Config struct {
 
 	// GetAllLimit is the maximum number of items to get at a time.
 	// (Optional) defaults to no limit
-	GetAllLimit int
+	GetAllLimit int32
 
 	// AccessKey is the AWS AccessKey credential.
 	AccessKey *string
@@ -143,7 +143,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	}
 
 	// TODO: Update newService to accept aws.Config from v2 SDK, or adapt as needed
-	svc, err := newService(awsCfg, config.Table, int64(config.GetAllLimit), &measures)
+	svc, err := newService(awsCfg, config.Table, config.GetAllLimit, &measures)
 	if err != nil {
 		return nil, err
 	}

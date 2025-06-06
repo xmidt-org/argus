@@ -48,7 +48,7 @@ type executor struct {
 	tableName string
 
 	// getAllLimit is the maximum number of records to return for a GetAll
-	getAllLimit int64
+	getAllLimit int32
 
 	now func() time.Time
 
@@ -200,8 +200,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dy
 		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
 	if d.getAllLimit > 0 {
-		limit32 := int32(d.getAllLimit)
-		input.Limit = &limit32
+		input.Limit = &d.getAllLimit
 	}
 	queryResult, err := d.c.Query(context.Background(), input)
 	var consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
@@ -245,7 +244,7 @@ func itemNotFound(item *storableItem) bool {
 	return item.Bucket == "" || item.ID == ""
 }
 
-func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int32, measures *metric.Measures) (service, error) {
 	if measures == nil {
 		return nil, errNilMeasures
 	}
@@ -258,7 +257,7 @@ func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int6
 	}, nil
 }
 
-func newService(config aws.Config, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+func newService(config aws.Config, tableName string, getAllLimit int32, measures *metric.Measures) (service, error) {
 	if measures == nil {
 		return nil, errNilMeasures
 	}
