@@ -4,12 +4,15 @@ package dynamodb
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -60,15 +63,21 @@ type Config struct {
 	GetAllLimit int
 
 	// AccessKey is the AWS AccessKey credential.
-	AccessKey string `validate:"required"`
+	AccessKey *string
 
 	// SecretKey is the AWS SecretKey credential.
-	SecretKey string `validate:"required"`
+	SecretKey *string
 
 	// DisableDualStack indicates whether the connection to the DB should be
 	// dual stack (IPv4 and IPv6).
 	// (Optional) Defaults to False.
 	DisableDualStack bool
+
+	// If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
+	RoleBasedAccess bool
+
+	// Mechanically identical to RoleBasedAccess, but with descriptive name
+	UseDefaultCredentialChain bool
 }
 
 // dao adapts the underlying dynamodb data service to match
@@ -89,16 +98,45 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		return nil, err
 	}
 
-	awsConfig := *aws.NewConfig().
-		WithEndpoint(config.Endpoint).
-		WithUseDualStack(!config.DisableDualStack).
-		WithMaxRetries(config.MaxRetries).
-		WithCredentialsChainVerboseErrors(true).
-		WithRegion(config.Region).
-		WithCredentials(credentials.NewStaticCredentialsFromCreds(credentials.Value{
-			AccessKeyID:     config.AccessKey,
-			SecretAccessKey: config.SecretKey,
-		}))
+	var creds credentials.Value
+	var awsConfig aws.Config
+	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
+		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
+		if err != nil {
+			return nil, err
+		}
+
+		sess, err := session.NewSession(&aws.Config{
+			Region: aws.String(awsRegion)},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		awsConfig = *aws.NewConfig().
+			WithEndpoint(config.Endpoint).
+			WithUseDualStack(!config.DisableDualStack).
+			WithMaxRetries(config.MaxRetries).
+			WithCredentialsChainVerboseErrors(true).
+			WithRegion(config.Region).
+			WithCredentials(sess.Config.Credentials)
+	} else {
+		if config.AccessKey == nil || config.SecretKey == nil {
+			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
+		}
+		creds = credentials.Value{
+			AccessKeyID:     *config.AccessKey,
+			SecretAccessKey: *config.SecretKey,
+		}
+
+		awsConfig = *aws.NewConfig().
+			WithEndpoint(config.Endpoint).
+			WithUseDualStack(!config.DisableDualStack).
+			WithMaxRetries(config.MaxRetries).
+			WithCredentialsChainVerboseErrors(true).
+			WithRegion(config.Region).
+			WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
+	}
 
 	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
@@ -109,6 +147,20 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	return &dao{
 		s: svc,
 	}, nil
+}
+
+func getAwsRegionForRoleBasedAccess(config Config) (string, error) {
+	awsRegion := config.Region
+
+	if len(awsRegion) == 0 {
+		awsRegion = os.Getenv("AWS_REGION")
+	}
+
+	if len(awsRegion) == 0 {
+		return "", fmt.Errorf("%s", "Aws region is not provided")
+	}
+
+	return awsRegion, nil
 }
 
 func (d dao) Push(key model.Key, item store.OwnableItem) error {
