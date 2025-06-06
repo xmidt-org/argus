@@ -112,13 +112,6 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		if err != nil {
 			return nil, err
 		}
-		if config.Endpoint != "" {
-			awsCfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{URL: config.Endpoint}, nil
-				},
-			)
-		}
 	} else {
 		if config.AccessKey == nil || config.SecretKey == nil {
 			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
@@ -130,17 +123,9 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		if err != nil {
 			return nil, err
 		}
-		if config.Endpoint != "" {
-			awsCfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{URL: config.Endpoint}, nil
-				},
-			)
-		}
 	}
 
-	// TODO: Update newService to accept aws.Config from v2 SDK, or adapt as needed
-	svc, err := newService(awsCfg, config.Table, config.GetAllLimit, &measures)
+	svc, err := newService(awsCfg, config, config.GetAllLimit, &measures)
 	if err != nil {
 		return nil, err
 	}

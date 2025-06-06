@@ -257,10 +257,16 @@ func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int3
 	}, nil
 }
 
-func newService(config aws.Config, tableName string, getAllLimit int32, measures *metric.Measures) (service, error) {
+func newService(awsCfg aws.Config, config Config, getAllLimit int32, measures *metric.Measures) (service, error) {
 	if measures == nil {
 		return nil, errNilMeasures
 	}
-	client := awsv2dynamodb.NewFromConfig(config)
-	return newServiceWithClient(client, tableName, getAllLimit, measures)
+
+	client := awsv2dynamodb.NewFromConfig(awsCfg, func(o *awsv2dynamodb.Options) {
+		if config.Endpoint != "" {
+			o.BaseEndpoint = &config.Endpoint
+		}
+	})
+
+	return newServiceWithClient(client, config.Table, getAllLimit, measures)
 }
