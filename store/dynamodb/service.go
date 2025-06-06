@@ -56,9 +56,12 @@ type executor struct {
 }
 
 type storableItem struct {
-	store.OwnableItem
-	Expires *int64 `json:"expires,omitempty"`
-	model.Key
+	Bucket  string                 `json:"bucket" dynamodbav:"bucket"`
+	ID      string                 `json:"id" dynamodbav:"id"`
+	Owner   string                 `json:"owner" dynamodbav:"owner"`
+	Expires *int64                 `json:"expires,omitempty" dynamodbav:"expires"`
+	Data    map[string]interface{} `json:"data" dynamodbav:"data"`
+	TTL     *int64                 `json:"ttl,omitempty" dynamodbav:"ttl"`
 }
 
 // Dynamo DB attribute keys
@@ -70,15 +73,16 @@ const (
 
 func (d *executor) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTypes.ConsumedCapacity, error) {
 	storingItem := storableItem{
-		OwnableItem: item,
-		Key:         key,
+		Bucket: key.Bucket,
+		ID:     key.ID,
+		Owner:  item.Owner,
+		Data:   item.Item.Data,
+		TTL:    item.Item.TTL,
 	}
-
-	if item.TTL != nil {
-		unixExpSeconds := time.Now().Unix() + *item.TTL
+	if item.Item.TTL != nil {
+		unixExpSeconds := time.Now().Unix() + *item.Item.TTL
 		storingItem.Expires = &unixExpSeconds
 	}
-
 	av, err := awsv2attr.MarshalMap(storingItem)
 	if err != nil {
 		return nil, err
@@ -88,13 +92,11 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTy
 		TableName:              &d.tableName,
 		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
-
 	result, err := d.c.PutItem(context.Background(), input)
 	var consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 	if result != nil {
 		consumedCapacity = result.ConsumedCapacity
 	}
-
 	if err != nil {
 		return consumedCapacity, err
 	}
@@ -138,16 +140,17 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
+	if attributes == nil || len(attributes) == 0 {
+		return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
+	}
 	item := new(storableItem)
 	err = awsv2attr.UnmarshalMap(attributes, item)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
-
 	if itemNotFound(item) {
 		return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 	}
-
 	if item.Expires != nil {
 		expiryTime := time.Unix(*item.Expires, 0)
 		remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
@@ -156,10 +159,14 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 		}
 		item.TTL = &remainingTTLSeconds
 	}
-
-	item.OwnableItem.ID = key.ID
-
-	return item.OwnableItem, consumedCapacity, err
+	return store.OwnableItem{
+		Owner: item.Owner,
+		Item: model.Item{
+			ID:   item.ID,
+			Data: item.Data,
+			TTL:  item.TTL,
+		},
+	}, consumedCapacity, nil
 }
 
 func (d *executor) Get(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
@@ -197,7 +204,6 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dy
 		input.Limit = &limit32
 	}
 	queryResult, err := d.c.Query(context.Background(), input)
-
 	var consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 	if queryResult != nil {
 		consumedCapacity = queryResult.ConsumedCapacity
@@ -206,7 +212,6 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dy
 		return map[string]store.OwnableItem{}, consumedCapacity, err
 	}
 	d.measures.DynamodbGetAllGauge.Set(float64(len(queryResult.Items)))
-
 	for _, i := range queryResult.Items {
 		item := new(storableItem)
 		err = awsv2attr.UnmarshalMap(i, item)
@@ -216,7 +221,6 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dy
 		if itemNotFound(item) {
 			continue
 		}
-
 		if item.Expires != nil {
 			expiryTime := time.Unix(*item.Expires, 0)
 			remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
@@ -225,15 +229,20 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dy
 			}
 			item.TTL = &remainingTTLSeconds
 		}
-		item.OwnableItem.ID = item.Key.ID
-
-		result[item.Key.ID] = item.OwnableItem
+		result[item.ID] = store.OwnableItem{
+			Owner: item.Owner,
+			Item: model.Item{
+				ID:   item.ID,
+				Data: item.Data,
+				TTL:  item.TTL,
+			},
+		}
 	}
 	return result, consumedCapacity, nil
 }
 
 func itemNotFound(item *storableItem) bool {
-	return item.Key.Bucket == "" || item.Key.ID == ""
+	return item.Bucket == "" || item.ID == ""
 }
 
 func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
@@ -249,7 +258,7 @@ func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int6
 	}, nil
 }
 
-func newService(config aws.Config, awsProfile string, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+func newService(config aws.Config, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
 	if measures == nil {
 		return nil, errNilMeasures
 	}

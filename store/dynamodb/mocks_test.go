@@ -50,21 +50,49 @@ type mockClient struct {
 }
 
 func (m *mockClient) PutItem(ctx context.Context, params *awsv2dynamodb.PutItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.PutItemOutput, error) {
-	args := m.Called(params)
-	return args.Get(0).(*awsv2dynamodb.PutItemOutput), args.Error(1)
+	args := m.Called(mock.Anything, mock.Anything, mock.Anything)
+	var out *awsv2dynamodb.PutItemOutput
+	if v := args.Get(0); v != nil {
+		out = v.(*awsv2dynamodb.PutItemOutput)
+	}
+	return out, args.Error(1)
 }
 
 func (m *mockClient) GetItem(ctx context.Context, params *awsv2dynamodb.GetItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.GetItemOutput, error) {
-	args := m.Called(params)
-	return args.Get(0).(*awsv2dynamodb.GetItemOutput), args.Error(1)
+	// DEBUG: Print when GetItem is called and with what key
+	if params != nil && params.Key != nil {
+		bucket := ""
+		id := ""
+		if v, ok := params.Key["bucket"].(*awsv2dynamodbTypes.AttributeValueMemberS); ok {
+			bucket = v.Value
+		}
+		if v, ok := params.Key["id"].(*awsv2dynamodbTypes.AttributeValueMemberS); ok {
+			id = v.Value
+		}
+		println("DEBUG: mockClient.GetItem called with bucket=", bucket, ", id=", id)
+	}
+	args := m.Called(mock.Anything, mock.Anything, mock.Anything)
+	var out *awsv2dynamodb.GetItemOutput
+	if v := args.Get(0); v != nil {
+		out = v.(*awsv2dynamodb.GetItemOutput)
+	}
+	return out, args.Error(1)
 }
 
 func (m *mockClient) DeleteItem(ctx context.Context, params *awsv2dynamodb.DeleteItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.DeleteItemOutput, error) {
-	args := m.Called(params)
-	return args.Get(0).(*awsv2dynamodb.DeleteItemOutput), args.Error(1)
+	args := m.Called(mock.Anything, mock.Anything, mock.Anything)
+	var out *awsv2dynamodb.DeleteItemOutput
+	if v := args.Get(0); v != nil {
+		out = v.(*awsv2dynamodb.DeleteItemOutput)
+	}
+	return out, args.Error(1)
 }
 
 func (m *mockClient) Query(ctx context.Context, params *awsv2dynamodb.QueryInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.QueryOutput, error) {
-	args := m.Called(params)
-	return args.Get(0).(*awsv2dynamodb.QueryOutput), args.Error(1)
+	args := m.Called(mock.Anything, mock.Anything, mock.Anything)
+	var out *awsv2dynamodb.QueryOutput
+	if v := args.Get(0); v != nil {
+		out = v.(*awsv2dynamodb.QueryOutput)
+	}
+	return out, args.Error(1)
 }

@@ -143,7 +143,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 	}
 
 	// TODO: Update newService to accept aws.Config from v2 SDK, or adapt as needed
-	svc, err := newService(awsCfg, "", config.Table, int64(config.GetAllLimit), &measures)
+	svc, err := newService(awsCfg, config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
 		return nil, err
 	}
