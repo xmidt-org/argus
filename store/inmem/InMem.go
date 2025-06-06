@@ -37,8 +37,8 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	}
 	storingItem := expireableItem{OwnableItem: item}
 	if item.TTL != nil {
-		ttlSeconds := time.Duration(*item.TTL)
-		expiration := i.now().Add(time.Second * ttlSeconds)
+		ttlDuration := time.Duration(*item.TTL)
+		expiration := i.now().Add(time.Second * ttlDuration)
 		storingItem.expiration = &expiration
 	}
 	i.data[key.Bucket][key.ID] = storingItem

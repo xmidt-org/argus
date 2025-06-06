@@ -6,8 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -42,7 +41,7 @@ func TestPushDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Push", testKey, testItem).Return(&dynamodb.ConsumedCapacity{}, tc.PushErr)
+			m.On("Push", testKey, testItem).Return(&awsv2dynamodbTypes.ConsumedCapacity{}, tc.PushErr)
 			d := dao{
 				s: m,
 			}
@@ -75,7 +74,7 @@ func TestGetDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Get", testKey).Return(testItem, &dynamodb.ConsumedCapacity{}, tc.GetErr)
+			m.On("Get", testKey).Return(testItem, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.GetErr)
 			d := dao{s: m}
 			item, err := d.Get(testKey)
 			assert.Equal(testItem, item)
@@ -107,7 +106,7 @@ func TestDeleteDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Delete", testKey).Return(testItem, &dynamodb.ConsumedCapacity{}, tc.DeleteErr)
+			m.On("Delete", testKey).Return(testItem, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.DeleteErr)
 			d := dao{s: m}
 			item, err := d.Delete(testKey)
 			assert.Equal(testItem, item)
@@ -146,7 +145,7 @@ func TestGetAllDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("GetAll", "testBucket").Return(testItems, &dynamodb.ConsumedCapacity{}, tc.GetAllErr)
+			m.On("GetAll", "testBucket").Return(testItems, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.GetAllErr)
 			d := dao{s: m}
 			items, err := d.GetAll("testBucket")
 			assert.Equal(testItems, items)
@@ -155,14 +154,19 @@ func TestGetAllDAO(t *testing.T) {
 	}
 }
 
+type smithyValidationError struct {
+	error
+}
+
+func (e smithyValidationError) Error() string     { return "some dynamodb specific input validation error" }
+func (e smithyValidationError) ErrorCode() string { return "ValidationException" }
+
 func TestSanitizeError(t *testing.T) {
-	dynamodbValidationErr := awserr.New("ValidationException", "some dynamodb specific input validation error", errInternal)
+	dynamodbValidationErr := smithyValidationError{errInternal}
 	tcs := []struct {
 		Description     string
 		InputErr        error
 		ExpectedErr     error
-		ExpectedCode    int
-		ExpectedMessage string
 		ExpectedErrHTTP error
 	}{
 		{

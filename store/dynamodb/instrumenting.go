@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -25,12 +25,12 @@ type measuresUpdater interface {
 
 type measureUpdateRequest struct {
 	err              error
-	consumedCapacity *dynamodb.ConsumedCapacity
+	consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 	queryType        string
 	start            time.Time
 }
 
-func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
+func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTypes.ConsumedCapacity, error) {
 	start := s.now()
 	consumedCapacity, err := s.service.Push(key, item)
 
@@ -44,7 +44,7 @@ func (s *instrumentingService) Push(key model.Key, item store.OwnableItem) (*dyn
 	return consumedCapacity, err
 }
 
-func (s *instrumentingService) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (s *instrumentingService) Get(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	start := s.now()
 	item, consumedCapacity, err := s.service.Get(key)
 
@@ -58,7 +58,7 @@ func (s *instrumentingService) Get(key model.Key) (store.OwnableItem, *dynamodb.
 	return item, consumedCapacity, err
 }
 
-func (s *instrumentingService) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (s *instrumentingService) Delete(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	start := s.now()
 	item, consumedCapacity, err := s.service.Delete(key)
 
@@ -72,7 +72,7 @@ func (s *instrumentingService) Delete(key model.Key) (store.OwnableItem, *dynamo
 	return item, consumedCapacity, err
 }
 
-func (s *instrumentingService) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (s *instrumentingService) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	start := s.now()
 	items, consumedCapacity, err := s.service.GetAll(bucket)
 
@@ -103,7 +103,7 @@ func (m *dynamoMeasuresUpdater) Update(request *measureUpdateRequest) {
 // For some reason, the go-aws sdk does not return the consumed read and write units separately.
 // Here https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ProvisionedThroughput.html we found
 // that provisioned tables consume read units for GetItem and Query operations while write units for Putitem and DeleteItem.
-func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *dynamodb.ConsumedCapacity, queryType string) {
+func (m *dynamoMeasuresUpdater) updateDynamoCapacityMeasures(consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, queryType string) {
 	if consumedCapacity == nil || consumedCapacity.CapacityUnits == nil {
 		return
 	}
