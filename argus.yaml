@@ -78,8 +78,13 @@ store:
     # secretKey is the AWS secretKey to go with the accessKey to access dynamodb.
     secretKey: "secretKey"
 
-    # If roleBasedAccess is enabled, accessKey and secretKey will be fetched using IAM temporary credentials
-    roleBasedAccess: false
+    # Replaces "roleBasedAccess": If enabled, relies on (in order of precedence):
+    # 1. environment variables (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY)":"
+    # 2. IAM attached to ECS task
+    # 3. IAM role attached to EC2 instance
+    # https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html
+    useDefaultCredentialChain: false
+
 
   #yugabyte:
   #  # hosts is and array of address and port used to connect to the cluster.
