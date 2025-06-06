@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -155,14 +154,19 @@ func TestGetAllDAO(t *testing.T) {
 	}
 }
 
+type smithyValidationError struct {
+	error
+}
+
+func (e smithyValidationError) Error() string     { return "some dynamodb specific input validation error" }
+func (e smithyValidationError) ErrorCode() string { return "ValidationException" }
+
 func TestSanitizeError(t *testing.T) {
-	dynamodbValidationErr := awserr.New("ValidationException", "some dynamodb specific input validation error", errInternal)
+	dynamodbValidationErr := smithyValidationError{errInternal}
 	tcs := []struct {
 		Description     string
 		InputErr        error
 		ExpectedErr     error
-		ExpectedCode    int
-		ExpectedMessage string
 		ExpectedErrHTTP error
 	}{
 		{
