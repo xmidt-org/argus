@@ -1,6 +1,6 @@
 module github.com/xmidt-org/argus
 
-go 1.21
+go 1.24
 
 require (
 	emperror.dev/emperror v0.33.0
