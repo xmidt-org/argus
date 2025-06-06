@@ -140,7 +140,7 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
-	if attributes == nil || len(attributes) == 0 {
+	if len(attributes) == 0 {
 		return store.OwnableItem{}, consumedCapacity, store.ErrItemNotFound
 	}
 	item := new(storableItem)
