@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
@@ -18,7 +17,7 @@ import (
 	"github.com/xmidt-org/touchstone/touchtest"
 )
 
-func setupUpdateCalls(u *mockMeasuresUpdater, consumedCapacity *dynamodb.ConsumedCapacity, err error, now time.Time) {
+func setupUpdateCalls(u *mockMeasuresUpdater, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, err error, now time.Time) {
 	pushMeasureUpdateRequest := &measureUpdateRequest{
 		err:              err,
 		consumedCapacity: consumedCapacity,
@@ -62,7 +61,7 @@ func TestInstrumentingService(t *testing.T) {
 	key := model.Key{}
 	item := store.OwnableItem{}
 	items := map[string]store.OwnableItem{}
-	consumedCapacity := &dynamodb.ConsumedCapacity{}
+	consumedCapacity := &awsv2dynamodbTypes.ConsumedCapacity{}
 	err := errors.New("err")
 
 	svc := newInstrumentingService(u, m, fixedNow)
@@ -242,8 +241,8 @@ func TestMeasuresUpdate(t *testing.T) {
 
 			expectedMetrics := []string{"testQueriesCounter"}
 			if tc.IncludeCapacity {
-				r.consumedCapacity = &dynamodb.ConsumedCapacity{
-					CapacityUnits: aws.Float64(capacityUnits),
+				r.consumedCapacity = &awsv2dynamodbTypes.ConsumedCapacity{
+					CapacityUnits: &capacityUnits,
 				}
 				expectedMetrics = append(expectedMetrics, "testDynamoCounter")
 			}

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/stretchr/testify/assert"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -42,7 +42,7 @@ func TestPushDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Push", testKey, testItem).Return(&dynamodb.ConsumedCapacity{}, tc.PushErr)
+			m.On("Push", testKey, testItem).Return(&awsv2dynamodbTypes.ConsumedCapacity{}, tc.PushErr)
 			d := dao{
 				s: m,
 			}
@@ -75,7 +75,7 @@ func TestGetDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Get", testKey).Return(testItem, &dynamodb.ConsumedCapacity{}, tc.GetErr)
+			m.On("Get", testKey).Return(testItem, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.GetErr)
 			d := dao{s: m}
 			item, err := d.Get(testKey)
 			assert.Equal(testItem, item)
@@ -107,7 +107,7 @@ func TestDeleteDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("Delete", testKey).Return(testItem, &dynamodb.ConsumedCapacity{}, tc.DeleteErr)
+			m.On("Delete", testKey).Return(testItem, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.DeleteErr)
 			d := dao{s: m}
 			item, err := d.Delete(testKey)
 			assert.Equal(testItem, item)
@@ -146,7 +146,7 @@ func TestGetAllDAO(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockService)
-			m.On("GetAll", "testBucket").Return(testItems, &dynamodb.ConsumedCapacity{}, tc.GetAllErr)
+			m.On("GetAll", "testBucket").Return(testItems, &awsv2dynamodbTypes.ConsumedCapacity{}, tc.GetAllErr)
 			d := dao{s: m}
 			items, err := d.GetAll("testBucket")
 			assert.Equal(testItems, items)

@@ -4,14 +4,15 @@
 package dynamodb
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsv2attr "github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	awsv2dynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 	"github.com/xmidt-org/argus/store/db/metric"
@@ -21,29 +22,27 @@ var (
 	errNilMeasures = errors.New("measures cannot be nil")
 )
 
-// client captures the methods of interest from the dynamoDB API. This
-// should help mock API calls as well.
-type client interface {
-	PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
-	GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
-	DeleteItem(*dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error)
-	Query(*dynamodb.QueryInput) (*dynamodb.QueryOutput, error)
+// DynamoDBAPI defines the subset of the DynamoDB client used by executor, for mocking/testing.
+type DynamoDBAPI interface {
+	PutItem(ctx context.Context, params *awsv2dynamodb.PutItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.PutItemOutput, error)
+	GetItem(ctx context.Context, params *awsv2dynamodb.GetItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.GetItemOutput, error)
+	DeleteItem(ctx context.Context, params *awsv2dynamodb.DeleteItemInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.DeleteItemOutput, error)
+	Query(ctx context.Context, params *awsv2dynamodb.QueryInput, optFns ...func(*awsv2dynamodb.Options)) (*awsv2dynamodb.QueryOutput, error)
 }
 
 // service defines the dynamodb specific DAO interface. It helps keeping middleware
 // such as logging and instrumentation orthogonal to business logic.
 type service interface {
-	Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error)
-	Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error)
-	Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error)
-	GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error)
+	Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTypes.ConsumedCapacity, error)
+	Get(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error)
+	Delete(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error)
+	GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error)
 }
 
 // executor satisfies the service interface so dao can then adapt the outputs to match
 // the Argus' abstract DAO.
 type executor struct {
-	// c is the dynamodb client
-	c client
+	c DynamoDBAPI
 
 	// tableName is the name of the dynamodb table
 	tableName string
@@ -69,7 +68,7 @@ const (
 	expirationAttributeKey = "expires"
 )
 
-func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.ConsumedCapacity, error) {
+func (d *executor) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTypes.ConsumedCapacity, error) {
 	storingItem := storableItem{
 		OwnableItem: item,
 		Key:         key,
@@ -80,18 +79,18 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 		storingItem.Expires = &unixExpSeconds
 	}
 
-	av, err := dynamodbattribute.MarshalMap(storingItem)
+	av, err := awsv2attr.MarshalMap(storingItem)
 	if err != nil {
 		return nil, err
 	}
-	input := &dynamodb.PutItemInput{
+	input := &awsv2dynamodb.PutItemInput{
 		Item:                   av,
-		TableName:              aws.String(d.tableName),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		TableName:              &d.tableName,
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
 
-	result, err := d.c.PutItem(input)
-	var consumedCapacity *dynamodb.ConsumedCapacity
+	result, err := d.c.PutItem(context.Background(), input)
+	var consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 	if result != nil {
 		consumedCapacity = result.ConsumedCapacity
 	}
@@ -101,52 +100,46 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*dynamodb.Consum
 	}
 	return consumedCapacity, nil
 }
-func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*dynamodb.ConsumedCapacity, map[string]*dynamodb.AttributeValue, error) {
+
+func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*awsv2dynamodbTypes.ConsumedCapacity, map[string]awsv2dynamodbTypes.AttributeValue, error) {
 	if delete {
-		deleteInput := &dynamodb.DeleteItemInput{
-			TableName: aws.String(d.tableName),
-			Key: map[string]*dynamodb.AttributeValue{
-				bucketAttributeKey: {
-					S: aws.String(key.Bucket),
-				},
-				idAttributeKey: {
-					S: aws.String(key.ID),
-				},
+		deleteInput := &awsv2dynamodb.DeleteItemInput{
+			TableName: &d.tableName,
+			Key: map[string]awsv2dynamodbTypes.AttributeValue{
+				bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+				idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
 			},
-			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-			ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
+			ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
+			ReturnValues:           awsv2dynamodbTypes.ReturnValueAllOld,
 		}
-		deleteOutput, err := d.c.DeleteItem(deleteInput)
+		deleteOutput, err := d.c.DeleteItem(context.Background(), deleteInput)
 		if err != nil {
 			return nil, nil, err
 		}
 		return deleteOutput.ConsumedCapacity, deleteOutput.Attributes, nil
 	}
-	getInput := &dynamodb.GetItemInput{
-		TableName: aws.String(d.tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
+	getInput := &awsv2dynamodb.GetItemInput{
+		TableName: &d.tableName,
+		Key: map[string]awsv2dynamodbTypes.AttributeValue{
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
 		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
-	getOutput, err := d.c.GetItem(getInput)
+	getOutput, err := d.c.GetItem(context.Background(), getInput)
 	if err != nil {
 		return nil, nil, err
 	}
 	return getOutput.ConsumedCapacity, getOutput.Item, nil
 }
-func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+
+func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
 	item := new(storableItem)
-	err = dynamodbattribute.UnmarshalMap(attributes, item)
+	err = awsv2attr.UnmarshalMap(attributes, item)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}
@@ -156,7 +149,6 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	}
 
 	if item.Expires != nil {
-
 		expiryTime := time.Unix(*item.Expires, 0)
 		remainingTTLSeconds := int64(expiryTime.Sub(d.now()).Seconds())
 		if remainingTTLSeconds < 1 {
@@ -168,50 +160,45 @@ func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *
 	item.OwnableItem.ID = key.ID
 
 	return item.OwnableItem, consumedCapacity, err
-
 }
 
-func (d *executor) Get(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (d *executor) Get(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	return d.getOrDelete(key, false)
 }
 
-func (d *executor) Delete(key model.Key) (store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (d *executor) Delete(key model.Key) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	return d.getOrDelete(key, true)
 }
 
-// TODO: For data >= 1MB, we'll need to handle pagination
-func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamodb.ConsumedCapacity, error) {
+func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
 	result := map[string]store.OwnableItem{}
-	now := strconv.Itoa(int(d.now().Unix()))
-	input := &dynamodb.QueryInput{
-		TableName: aws.String(d.tableName),
+	now := strconv.FormatInt(d.now().Unix(), 10)
+	input := &awsv2dynamodb.QueryInput{
+		TableName: &d.tableName,
 		IndexName: aws.String("Expires-index"),
-		KeyConditions: map[string]*dynamodb.Condition{
+		KeyConditions: map[string]awsv2dynamodbTypes.Condition{
 			"bucket": {
-				ComparisonOperator: aws.String("EQ"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: &bucket,
-					},
+				ComparisonOperator: awsv2dynamodbTypes.ComparisonOperatorEq,
+				AttributeValueList: []awsv2dynamodbTypes.AttributeValue{
+					&awsv2dynamodbTypes.AttributeValueMemberS{Value: bucket},
 				},
 			},
 			"expires": {
-				ComparisonOperator: aws.String("GT"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						N: &now,
-					},
+				ComparisonOperator: awsv2dynamodbTypes.ComparisonOperatorGt,
+				AttributeValueList: []awsv2dynamodbTypes.AttributeValue{
+					&awsv2dynamodbTypes.AttributeValueMemberN{Value: now},
 				},
 			},
 		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
 	if d.getAllLimit > 0 {
-		input.Limit = &d.getAllLimit
+		limit32 := int32(d.getAllLimit)
+		input.Limit = &limit32
 	}
-	queryResult, err := d.c.Query(input)
+	queryResult, err := d.c.Query(context.Background(), input)
 
-	var consumedCapacity *dynamodb.ConsumedCapacity
+	var consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 	if queryResult != nil {
 		consumedCapacity = queryResult.ConsumedCapacity
 	}
@@ -222,7 +209,7 @@ func (d *executor) GetAll(bucket string) (map[string]store.OwnableItem, *dynamod
 
 	for _, i := range queryResult.Items {
 		item := new(storableItem)
-		err = dynamodbattribute.UnmarshalMap(i, item)
+		err = awsv2attr.UnmarshalMap(i, item)
 		if err != nil {
 			continue
 		}
@@ -249,26 +236,23 @@ func itemNotFound(item *storableItem) bool {
 	return item.Key.Bucket == "" || item.Key.ID == ""
 }
 
-func newService(config aws.Config, awsProfile string, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+func newServiceWithClient(client DynamoDBAPI, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
 	if measures == nil {
 		return nil, errNilMeasures
 	}
-
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config:            config,
-		Profile:           awsProfile,
-		SharedConfigState: session.SharedConfigEnable,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	return &executor{
-		c:           dynamodb.New(sess),
+		c:           client,
 		tableName:   tableName,
 		getAllLimit: getAllLimit,
 		now:         time.Now,
 		measures:    measures,
 	}, nil
+}
+
+func newService(config aws.Config, awsProfile string, tableName string, getAllLimit int64, measures *metric.Measures) (service, error) {
+	if measures == nil {
+		return nil, errNilMeasures
+	}
+	client := awsv2dynamodb.NewFromConfig(config)
+	return newServiceWithClient(client, tableName, getAllLimit, measures)
 }

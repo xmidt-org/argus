@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsv2attr "github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	awsv2dynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	awsv2dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,8 +23,8 @@ import (
 
 var (
 	dbErr            = errors.New("dynamodb error")
-	consumedCapacity = &dynamodb.ConsumedCapacity{
-		ReadCapacityUnits: aws.Float64(1),
+	consumedCapacity = &awsv2dynamodbTypes.ConsumedCapacity{
+		CapacityUnits: aws.Float64(1),
 	}
 	nowRef  = getRefTime()
 	nowFunc = func() time.Time {
@@ -41,7 +42,7 @@ func TestPush(t *testing.T) {
 		Key                      model.Key
 		Item                     store.OwnableItem
 		PutItemFails             bool
-		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedConsumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 		ExpectedError            error
 	}{
 		{
@@ -90,13 +91,10 @@ func TestPush(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockClient)
-			sv := executor{
-				c:         m,
-				tableName: "testTable",
-			}
+			sv, _ := newServiceWithClient(m, "testTable", 0, nil)
 			var (
-				putItemOutput = &dynamodb.PutItemOutput{
-					ConsumedCapacity: consumedCapacity,
+				putItemOutput = &awsv2dynamodb.PutItemOutput{
+					ConsumedCapacity: tc.ExpectedConsumedCapacity,
 				}
 				putItemErr error
 			)
@@ -104,7 +102,7 @@ func TestPush(t *testing.T) {
 				putItemOutput, putItemErr = nil, dbErr
 			}
 
-			m.On("PutItem", getPutItemInput(tc.Key, tc.Item)).Return(putItemOutput, putItemErr)
+			m.On("PutItem", mock.Anything, mock.Anything, mock.Anything).Return(putItemOutput, putItemErr)
 			cc, err := sv.Push(tc.Key, tc.Item)
 			assert.Equal(tc.ExpectedConsumedCapacity, cc)
 			assert.Equal(tc.ExpectedError, err)
@@ -117,7 +115,7 @@ func TestPush(t *testing.T) {
 func TestGetAll(t *testing.T) {
 	var (
 		dbErr            = errors.New("dynamodb error")
-		consumedCapacity = &dynamodb.ConsumedCapacity{}
+		consumedCapacity = &awsv2dynamodbTypes.ConsumedCapacity{}
 	)
 	nowRef := getRefTime()
 	nowFunc := func() time.Time {
@@ -127,9 +125,9 @@ func TestGetAll(t *testing.T) {
 	tcs := []struct {
 		Description              string
 		QueryErr                 error
-		QueryOutput              *dynamodb.QueryOutput
+		QueryOutput              *awsv2dynamodb.QueryOutput
 		ExpectedItems            map[string]store.OwnableItem
-		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedConsumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 		ExpectedErr              error
 	}{
 		{
@@ -181,13 +179,7 @@ func TestGetAll(t *testing.T) {
 			}
 			actualRegistry.MustRegister(m.DynamodbGetAllGauge)
 
-			svc := executor{
-				c:           client,
-				tableName:   "testTable",
-				getAllLimit: 10,
-				now:         nowFunc,
-				measures:    m,
-			}
+			svc := newServiceWithClient(client, "testTable")
 			client.On("Query", mock.Anything).Return(tc.QueryOutput, tc.QueryErr)
 			items, cc, err := svc.GetAll("testBucket")
 			testAssert.Expect(expectedRegistry)
@@ -204,10 +196,10 @@ func TestGetAll(t *testing.T) {
 func TestGet(t *testing.T) {
 	tcs := []struct {
 		Description              string
-		GetItemOutput            *dynamodb.GetItemOutput
+		GetItemOutput            *awsv2dynamodb.GetItemOutput
 		GetItemErr               error
 		ExpectedItem             store.OwnableItem
-		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedConsumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 		ExpectedError            error
 	}{
 		{
@@ -227,7 +219,7 @@ func TestGet(t *testing.T) {
 		},
 		{
 			Description:   "Item not in DB",
-			GetItemOutput: &dynamodb.GetItemOutput{},
+			GetItemOutput: &awsv2dynamodb.GetItemOutput{},
 			GetItemErr:    nil,
 			ExpectedItem:  store.OwnableItem{},
 			ExpectedError: store.ErrItemNotFound,
@@ -246,11 +238,7 @@ func TestGet(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockClient)
-			svc := executor{
-				c:         m,
-				tableName: "testTable",
-				now:       nowFunc,
-			}
+			svc := newServiceWithClient(m, "testTable")
 			m.On("GetItem", getGetItemInput(key)).Return(tc.GetItemOutput, tc.GetItemErr)
 			item, cc, err := svc.Get(key)
 			assert.Equal(tc.ExpectedError, err)
@@ -263,7 +251,7 @@ func TestGet(t *testing.T) {
 func TestDelete(t *testing.T) {
 	var (
 		dbErr            = errors.New("dynamodb error")
-		consumedCapacity = &dynamodb.ConsumedCapacity{
+		consumedCapacity = &awsv2dynamodbTypes.ConsumedCapacity{
 			ReadCapacityUnits: aws.Float64(1),
 		}
 		nowRef  = getRefTime()
@@ -277,10 +265,10 @@ func TestDelete(t *testing.T) {
 	)
 	tcs := []struct {
 		Description              string
-		DeleteItemOutput         *dynamodb.DeleteItemOutput
+		DeleteItemOutput         *awsv2dynamodb.DeleteItemOutput
 		DeleteItemErr            error
 		ExpectedItem             store.OwnableItem
-		ExpectedConsumedCapacity *dynamodb.ConsumedCapacity
+		ExpectedConsumedCapacity *awsv2dynamodbTypes.ConsumedCapacity
 		ExpectedError            error
 	}{
 		{
@@ -300,7 +288,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			Description:      "Item not in DB",
-			DeleteItemOutput: &dynamodb.DeleteItemOutput{},
+			DeleteItemOutput: &awsv2dynamodb.DeleteItemOutput{},
 			DeleteItemErr:    nil,
 			ExpectedItem:     store.OwnableItem{},
 			ExpectedError:    store.ErrItemNotFound,
@@ -319,11 +307,7 @@ func TestDelete(t *testing.T) {
 		t.Run(tc.Description, func(t *testing.T) {
 			assert := assert.New(t)
 			m := new(mockClient)
-			svc := executor{
-				c:         m,
-				tableName: "testTable",
-				now:       nowFunc,
-			}
+			svc := newServiceWithClient(m, "testTable")
 			m.On("DeleteItem", getDeleteItemInput(key)).Return(tc.DeleteItemOutput, tc.DeleteItemErr)
 			item, cc, err := svc.Delete(key)
 			m.AssertExpectations(t)
@@ -333,7 +317,7 @@ func TestDelete(t *testing.T) {
 		})
 	}
 }
-func getPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInput {
+func getPutItemInput(key model.Key, item store.OwnableItem) *awsv2dynamodb.PutItemInput {
 	storingItem := storableItem{
 		OwnableItem: item,
 		Key:         key,
@@ -344,25 +328,25 @@ func getPutItemInput(key model.Key, item store.OwnableItem) *dynamodb.PutItemInp
 		storingItem.Expires = &unixExpSeconds
 	}
 
-	av, err := dynamodbattribute.MarshalMap(storingItem)
+	av, err := awsv2attr.MarshalMap(storingItem)
 	if err != nil {
 		panic("must be able to marshal")
 	}
-	return &dynamodb.PutItemInput{
+	return &awsv2dynamodb.PutItemInput{
 		Item:                   av,
 		TableName:              aws.String("testTable"),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
 }
 
-func getFilteredQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
+func getFilteredQueryOutput(now time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity) *awsv2dynamodb.QueryOutput {
 	pastExpiration := strconv.Itoa(int(now.Unix() - int64(time.Hour.Seconds())))
 	futureExpiration := strconv.Itoa(int(now.Add(time.Hour).Unix()))
 	bucket := "testBucket"
 
-	return &dynamodb.QueryOutput{
+	return &awsv2dynamodb.QueryOutput{
 		ConsumedCapacity: consumedCapacity,
-		Items: []map[string]*dynamodb.AttributeValue{
+		Items: []map[string]awsv2dynamodbTypes.AttributeValue{
 			{ // should NOT be included in output (expired item)
 				bucketAttributeKey: {
 					S: aws.String(bucket),
@@ -423,12 +407,12 @@ func getFilteredExpectedItems() map[string]store.OwnableItem {
 	}
 }
 
-func getQueryOutput(now time.Time, consumedCapacity *dynamodb.ConsumedCapacity) *dynamodb.QueryOutput {
+func getQueryOutput(now time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity) *awsv2dynamodb.QueryOutput {
 	futureExpiration := strconv.Itoa(int(now.Add(time.Hour).Unix()))
 	bucket := "testBucket"
-	return &dynamodb.QueryOutput{
+	return &awsv2dynamodb.QueryOutput{
 		ConsumedCapacity: consumedCapacity,
-		Items: []map[string]*dynamodb.AttributeValue{
+		Items: []map[string]awsv2dynamodbTypes.AttributeValue{
 			{ // should be included in output
 				bucketAttributeKey: {
 					S: aws.String(bucket),
@@ -490,146 +474,90 @@ func getGetOrDeleteExpectedItem() store.OwnableItem {
 	}
 }
 
-func getGetItemInput(key model.Key) *dynamodb.GetItemInput {
-	return &dynamodb.GetItemInput{
+func getGetItemInput(key model.Key) *awsv2dynamodb.GetItemInput {
+	return &awsv2dynamodb.GetItemInput{
 		TableName: aws.String("testTable"),
-		Key: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
+		Key: map[string]awsv2dynamodbTypes.AttributeValue{
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
 		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
 	}
 }
 
-func getDeleteItemInput(key model.Key) *dynamodb.DeleteItemInput {
-	return &dynamodb.DeleteItemInput{
+func getDeleteItemInput(key model.Key) *awsv2dynamodb.DeleteItemInput {
+	return &awsv2dynamodb.DeleteItemInput{
 		TableName: aws.String("testTable"),
-		Key: map[string]*dynamodb.AttributeValue{
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
+		Key: map[string]awsv2dynamodbTypes.AttributeValue{
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
 		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-		ReturnValues:           aws.String(dynamodb.ReturnValueAllOld),
+		ReturnConsumedCapacity: awsv2dynamodbTypes.ReturnConsumedCapacityTotal,
+		ReturnValues:           awsv2dynamodbTypes.ReturnValueAllOld,
 	}
 }
 
-func getGetItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
-	futureExpiration := strconv.Itoa(int(nowRef.Add(time.Hour).Unix()))
-	return &dynamodb.GetItemOutput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"expires": {
-				N: aws.String(futureExpiration),
-			},
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
-			"data": {
-				M: map[string]*dynamodb.AttributeValue{
-					"key": {
-						S: aws.String("stringVal"),
-					},
-				},
-			},
-			"owner": {
-				S: aws.String("xmidt"),
-			},
+func getGetItemOutput(nowRef time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, key model.Key) *awsv2dynamodb.GetItemOutput {
+	futureExpiration := strconv.FormatInt(nowRef.Add(time.Hour).Unix(), 10)
+	return &awsv2dynamodb.GetItemOutput{
+		Item: map[string]awsv2dynamodbTypes.AttributeValue{
+			"expires":          &awsv2dynamodbTypes.AttributeValueMemberN{Value: futureExpiration},
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
+			"data": &awsv2dynamodbTypes.AttributeValueMemberM{Value: map[string]awsv2dynamodbTypes.AttributeValue{
+				"key": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "stringVal"},
+			}},
+			"owner": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "xmidt"},
 		},
 		ConsumedCapacity: consumedCapacity,
 	}
 }
 
-func getDeleteItemOutput(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.DeleteItemOutput {
-	futureExpiration := strconv.Itoa(int(nowRef.Add(time.Hour).Unix()))
-	return &dynamodb.DeleteItemOutput{
-		Attributes: map[string]*dynamodb.AttributeValue{
-			"expires": {
-				N: aws.String(futureExpiration),
-			},
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
-			"data": {
-				M: map[string]*dynamodb.AttributeValue{
-					"key": {
-						S: aws.String("stringVal"),
-					},
-				},
-			},
-			"owner": {
-				S: aws.String("xmidt"),
-			},
+func getDeleteItemOutput(nowRef time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, key model.Key) *awsv2dynamodb.DeleteItemOutput {
+	futureExpiration := strconv.FormatInt(nowRef.Add(time.Hour).Unix(), 10)
+	return &awsv2dynamodb.DeleteItemOutput{
+		Attributes: map[string]awsv2dynamodbTypes.AttributeValue{
+			"expires":          &awsv2dynamodbTypes.AttributeValueMemberN{Value: futureExpiration},
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
+			"data": &awsv2dynamodbTypes.AttributeValueMemberM{Value: map[string]awsv2dynamodbTypes.AttributeValue{
+				"key": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "stringVal"},
+			}},
+			"owner": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "xmidt"},
 		},
 		ConsumedCapacity: consumedCapacity,
 	}
 }
 
-func getGetItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.GetItemOutput {
+func getDeleteItemOutputExpired(nowRef time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, key model.Key) *awsv2dynamodb.DeleteItemOutput {
 	secondsInHour := int64(time.Hour.Seconds())
-	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
-	return &dynamodb.GetItemOutput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"expires": {
-				N: aws.String(pastExpiration),
-			},
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
-			"data": {
-				M: map[string]*dynamodb.AttributeValue{
-					"key": {
-						S: aws.String("stringVal"),
-					},
-				},
-			},
-			"owner": {
-				S: aws.String("xmidt"),
-			},
+	pastExpiration := strconv.FormatInt(nowRef.Unix()-secondsInHour, 10)
+	return &awsv2dynamodb.DeleteItemOutput{
+		Attributes: map[string]awsv2dynamodbTypes.AttributeValue{
+			"expires":          &awsv2dynamodbTypes.AttributeValueMemberN{Value: pastExpiration},
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
+			"data": &awsv2dynamodbTypes.AttributeValueMemberM{Value: map[string]awsv2dynamodbTypes.AttributeValue{
+				"key": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "stringVal"},
+			}},
+			"owner": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "xmidt"},
 		},
 		ConsumedCapacity: consumedCapacity,
 	}
 }
 
-func getDeleteItemOutputExpired(nowRef time.Time, consumedCapacity *dynamodb.ConsumedCapacity, key model.Key) *dynamodb.DeleteItemOutput {
+func getGetItemOutputExpired(nowRef time.Time, consumedCapacity *awsv2dynamodbTypes.ConsumedCapacity, key model.Key) *awsv2dynamodb.GetItemOutput {
 	secondsInHour := int64(time.Hour.Seconds())
-	pastExpiration := strconv.Itoa(int(nowRef.Unix() - secondsInHour))
-	return &dynamodb.DeleteItemOutput{
-		Attributes: map[string]*dynamodb.AttributeValue{
-			"expires": {
-				N: aws.String(pastExpiration),
-			},
-			bucketAttributeKey: {
-				S: aws.String(key.Bucket),
-			},
-			idAttributeKey: {
-				S: aws.String(key.ID),
-			},
-			"data": {
-				M: map[string]*dynamodb.AttributeValue{
-					"key": {
-						S: aws.String("stringVal"),
-					},
-				},
-			},
-			"owner": {
-				S: aws.String("xmidt"),
-			},
+	pastExpiration := strconv.FormatInt(nowRef.Unix()-secondsInHour, 10)
+	return &awsv2dynamodb.GetItemOutput{
+		Item: map[string]awsv2dynamodbTypes.AttributeValue{
+			"expires":          &awsv2dynamodbTypes.AttributeValueMemberN{Value: pastExpiration},
+			bucketAttributeKey: &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.Bucket},
+			idAttributeKey:     &awsv2dynamodbTypes.AttributeValueMemberS{Value: key.ID},
+			"data": &awsv2dynamodbTypes.AttributeValueMemberM{Value: map[string]awsv2dynamodbTypes.AttributeValue{
+				"key": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "stringVal"},
+			}},
+			"owner": &awsv2dynamodbTypes.AttributeValueMemberS{Value: "xmidt"},
 		},
 		ConsumedCapacity: consumedCapacity,
 	}

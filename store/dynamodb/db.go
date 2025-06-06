@@ -3,16 +3,17 @@
 package dynamodb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfigV2 "github.com/aws/aws-sdk-go-v2/config"
+	awsCredsV2 "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-playground/validator/v10"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
@@ -98,47 +99,51 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		return nil, err
 	}
 
-	var creds credentials.Value
-	var awsConfig aws.Config
+	var awsCfg aws.Config
+	ctx := context.Background()
+
 	if config.RoleBasedAccess || config.UseDefaultCredentialChain {
 		awsRegion, err := getAwsRegionForRoleBasedAccess(config)
 		if err != nil {
 			return nil, err
 		}
 
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(awsRegion)},
+		// Use the default credential chain (env, shared config, EC2, etc)
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(ctx,
+			awsConfigV2.WithRegion(awsRegion),
 		)
 		if err != nil {
 			return nil, err
 		}
-
-		awsConfig = *aws.NewConfig().
-			WithEndpoint(config.Endpoint).
-			WithUseDualStack(!config.DisableDualStack).
-			WithMaxRetries(config.MaxRetries).
-			WithCredentialsChainVerboseErrors(true).
-			WithRegion(config.Region).
-			WithCredentials(sess.Config.Credentials)
+		if config.Endpoint != "" {
+			awsCfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{URL: config.Endpoint}, nil
+				},
+			)
+		}
 	} else {
 		if config.AccessKey == nil || config.SecretKey == nil {
 			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
 		}
-		creds = credentials.Value{
-			AccessKeyID:     *config.AccessKey,
-			SecretAccessKey: *config.SecretKey,
+		awsCfg, err = awsConfigV2.LoadDefaultConfig(ctx,
+			awsConfigV2.WithRegion(config.Region),
+			awsConfigV2.WithCredentialsProvider(awsCredsV2.NewStaticCredentialsProvider(*config.AccessKey, *config.SecretKey, "")),
+		)
+		if err != nil {
+			return nil, err
 		}
-
-		awsConfig = *aws.NewConfig().
-			WithEndpoint(config.Endpoint).
-			WithUseDualStack(!config.DisableDualStack).
-			WithMaxRetries(config.MaxRetries).
-			WithCredentialsChainVerboseErrors(true).
-			WithRegion(config.Region).
-			WithCredentials(credentials.NewStaticCredentialsFromCreds(creds))
+		if config.Endpoint != "" {
+			awsCfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{URL: config.Endpoint}, nil
+				},
+			)
+		}
 	}
 
-	svc, err := newService(awsConfig, "", config.Table, int64(config.GetAllLimit), &measures)
+	// TODO: Update newService to accept aws.Config from v2 SDK, or adapt as needed
+	svc, err := newService(awsCfg, "", config.Table, int64(config.GetAllLimit), &measures)
 	if err != nil {
 		return nil, err
 	}
