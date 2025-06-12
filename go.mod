@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/xmidt-org/arrange v0.4.0
 	github.com/xmidt-org/bascule v0.11.7
-	github.com/xmidt-org/candlelight v0.1.21
+	github.com/xmidt-org/candlelight v0.2.1
 	github.com/xmidt-org/clortho v0.0.4
 	github.com/xmidt-org/httpaux v0.4.2
 	github.com/xmidt-org/sallust v0.2.4
@@ -98,7 +98,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/xmidt-org/chronon v0.1.1 // indirect
-	github.com/xmidt-org/wrp-go/v3 v3.6.0 // indirect
+	github.com/xmidt-org/wrp-go/v3 v3.7.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.17.0 // indirect
