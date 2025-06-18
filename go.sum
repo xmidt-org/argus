@@ -525,8 +525,8 @@ github.com/xmidt-org/arrange v0.4.0 h1:DmJJTK58C44B4efyBV78SmMH0mn0G54n3caVn5Bop
 github.com/xmidt-org/arrange v0.4.0/go.mod h1:MA1eKUZYxaSMIKJL3D/iJEMQruiefmhq+s5E9J4UJv0=
 github.com/xmidt-org/bascule v0.11.7 h1:+pasCXM+irFuBB4HgO67xC7VHuygjmlmFjEpJdBGXeQ=
 github.com/xmidt-org/bascule v0.11.7/go.mod h1:SyAUlH8Y77Iq97u2d4Q7d9ldE7pCqNuQq7bFcl05zwo=
-github.com/xmidt-org/candlelight v0.1.21 h1:QaFgwpk3VtBx35PCkCkF/tQ0Io7x97JPL4v188dEX4o=
-github.com/xmidt-org/candlelight v0.1.21/go.mod h1:Q05f6nRDCWTV9bwci/0vNFP10B+BLB3uNH3CIZC4+o0=
+github.com/xmidt-org/candlelight v0.2.1 h1:vbstNO5Jz8EWbkuZtHCA8HV6ngFwp4IJgfiCW4vKM3c=
+github.com/xmidt-org/candlelight v0.2.1/go.mod h1:lA3d2jFvE3/xv0huXmB2yqiCoKxIBGUJkm3d8lvpU+k=
 github.com/xmidt-org/chronon v0.1.1 h1:SzOYkT/nmps3jH4sWu6A52ToKvv5Bu0Gb45/ec5Ty9U=
 github.com/xmidt-org/chronon v0.1.1/go.mod h1:8VF1skJAouQihpKfXE8oZZkbQpV1TSR/7QltNxq8T4k=
 github.com/xmidt-org/clortho v0.0.4 h1:4G1uKle0rfm+LwQ3EV7W+jn7kgWnozAoK9DAbz0/etw=
@@ -538,8 +538,8 @@ github.com/xmidt-org/sallust v0.2.4 h1:+87+5U8svbxvuz+Fg0fJoPCdY9LmlACKSq+NW3dqk
 github.com/xmidt-org/sallust v0.2.4/go.mod h1:cJRPe2D9gDzCrA18y4XbOJmhAJH2Q1vvz+tZVnUH87Y=
 github.com/xmidt-org/touchstone v0.1.7 h1:gi3uXLDhXONe+vdVAa9xQBucMD/tJ74NMER2Lw2lo7U=
 github.com/xmidt-org/touchstone v0.1.7/go.mod h1:cuukL7BhuCX6OIEhDymFnR5mRw3wBwKFdNUOzMYxE20=
-github.com/xmidt-org/wrp-go/v3 v3.6.0 h1:g8qk4Xtzm7f9AslSlhv46syb9FJpDdyOSqVlUa45L7g=
-github.com/xmidt-org/wrp-go/v3 v3.6.0/go.mod h1:eyMj+q/7LQ4SU6Z3s6VOwuTVSh6/DJBb2soBGBFSung=
+github.com/xmidt-org/wrp-go/v3 v3.7.0 h1:m9ghdq79Zzb0WjomUJ02rzFpI0RK8KTjArYpNIwx1fc=
+github.com/xmidt-org/wrp-go/v3 v3.7.0/go.mod h1:eyMj+q/7LQ4SU6Z3s6VOwuTVSh6/DJBb2soBGBFSung=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
