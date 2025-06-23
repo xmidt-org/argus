@@ -106,7 +106,7 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	in.Router.Use(
 		in.AuthChain.Then,
 		otelmux.Middleware("server_primary", options...),
-		candlelight.EchoFirstTraceNodeInfo(in.Tracing.Propagator(), false),
+		candlelight.EchoFirstTraceNodeInfo(in.Tracing, false),
 	)
 
 	bucketPath := fmt.Sprintf("/%s/store/{bucket}", in.APIBase)
