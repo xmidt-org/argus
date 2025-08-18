@@ -1,6 +1,7 @@
+#!/usr/bin/env sh
 ## SPDX-FileCopyrightText: 2021 Comcast Cable Communications Management, LLC
 ## SPDX-License-Identifier: Apache-2.0
-#!/usr/bin/env sh
+
 set -e
 
 # check arguments for an option that would cause /argus to stop
