@@ -179,7 +179,7 @@ func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 // order of the ids.
 func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
-	list := []model.Item{}
+	list := make([]model.Item, 0, len(items))
 	for _, value := range items {
 		list = append(list, value.Item)
 	}
