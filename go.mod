@@ -22,7 +22,7 @@ require (
 	github.com/xmidt-org/bascule v0.11.7
 	github.com/xmidt-org/candlelight v0.2.5
 	github.com/xmidt-org/clortho v0.1.3
-	github.com/xmidt-org/httpaux v0.4.2
+	github.com/xmidt-org/httpaux v0.4.3
 	github.com/xmidt-org/sallust v0.2.4
 	github.com/xmidt-org/touchstone v0.1.7
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.68.0
