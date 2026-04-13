@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/xmidt-org/arrange v0.4.0
 	github.com/xmidt-org/bascule v0.11.7
-	github.com/xmidt-org/candlelight v0.2.5
+	github.com/xmidt-org/candlelight v0.2.6
 	github.com/xmidt-org/clortho v0.1.4
 	github.com/xmidt-org/httpaux v0.4.3
 	github.com/xmidt-org/sallust v0.2.4
