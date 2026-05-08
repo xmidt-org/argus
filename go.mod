@@ -18,7 +18,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
-	github.com/xmidt-org/arrange v0.4.0
+	github.com/xmidt-org/arrange v0.5.4
 	github.com/xmidt-org/bascule v0.11.7
 	github.com/xmidt-org/candlelight v0.2.8
 	github.com/xmidt-org/clortho v0.1.7
