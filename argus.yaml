@@ -28,6 +28,17 @@ servers:
   primary:
     address: :6600
     disableHTTPKeepAlives: true
+    # tls enables HTTPS for this server.
+    # tls:
+    #   minVersion: 771 # TLS 1.2
+    #   certificates:
+    #     - certificateFile: /etc/argus/tls/server.crt
+    #       keyFile: /etc/argus/tls/server.key
+    #   # themis-like mTLS controls.
+    #   mtls:
+    #     clientCACertificateFile: /etc/argus/tls/clients-ca.crt
+    #     disableRequire: true
+    #     disableVerify: false
     header:
       X-Xmidt-Server:
         - argus

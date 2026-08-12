@@ -65,6 +65,7 @@ func provideServers() fx.Option {
 		arrangehttp.Server{
 			Name: "server_primary",
 			Key:  "servers.primary",
+			ServerFactory: ArgusServerConfig{},
 			Inject: arrange.Inject{
 				PrimaryMMIn{},
 			},
@@ -75,6 +76,7 @@ func provideServers() fx.Option {
 		arrangehttp.Server{
 			Name: "server_health",
 			Key:  "servers.health",
+			ServerFactory: ArgusServerConfig{},
 			Inject: arrange.Inject{
 				HealthMMIn{},
 			},
@@ -89,6 +91,7 @@ func provideServers() fx.Option {
 		arrangehttp.Server{
 			Name: "server_metrics",
 			Key:  "servers.metrics",
+			ServerFactory: ArgusServerConfig{},
 		}.Provide(),
 
 		fx.Invoke(
