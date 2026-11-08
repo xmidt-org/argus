@@ -12,10 +12,10 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-var accessDeniedErr = &ForbiddenRequestErr{Message: "resource owner mismatch"}
+var errAccessDenied = &ForbiddenRequestErr{Message: "resource owner mismatch"}
 
 func newGetItemEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(_ context.Context, request interface{}) (interface{}, error) {
 		itemRequest := request.(*getOrDeleteItemRequest)
 		itemResponse, err := s.Get(itemRequest.key)
 		if err != nil {
@@ -25,12 +25,12 @@ func newGetItemEndpoint(s S) endpoint.Endpoint {
 			return &itemResponse, nil
 		}
 
-		return nil, accessDeniedErr
+		return nil, errAccessDenied
 	}
 }
 
 func newDeleteItemEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(_ context.Context, request interface{}) (interface{}, error) {
 		itemRequest := request.(*getOrDeleteItemRequest)
 		itemResponse, err := s.Get(itemRequest.key)
 		if err != nil {
@@ -38,7 +38,7 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 		}
 
 		if !authorized(itemRequest.adminMode, itemResponse.Owner, itemRequest.owner) {
-			return nil, accessDeniedErr
+			return nil, errAccessDenied
 		}
 
 		deleteItemResp, deleteItemRespErr := s.Delete(itemRequest.key)
@@ -50,7 +50,7 @@ func newDeleteItemEndpoint(s S) endpoint.Endpoint {
 }
 
 func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(_ context.Context, request interface{}) (interface{}, error) {
 		itemsRequest := request.(*getAllItemsRequest)
 		items, err := s.GetAll(itemsRequest.bucket)
 		if err != nil {
@@ -64,7 +64,7 @@ func newGetAllItemsEndpoint(s S) endpoint.Endpoint {
 }
 
 func newSetItemEndpoint(s S) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(_ context.Context, request interface{}) (interface{}, error) {
 		setItemRequest := request.(*setItemRequest)
 		itemResponse, err := s.Get(setItemRequest.key)
 
@@ -80,7 +80,7 @@ func newSetItemEndpoint(s S) endpoint.Endpoint {
 		}
 
 		if !authorized(setItemRequest.adminMode, itemResponse.Owner, setItemRequest.item.Owner) {
-			return nil, accessDeniedErr
+			return nil, errAccessDenied
 		}
 
 		setItemRequest.item.Owner = itemResponse.Owner

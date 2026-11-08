@@ -43,8 +43,8 @@ func setup(args []string) (*viper.Viper, *zap.Logger, error) {
 		err = v.ReadInConfig()
 	} else {
 		v.SetConfigName(applicationName)
-		v.AddConfigPath(fmt.Sprintf("/etc/%s", applicationName))
-		v.AddConfigPath(fmt.Sprintf("$HOME/.%s", applicationName))
+		v.AddConfigPath("/etc/" + applicationName)
+		v.AddConfigPath("$HOME/." + applicationName)
 		v.AddConfigPath(".")
 		err = v.ReadInConfig()
 	}

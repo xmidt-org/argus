@@ -81,7 +81,7 @@ func TestCassandra(t *testing.T) {
 	// p.Assert(t, metric.SQLQuerySuccessCounter)(xmetricstest.Value(0.0))
 	// p.Assert(t, metric.SQLQueryFailureCounter)(xmetricstest.Value(0.0))
 
-	// test.StoreTest(s, 0, t)
+	// test.StoreTest(t, s, 0)
 	// p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.ReadType)(xmetricstest.Value(3.0))
 	// p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.InsertType)(xmetricstest.Value(1.0))
 	// p.Assert(t, metric.SQLQuerySuccessCounter, store.TypeLabel, store.DeleteType)(xmetricstest.Value(1.0))

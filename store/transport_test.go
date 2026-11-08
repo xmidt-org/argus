@@ -137,7 +137,7 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			r := httptest.NewRequest(http.MethodGet, "http://localhost/test", nil)
+			r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://localhost/test", nil)
 			r = mux.SetURLVars(r, testCase.URLVars)
 
 			if len(testCase.Owner) > 0 {
@@ -156,10 +156,7 @@ func TestGetOrDeleteItemRequestDecoder(t *testing.T) {
 				assert.NoError(err)
 				return
 			}
-			assert.True(errors.Is(err, testCase.ExpectedErr),
-				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
-					err, testCase.ExpectedErr),
-			)
+			assert.ErrorIs(err, testCase.ExpectedErr)
 		})
 	}
 }
@@ -205,10 +202,7 @@ func TestEncodeGetOrDeleteItemResponse(t *testing.T) {
 				assert.NoError(err)
 				return
 			}
-			assert.True(errors.Is(err, testCase.ExpectedErr),
-				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
-					err, testCase.ExpectedErr),
-			)
+			assert.ErrorIs(err, testCase.ExpectedErr)
 		})
 	}
 }
@@ -258,7 +252,7 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			r := httptest.NewRequest(http.MethodGet, "http://localhost/test", nil)
+			r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://localhost/test", nil)
 			r = mux.SetURLVars(r, testCase.URLVars)
 			if len(testCase.Owner) > 0 {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
@@ -275,10 +269,7 @@ func TestGetAllItemsRequestDecoder(t *testing.T) {
 				assert.NoError(err)
 				return
 			}
-			assert.True(errors.Is(err, testCase.ExpectedErr),
-				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
-					err, testCase.ExpectedErr),
-			)
+			assert.ErrorIs(err, testCase.ExpectedErr)
 		})
 	}
 }
@@ -305,7 +296,7 @@ func TestEncodeGetAllItemsResponse(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	expectedResponseBody := fmt.Sprintf("[{\"id\":\"%s\",\"data\":{}},{\"id\":\"%s\",\"data\":{},\"ttl\":1}]", y9gItemID, evgItemID)
 	err := encodeGetAllItemsResponse(context.Background(), recorder, response)
-	assert.Nil(err)
+	assert.NoError(err)
 	assert.JSONEq(expectedResponseBody, recorder.Body.String())
 }
 
@@ -434,7 +425,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			assert := assert.New(t)
-			r := httptest.NewRequest(http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
+			r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://localhost", bytes.NewBufferString(testCase.RequestBody))
 			r = mux.SetURLVars(r, testCase.URLVars)
 			if len(testCase.Owner) > 0 {
 				r.Header.Set(ItemOwnerHeaderKey, testCase.Owner)
@@ -455,10 +446,7 @@ func TestSetItemRequestDecoder(t *testing.T) {
 				assert.NoError(err)
 				return
 			}
-			assert.True(errors.Is(err, testCase.ExpectedErr),
-				fmt.Errorf("error [%v] doesn't contain error [%v] in its err chain",
-					err, testCase.ExpectedErr),
-			)
+			assert.ErrorIs(err, testCase.ExpectedErr)
 		})
 	}
 }
@@ -469,14 +457,14 @@ func TestEncodeSetItemResponse(t *testing.T) {
 	err := encodeSetItemResponse(context.Background(), createdRecorder, &setItemResponse{
 		existingResource: false,
 	})
-	assert.Nil(err)
+	assert.NoError(err)
 	assert.Equal(http.StatusCreated, createdRecorder.Code)
 
 	updatedRecorder := httptest.NewRecorder()
 	err = encodeSetItemResponse(context.Background(), updatedRecorder, &setItemResponse{
 		existingResource: true,
 	})
-	assert.Nil(err)
+	assert.NoError(err)
 	assert.Equal(http.StatusOK, updatedRecorder.Code)
 }
 

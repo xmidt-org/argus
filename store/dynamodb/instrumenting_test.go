@@ -85,12 +85,12 @@ func TestInstrumentingService(t *testing.T) {
 	i, cc, e = svc.Delete(key)
 	assert.Equal(item, i)
 	assert.Equal(consumedCapacity, cc)
-	assert.Nil(e)
+	assert.NoError(e)
 
 	is, cc, e := svc.GetAll("bucket")
 	assert.Equal(items, is)
 	assert.Equal(consumedCapacity, cc)
-	assert.Nil(e)
+	assert.NoError(e)
 
 	m.AssertExpectations(t)
 	u.AssertExpectations(t)

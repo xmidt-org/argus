@@ -38,7 +38,7 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 	storingItem := expireableItem{OwnableItem: item}
 	if item.TTL != nil {
 		ttlDuration := time.Duration(*item.TTL)
-		expiration := i.now().Add(time.Second * ttlDuration)
+		expiration := i.now().Add(time.Second * ttlDuration) //nolint:durationcheck // TTL is in seconds
 		storingItem.expiration = &expiration
 	}
 	i.data[key.Bucket][key.ID] = storingItem
@@ -48,13 +48,13 @@ func (i *InMem) Push(key model.Key, item store.OwnableItem) error {
 // hasExpired returns true if the given item has expired and false otherwise.
 // For an unexpired item with an expiration date, the current TTL is updated.
 // Note: expired items are automatically removed from the internal map.
-func (i *InMem) hasExpired(item *expireableItem, bucket map[string]expireableItem, bucketName, ID string) bool {
+func (i *InMem) hasExpired(item *expireableItem, bucket map[string]expireableItem, bucketName, id string) bool {
 	if item.expiration == nil {
 		return false
 	}
 	secondsBeforeExpiry := int64(item.expiration.Sub(i.now()).Seconds())
 	if secondsBeforeExpiry <= 0 {
-		i.deleteItem(bucketName, ID, bucket)
+		i.deleteItem(bucketName, id, bucket)
 		return true
 	}
 	item.TTL = &secondsBeforeExpiry

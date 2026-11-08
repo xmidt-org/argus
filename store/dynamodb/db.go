@@ -114,7 +114,7 @@ func NewDynamoDB(config Config, measures metric.Measures) (store.S, error) {
 		}
 	} else {
 		if config.AccessKey == nil || config.SecretKey == nil {
-			return nil, fmt.Errorf("accessKey and secretKey must be provided when roleBasedAccess is false")
+			return nil, errors.New("accessKey and secretKey must be provided when roleBasedAccess is false")
 		}
 		awsCfg, err = awsConfigV2.LoadDefaultConfig(context.Background(),
 			awsConfigV2.WithRegion(config.Region),

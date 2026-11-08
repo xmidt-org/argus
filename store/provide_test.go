@@ -65,7 +65,7 @@ func TestNewTransportConfig(t *testing.T) {
 				UserInputValidation:     tc.UserInputValConfig,
 			})
 			if tc.ExpectedErr == nil {
-				require.Nil(err)
+				require.NoError(err)
 				require.NotNil(transportConfig)
 				assert.Equal(tc.ExpectedTransportConfig, *transportConfig)
 			} else {

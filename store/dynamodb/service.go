@@ -103,8 +103,8 @@ func (d *executor) Push(key model.Key, item store.OwnableItem) (*awsv2dynamodbTy
 	return consumedCapacity, nil
 }
 
-func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*awsv2dynamodbTypes.ConsumedCapacity, map[string]awsv2dynamodbTypes.AttributeValue, error) {
-	if delete {
+func (d *executor) executeGetOrDelete(key model.Key, del bool) (*awsv2dynamodbTypes.ConsumedCapacity, map[string]awsv2dynamodbTypes.AttributeValue, error) {
+	if del {
 		deleteInput := &awsv2dynamodb.DeleteItemInput{
 			TableName: &d.tableName,
 			Key: map[string]awsv2dynamodbTypes.AttributeValue{
@@ -135,8 +135,8 @@ func (d *executor) executeGetOrDelete(key model.Key, delete bool) (*awsv2dynamod
 	return getOutput.ConsumedCapacity, getOutput.Item, nil
 }
 
-func (d *executor) getOrDelete(key model.Key, delete bool) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
-	consumedCapacity, attributes, err := d.executeGetOrDelete(key, delete)
+func (d *executor) getOrDelete(key model.Key, del bool) (store.OwnableItem, *awsv2dynamodbTypes.ConsumedCapacity, error) {
+	consumedCapacity, attributes, err := d.executeGetOrDelete(key, del)
 	if err != nil {
 		return store.OwnableItem{}, consumedCapacity, err
 	}

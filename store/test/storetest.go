@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xmidt-org/argus/model"
 	"github.com/xmidt-org/argus/store"
 )
@@ -31,34 +32,35 @@ var GenericTestKeyPair = store.KeyItemPairRequest{
 }
 
 // StoreTest validates that a given store implementation works.
-func StoreTest(s store.S, storeTiming time.Duration, t *testing.T) {
+func StoreTest(t *testing.T, s store.S, storeTiming time.Duration) {
+	t.Helper()
 	assert := assert.New(t)
 
 	t.Log("Basic Test")
 	err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
-	assert.NoError(err)
+	require.NoError(t, err)
 	retVal, err := s.Get(GenericTestKeyPair.Key)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err := s.GetAll("world")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(map[string]store.OwnableItem{"earth": GenericTestKeyPair.OwnableItem}, items)
 
 	retVal, err = s.Delete(GenericTestKeyPair.Key)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 
 	items, err = s.GetAll("world")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(map[string]store.OwnableItem{}, items)
 
 	if storeTiming > 0 {
 		t.Log("staring duration tests")
 		err := s.Push(GenericTestKeyPair.Key, GenericTestKeyPair.OwnableItem)
-		assert.NoError(err)
+		require.NoError(t, err)
 		retVal, err := s.Get(GenericTestKeyPair.Key)
-		assert.NoError(err)
+		require.NoError(t, err)
 		assert.Equal(GenericTestKeyPair.OwnableItem, retVal)
 		time.Sleep(storeTiming + time.Second)
 		retVal, err = s.Get(GenericTestKeyPair.Key)

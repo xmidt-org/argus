@@ -188,7 +188,7 @@ func TestSanitizeError(t *testing.T) {
 			assert := assert.New(t)
 			err := sanitizeError(tc.InputErr)
 			var sErr store.SanitizedError
-			assert.True(errors.As(err, &sErr))
+			assert.ErrorAs(err, &sErr)
 			assert.Equal(tc.ExpectedErr, sErr.Err)
 			assert.EqualValues(tc.ExpectedErrHTTP, sErr.ErrHTTP)
 		})
