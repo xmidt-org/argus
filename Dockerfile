@@ -1,6 +1,6 @@
 ## SPDX-FileCopyrightText: 2022 Comcast Cable Communications Management, LLC
 ## SPDX-License-Identifier: Apache-2.0
-FROM docker.io/library/golang:1.19-alpine AS builder
+FROM docker.io/library/golang:1.27.3-alpine AS builder
 
 WORKDIR /src
 
@@ -15,6 +15,8 @@ RUN mkdir -p /go/bin && \
 
 COPY . .
 
+#RUN CGO_ENABLED=0 go build -o /src/argus .  # local build
+
 ##########################
 # Build the final image.
 ##########################
@@ -24,6 +26,7 @@ FROM alpine:latest
 # Copy over the standard things you'd expect.
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt  /etc/ssl/certs/
 COPY argus /
+# COPY --from=builder /src/argus / # local build
 COPY .release/docker/entrypoint.sh  /
 
 # Copy over spruce and the spruce template file used to make the actual configuration file.
