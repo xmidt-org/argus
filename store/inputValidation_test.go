@@ -152,7 +152,7 @@ func TestValidDepth(t *testing.T) {
 			require := require.New(t)
 			var data map[string]interface{}
 			err := json.Unmarshal([]byte(tc.InputJSONData), &data)
-			require.Nil(err)
+			require.NoError(err)
 
 			isValid := validDepth(data, tc.MaxDepth)
 			assert.Equal(tc.IsValid, isValid)

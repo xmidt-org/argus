@@ -164,7 +164,7 @@ func getOrDeleteItemRequestDecoder(config *transportConfig) kithttp.DecodeReques
 	}
 }
 
-func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+func encodeSetItemResponse(_ context.Context, rw http.ResponseWriter, response interface{}) error {
 	r := response.(*setItemResponse)
 	if r.existingResource {
 		rw.WriteHeader(http.StatusOK)
@@ -177,7 +177,7 @@ func encodeSetItemResponse(ctx context.Context, rw http.ResponseWriter, response
 // TODO: I noticed order of result elements get shuffled around on multiple fetches
 // This is because of dynamodb. To make tests easier, results are sorted by lexicographical non-decreasing
 // order of the ids.
-func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+func encodeGetAllItemsResponse(_ context.Context, rw http.ResponseWriter, response interface{}) error {
 	items := response.(map[string]OwnableItem)
 	list := make([]model.Item, 0, len(items))
 	for _, value := range items {
@@ -194,11 +194,11 @@ func encodeGetAllItemsResponse(ctx context.Context, rw http.ResponseWriter, resp
 	}
 
 	rw.Header().Add("Content-Type", "application/json")
-	rw.Write(data)
+	_, _ = rw.Write(data)
 	return nil
 }
 
-func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, response interface{}) error {
+func encodeGetOrDeleteItemResponse(_ context.Context, rw http.ResponseWriter, response interface{}) error {
 	item := response.(*OwnableItem)
 
 	data, err := json.Marshal(&item.Item)
@@ -207,7 +207,7 @@ func encodeGetOrDeleteItemResponse(ctx context.Context, rw http.ResponseWriter, 
 	}
 
 	rw.Header().Add("Content-Type", "application/json")
-	rw.Write(data)
+	_, _ = rw.Write(data)
 	return nil
 }
 func transferHeaders(w http.ResponseWriter, h http.Header) {

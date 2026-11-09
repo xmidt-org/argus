@@ -39,7 +39,7 @@ func TestGetItemEndpoint(t *testing.T) {
 			DAOResponse: OwnableItem{
 				Owner: "Yoshi",
 			},
-			ExpectedErr: accessDeniedErr,
+			ExpectedErr: errAccessDenied,
 		},
 
 		{
@@ -120,7 +120,7 @@ func TestDeleteItemEndpoint(t *testing.T) {
 			GetDAOResponse: OwnableItem{
 				Owner: "fiber",
 			},
-			ExpectedErr: accessDeniedErr,
+			ExpectedErr: errAccessDenied,
 		},
 
 		{
@@ -263,7 +263,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			GetDAOResponse: OwnableItem{
 				Owner: "fiber",
 			},
-			ExpectedErr: accessDeniedErr,
+			ExpectedErr: errAccessDenied,
 		},
 		{
 			Name: "Successful Update. Wrong owner but admin mode",
@@ -337,7 +337,7 @@ func TestSetItemEndpoint(t *testing.T) {
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
 
 			if testCase.ExpectedErr == nil {
-				assert.Nil(err)
+				assert.NoError(err)
 				assert.Equal(testCase.ExpectedResponse, resp)
 				m.AssertExpectations(t)
 			} else {
@@ -496,7 +496,7 @@ func TestGetAllItemsEndpoint(t *testing.T) {
 			endpoint := newGetAllItemsEndpoint(m)
 			resp, err := endpoint(context.Background(), testCase.ItemRequest)
 			if testCase.ExpectedErr == nil {
-				assert.Nil(err)
+				assert.NoError(err)
 				assert.Equal(testCase.ExpectedResponse, resp)
 			} else {
 				assert.Equal(testCase.ExpectedErr, err)

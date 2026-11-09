@@ -3,23 +3,75 @@
 
 version: "2"
 linters:
+  default: standard
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - canonicalheader
+    - copyloopvar
     - dupl
+    - durationcheck
     - errorlint
-    - goconst
+    - exptostd
+    - fatcontext
+    - gocheckcompilerdirectives
+    - gocritic
     - gosec
+    - intrange
+    - makezero
+    - mirror
     - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
     - prealloc
+    - predeclared
+    - reassign
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - testifylint
+    - thelper
+    - tparallel
     - unconvert
-  disable:
-    - errcheck
-    - ineffassign
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
   settings:
     errorlint:
       errorf: false
     misspell:
       locale: US
+    testifylint:
+      disable:
+        - require-error
+        - suite-subtest-run
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
   exclusions:
     generated: lax
     presets:
@@ -31,12 +83,18 @@ linters:
       - linters:
           - dupl
           - funlen
+          - gosec
+          - unparam
+          - revive
         path: _test.go
     paths:
       - third_party$
       - builtin$
       - examples$
 formatters:
+  enable:
+    - gofmt
+    - goimports
   exclusions:
     generated: lax
     paths:

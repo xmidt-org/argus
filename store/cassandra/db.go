@@ -83,10 +83,10 @@ func NewCassandra(config Config, metricsIn metric.Measures, lc fx.Lifecycle, log
 		return client, err
 	}
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
+		OnStart: func(_ context.Context) error {
 			return nil
 		},
-		OnStop: func(context context.Context) error {
+		OnStop: func(_ context.Context) error {
 			ticker.Stop()
 			client.Close()
 			return nil
@@ -142,7 +142,7 @@ func CreateCassandraClient(config Config, measures metric.Measures) (*Client, er
 	for attempt := 0; attempt < config.NumRetries && err != nil; attempt++ {
 		time.Sleep(waitTime)
 		session, err = connect(clusterConfig)
-		waitTime = waitTime * config.WaitTimeMult
+		waitTime *= config.WaitTimeMult //nolint:durationcheck // WaitTimeMult is a unitless multiplier typed as Duration
 	}
 	if err != nil {
 		return nil, emperror.WrapWith(err, "Connecting to database failed", "hosts", config.Hosts)
@@ -171,7 +171,7 @@ func (s *Client) Push(key model.Key, item store.OwnableItem) error {
 	return nil
 }
 
-// nolint:dupl
+//nolint:dupl
 func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Get(key)
 	if err != nil {
@@ -195,7 +195,7 @@ func (s *Client) Get(key model.Key) (store.OwnableItem, error) {
 	return item, nil
 }
 
-// nolint:dupl
+//nolint:dupl
 func (s *Client) Delete(key model.Key) (store.OwnableItem, error) {
 	item, err := s.client.Delete(key)
 	if err != nil {

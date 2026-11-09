@@ -101,7 +101,7 @@ func (knfe KeyNotFoundError) Error() string {
 	if knfe.Key.ID == "" && knfe.Key.Bucket == "" {
 		return "parameters for key not set"
 	} else if knfe.Key.ID == "" && knfe.Key.Bucket != "" {
-		return fmt.Sprintf("no value exists for bucket %s", knfe.Key.Bucket)
+		return "no value exists for bucket " + knfe.Key.Bucket
 
 	}
 	return fmt.Sprintf("no value exists with bucket: %s, id: %s", knfe.Key.Bucket, knfe.Key.ID)

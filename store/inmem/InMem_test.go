@@ -4,8 +4,7 @@
 package inmem
 
 import (
-	"errors"
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -181,8 +180,8 @@ func (s *InMemTestSuite) TestPush() {
 				now:  s.NowFunc,
 			}
 			err := storage.Push(tc.Key, tc.Item)
-			assert.Nil(err)
-			assert.EqualValues(tc.ExpectedData, storage.data)
+			assert.NoError(err)
+			assert.Equal(tc.ExpectedData, storage.data)
 		})
 	}
 }
@@ -242,14 +241,14 @@ func (s *InMemTestSuite) TestGet() {
 			actualItem, err := storage.Get(tc.ItemKey)
 			if tc.ExpectedError != nil {
 				var sErr store.SanitizedError
-				require.True(errors.As(err, &sErr), "Expected '%v' to be a store.SanitizedError", err)
+				require.ErrorAs(err, &sErr, "Expected '%v' to be a store.SanitizedError", err)
 				var iErr store.ItemOperationError
-				require.True(errors.As(err, &iErr), "Expected '%v' to be a store.ItemOperationError", err)
+				require.ErrorAs(err, &iErr, "Expected '%v' to be a store.ItemOperationError", err)
 				assert.Equal("get", iErr.Operation)
 				assert.Equal(tc.ItemKey, iErr.Key)
-				assert.True(errors.Is(err, tc.ExpectedError), "Expected to find match for '%v' in error chain of '%v'", tc.ExpectedError, err)
+				assert.ErrorIs(err, tc.ExpectedError)
 			} else {
-				assert.Nil(err)
+				assert.NoError(err)
 				assert.Equal(tc.ExpectedItem, actualItem)
 			}
 		})
@@ -290,7 +289,7 @@ func (s *InMemTestSuite) TestGetAll() {
 			assert := assert.New(t)
 			storage := InMem{data: tc.OriginalState, now: s.NowFunc}
 			items, err := storage.GetAll(s.BucketName)
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.Equal(tc.ExpectedItems, items)
 			assert.Equal(tc.ExpectedFinalState, storage.data)
 		})
@@ -348,14 +347,14 @@ func (s *InMemTestSuite) TestDelete() {
 			actualItem, err := storage.Delete(tc.ItemKey)
 			if tc.ExpectedError != nil {
 				var sErr store.SanitizedError
-				require.True(errors.As(err, &sErr), "Expected '%v' to be a store.SanitizedError", err)
+				require.ErrorAs(err, &sErr, "Expected '%v' to be a store.SanitizedError", err)
 				var iErr store.ItemOperationError
-				require.True(errors.As(err, &iErr), "Expected '%v' to be a store.ItemOperationError", err)
+				require.ErrorAs(err, &iErr, "Expected '%v' to be a store.ItemOperationError", err)
 				assert.Equal("delete", iErr.Operation)
 				assert.Equal(tc.ItemKey, iErr.Key)
-				assert.True(errors.Is(err, tc.ExpectedError), "Expected to find match for '%v' in error chain of '%v'", tc.ExpectedError, err)
+				assert.ErrorIs(err, tc.ExpectedError)
 			} else {
-				assert.Nil(err)
+				assert.NoError(err)
 				assert.Equal(tc.ExpectedItem, actualItem)
 				assert.Equal(tc.ExpectedFinalState, storage.data)
 			}
@@ -364,7 +363,7 @@ func (s *InMemTestSuite) TestDelete() {
 }
 
 func (s *InMemTestSuite) TestNewInMem() {
-	assert.NotNil(s.T(), NewInMem())
+	s.NotNil(NewInMem())
 }
 
 func TestInMem(t *testing.T) {
@@ -372,6 +371,7 @@ func TestInMem(t *testing.T) {
 }
 
 func TestInMemConcurrent(t *testing.T) {
+	t.Parallel()
 	Storage := &InMem{
 		data: map[string]map[string]expireableItem{},
 		now:  time.Now,
@@ -388,13 +388,13 @@ func TestInMemConcurrent(t *testing.T) {
 		},
 	}
 	ItemOneKey := model.Key{ID: ItemOneID, Bucket: BucketName}
-	for i := 0; i < 30; i++ {
-		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+	for i := range 30 {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
-			Storage.Push(ItemOneKey, ItemOne)
-			Storage.Delete(ItemOneKey)
-			Storage.GetAll(BucketName)
-			Storage.Get(ItemOneKey)
+			_ = Storage.Push(ItemOneKey, ItemOne)
+			_, _ = Storage.Delete(ItemOneKey)
+			_, _ = Storage.GetAll(BucketName)
+			_, _ = Storage.Get(ItemOneKey)
 		})
 	}
 }

@@ -178,7 +178,7 @@ func TestGetAll(t *testing.T) {
 			assert.Equal(tc.ExpectedErr, err)
 			// Check gauge value
 			gaugeValue := testutil.ToFloat64(measures.DynamodbGetAllGauge)
-			assert.Equal(tc.ExpectedGauge, gaugeValue)
+			assert.InDelta(tc.ExpectedGauge, gaugeValue, 1e-9)
 		})
 	}
 }

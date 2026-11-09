@@ -6,7 +6,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"emperror.dev/emperror"
@@ -111,11 +110,11 @@ func provideBearerTokenFactory(configKey string) fx.Option {
 	return fx.Options(
 
 		clorthofx.Provide(),
-		provideAccessLevel(fmt.Sprintf("%s.accessLevel", configKey)),
+		provideAccessLevel(configKey+".accessLevel"),
 		fx.Provide(
 			fx.Annotated{
 				Name: "jwt_leeway",
-				Target: arrange.UnmarshalKey(fmt.Sprintf("%s.bearer.leeway", configKey),
+				Target: arrange.UnmarshalKey(configKey+".bearer.leeway",
 					bascule.Leeway{}),
 			},
 			fx.Annotated{

@@ -110,7 +110,7 @@ func handlePrimaryEndpoint(in PrimaryRouterIn) {
 	)
 
 	bucketPath := fmt.Sprintf("/%s/store/{bucket}", in.APIBase)
-	itemPath := fmt.Sprintf("%s/{id}", bucketPath)
+	itemPath := bucketPath + "/{id}"
 	in.Router.Handle(itemPath, in.Handlers.Set).Methods(http.MethodPut)
 	in.Router.Handle(itemPath, in.Handlers.Get).Methods(http.MethodGet)
 	in.Router.Handle(bucketPath, in.Handlers.GetAll).Methods(http.MethodGet)
